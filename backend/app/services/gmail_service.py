@@ -1,0 +1,200 @@
+"""Gmail integration service for Carbon Helpdesk."""
+import base64
+import logging
+import re
+from email.mime.text import MIMEText
+
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request as GoogleRequest
+from googleapiclient.discovery import build
+
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.modify",
+]
+
+
+def get_gmail_credentials() -> Credentials | None:
+    """Build Gmail credentials from refresh token."""
+    if not settings.GMAIL_CLIENT_ID or not settings.GMAIL_REFRESH_TOKEN:
+        return None
+
+    creds = Credentials(
+        token=None,
+        refresh_token=settings.GMAIL_REFRESH_TOKEN,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=settings.GMAIL_CLIENT_ID,
+        client_secret=settings.GMAIL_CLIENT_SECRET,
+        scopes=SCOPES,
+    )
+
+    try:
+        creds.refresh(GoogleRequest())
+        return creds
+    except Exception as e:
+        logger.error(f"Failed to refresh Gmail credentials: {e}")
+        return None
+
+
+def get_gmail_service():
+    """Get Gmail API service."""
+    creds = get_gmail_credentials()
+    if not creds:
+        return None
+    return build("gmail", "v1", credentials=creds)
+
+
+def fetch_new_emails(after_timestamp: int | None = None, max_results: int = 20, include_read: bool = False) -> list[dict]:
+    """Fetch emails from Gmail inbox."""
+    service = get_gmail_service()
+    if not service:
+        return []
+
+    try:
+        query = "in:inbox" if include_read else "is:unread in:inbox"
+        if after_timestamp:
+            query += f" after:{after_timestamp}"
+
+        results = service.users().messages().list(
+            userId="me", q=query, maxResults=max_results
+        ).execute()
+
+        messages = results.get("messages", [])
+        emails = []
+
+        for msg_ref in messages:
+            msg = service.users().messages().get(
+                userId="me", id=msg_ref["id"], format="full"
+            ).execute()
+
+            headers = {h["name"].lower(): h["value"] for h in msg["payload"]["headers"]}
+
+            # Extract body
+            body_text = ""
+            body_html = ""
+            payload = msg["payload"]
+
+            if "parts" in payload:
+                for part in payload["parts"]:
+                    mime = part.get("mimeType", "")
+                    data = part.get("body", {}).get("data", "")
+                    if data:
+                        decoded = base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
+                        if mime == "text/plain":
+                            body_text = decoded
+                        elif mime == "text/html":
+                            body_html = decoded
+            else:
+                data = payload.get("body", {}).get("data", "")
+                if data:
+                    decoded = base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
+                    if payload.get("mimeType") == "text/html":
+                        body_html = decoded
+                    else:
+                        body_text = decoded
+
+            # Clean body text from HTML if no plain text
+            if not body_text and body_html:
+                body_text = re.sub(r"<[^>]+>", "", body_html)[:2000]
+
+            emails.append({
+                "gmail_id": msg["id"],
+                "thread_id": msg.get("threadId"),
+                "subject": headers.get("subject", "(Sem assunto)"),
+                "from_email": _extract_email(headers.get("from", "")),
+                "from_name": _extract_name(headers.get("from", "")),
+                "to": headers.get("to", ""),
+                "date": headers.get("date", ""),
+                "body_text": body_text[:5000],
+                "body_html": body_html[:10000] if body_html else None,
+                "in_reply_to": headers.get("in-reply-to"),
+                "references": headers.get("references"),
+            })
+
+        return emails
+    except Exception as e:
+        logger.error(f"Failed to fetch emails: {e}")
+        return []
+
+
+def send_email(to: str, subject: str, body_text: str, thread_id: str | None = None, in_reply_to: str | None = None) -> dict | None:
+    """Send an email via Gmail API."""
+    service = get_gmail_service()
+    if not service:
+        return None
+
+    try:
+        message = MIMEText(body_text)
+        message["to"] = to
+        message["subject"] = subject
+        if settings.GMAIL_SUPPORT_EMAIL:
+            message["from"] = settings.GMAIL_SUPPORT_EMAIL
+        if in_reply_to:
+            message["In-Reply-To"] = in_reply_to
+            message["References"] = in_reply_to
+
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        body = {"raw": raw}
+        if thread_id:
+            body["threadId"] = thread_id
+
+        result = service.users().messages().send(userId="me", body=body).execute()
+        return {"id": result["id"], "threadId": result.get("threadId")}
+    except Exception as e:
+        logger.error(f"Failed to send email: {e}")
+        return None
+
+
+def mark_as_read(message_id: str):
+    """Mark a Gmail message as read."""
+    service = get_gmail_service()
+    if not service:
+        return
+
+    try:
+        service.users().messages().modify(
+            userId="me", id=message_id,
+            body={"removeLabelIds": ["UNREAD"]}
+        ).execute()
+    except Exception as e:
+        logger.error(f"Failed to mark email as read: {e}")
+
+
+def test_gmail_connection() -> dict:
+    """Test if Gmail connection is working."""
+    if not settings.GMAIL_CLIENT_ID:
+        return {"ok": False, "error": "GMAIL_CLIENT_ID não configurado"}
+    if not settings.GMAIL_REFRESH_TOKEN:
+        return {"ok": False, "error": "GMAIL_REFRESH_TOKEN não configurado"}
+
+    service = get_gmail_service()
+    if not service:
+        return {"ok": False, "error": "Falha ao conectar com Gmail"}
+
+    try:
+        profile = service.users().getProfile(userId="me").execute()
+        return {
+            "ok": True,
+            "email": profile.get("emailAddress"),
+            "messages_total": profile.get("messagesTotal"),
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def _extract_email(from_header: str) -> str:
+    """Extract email from 'Name <email>' format."""
+    match = re.search(r"<([^>]+)>", from_header)
+    return match.group(1) if match else from_header.strip()
+
+
+def _extract_name(from_header: str) -> str:
+    """Extract name from 'Name <email>' format."""
+    match = re.match(r"^([^<]+)", from_header)
+    name = match.group(1).strip().strip('"') if match else ""
+    return name or _extract_email(from_header)
