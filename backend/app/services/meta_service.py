@@ -212,6 +212,180 @@ def parse_comment_events(entry: dict, webhook_object: str = "") -> list[dict]:
     return comments
 
 
+async def fetch_page_posts(page_id: str, limit: int = 25) -> list[dict]:
+    """Fetch recent posts from a Facebook Page via Graph API."""
+    try:
+        token = settings.META_PAGE_ACCESS_TOKEN
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"{GRAPH_API_BASE}/{page_id}/posts",
+                params={
+                    "fields": "id,message,created_time,full_picture,permalink_url,comments.summary(true)",
+                    "limit": limit,
+                    "access_token": token,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            posts = []
+            for p in data.get("data", []):
+                posts.append({
+                    "id": p["id"],
+                    "platform": "facebook",
+                    "text": p.get("message", ""),
+                    "image": p.get("full_picture"),
+                    "url": p.get("permalink_url", ""),
+                    "comment_count": p.get("comments", {}).get("summary", {}).get("total_count", 0),
+                    "created_at": p.get("created_time", ""),
+                })
+            return posts
+    except Exception as e:
+        logger.error(f"Failed to fetch Facebook page posts: {e}")
+        return []
+
+
+async def fetch_instagram_media(ig_account_id: str, limit: int = 25) -> list[dict]:
+    """Fetch recent media from an Instagram Business account via Graph API."""
+    try:
+        token = settings.META_PAGE_ACCESS_TOKEN
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"{GRAPH_API_BASE}/{ig_account_id}/media",
+                params={
+                    "fields": "id,caption,timestamp,media_url,permalink,comments_count,media_type",
+                    "limit": limit,
+                    "access_token": token,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            posts = []
+            for m in data.get("data", []):
+                posts.append({
+                    "id": m["id"],
+                    "platform": "instagram",
+                    "text": m.get("caption", ""),
+                    "image": m.get("media_url"),
+                    "url": m.get("permalink", ""),
+                    "comment_count": m.get("comments_count", 0),
+                    "created_at": m.get("timestamp", ""),
+                })
+            return posts
+    except Exception as e:
+        logger.error(f"Failed to fetch Instagram media: {e}")
+        return []
+
+
+async def fetch_comments_for_post(platform: str, post_id: str, limit: int = 100) -> list[dict]:
+    """Fetch all comments (and replies) for a single post.
+
+    Returns normalized list compatible with parse_comment_events() output format.
+    """
+    try:
+        token = settings.META_PAGE_ACCESS_TOKEN
+        async with httpx.AsyncClient(timeout=30) as client:
+            if platform == "instagram":
+                resp = await client.get(
+                    f"{GRAPH_API_BASE}/{post_id}/comments",
+                    params={
+                        "fields": "id,text,timestamp,from{id,username},replies{id,text,timestamp,from{id,username}}",
+                        "limit": limit,
+                        "access_token": token,
+                    },
+                )
+            else:
+                resp = await client.get(
+                    f"{GRAPH_API_BASE}/{post_id}/comments",
+                    params={
+                        "fields": "id,message,created_time,from,comments{id,message,created_time,from}",
+                        "limit": limit,
+                        "access_token": token,
+                    },
+                )
+            resp.raise_for_status()
+            data = resp.json()
+
+        comments = []
+        for c in data.get("data", []):
+            if platform == "instagram":
+                comment = {
+                    "platform": "instagram",
+                    "comment_id": c["id"],
+                    "post_id": post_id,
+                    "author_id": c.get("from", {}).get("id", ""),
+                    "author_name": c.get("from", {}).get("username", ""),
+                    "text": c.get("text", ""),
+                    "parent_comment_id": None,
+                    "timestamp": c.get("timestamp", ""),
+                }
+                comments.append(comment)
+                # Sub-comments (replies)
+                for r in c.get("replies", {}).get("data", []):
+                    comments.append({
+                        "platform": "instagram",
+                        "comment_id": r["id"],
+                        "post_id": post_id,
+                        "author_id": r.get("from", {}).get("id", ""),
+                        "author_name": r.get("from", {}).get("username", ""),
+                        "text": r.get("text", ""),
+                        "parent_comment_id": c["id"],
+                        "timestamp": r.get("timestamp", ""),
+                    })
+            else:
+                comment = {
+                    "platform": "facebook",
+                    "comment_id": c["id"],
+                    "post_id": post_id,
+                    "author_id": c.get("from", {}).get("id", ""),
+                    "author_name": c.get("from", {}).get("name", ""),
+                    "text": c.get("message", ""),
+                    "parent_comment_id": None,
+                    "timestamp": c.get("created_time", ""),
+                }
+                comments.append(comment)
+                # Sub-comments
+                for r in c.get("comments", {}).get("data", []):
+                    comments.append({
+                        "platform": "facebook",
+                        "comment_id": r["id"],
+                        "post_id": post_id,
+                        "author_id": r.get("from", {}).get("id", ""),
+                        "author_name": r.get("from", {}).get("name", ""),
+                        "text": r.get("message", ""),
+                        "parent_comment_id": c["id"],
+                        "timestamp": r.get("created_time", ""),
+                    })
+
+        return comments
+    except Exception as e:
+        logger.error(f"Failed to fetch comments for {platform} post {post_id}: {e}")
+        return []
+
+
+async def unhide_comment(platform: str, comment_id: str) -> bool:
+    """Unhide a previously hidden comment on Instagram (reversible).
+
+    Only works on Instagram — Facebook deletes comments (irreversible).
+    """
+    if platform != "instagram":
+        logger.warning(f"Cannot unhide Facebook comment {comment_id} — deletion is irreversible")
+        return False
+    try:
+        token = settings.META_PAGE_ACCESS_TOKEN
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"{GRAPH_API_BASE}/{comment_id}",
+                json={"hide": False},
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            resp.raise_for_status()
+            logger.info(f"Unhidden Instagram comment {comment_id}")
+            return True
+    except Exception as e:
+        logger.error(f"Failed to unhide Instagram comment {comment_id}: {e}")
+        return False
+
+
 async def reply_to_comment(platform: str, comment_id: str, text: str) -> dict | None:
     """Reply to a comment on Instagram or Facebook."""
     try:

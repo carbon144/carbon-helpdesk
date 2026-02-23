@@ -342,6 +342,19 @@ async def lifespan(app: FastAPI):
             "CREATE INDEX IF NOT EXISTS ix_social_comments_comment_id ON social_comments (comment_id)",
             "CREATE INDEX IF NOT EXISTS ix_social_comments_ai_action ON social_comments (ai_action)",
             "CREATE INDEX IF NOT EXISTS ix_social_comments_post_id ON social_comments (post_id)",
+            # Moderation settings (key/value for AI toggle, auto_reply, auto_hide)
+            """CREATE TABLE IF NOT EXISTS moderation_settings (
+                key VARCHAR(100) PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_by VARCHAR(255)
+            )""",
+            # Seed default moderation settings
+            """INSERT INTO moderation_settings (key, value) VALUES
+                ('ai_enabled', 'true'),
+                ('auto_reply', 'true'),
+                ('auto_hide', 'true')
+            ON CONFLICT (key) DO NOTHING""",
         ]
         migration_logger = logging.getLogger("migrations")
         for sql in migration_sqls:

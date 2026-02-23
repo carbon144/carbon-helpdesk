@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     META_PAGE_ACCESS_TOKEN: str = ""
     META_WHATSAPP_TOKEN: str = ""
     META_WHATSAPP_PHONE_ID: str = ""
+    META_PAGE_ID: str = ""
+    META_INSTAGRAM_ACCOUNT_ID: str = ""
 
     SHOPIFY_STORE: str = ""  # ex: carbon-smartwatch.myshopify.com
     SHOPIFY_ACCESS_TOKEN: str = ""  # Admin API access token

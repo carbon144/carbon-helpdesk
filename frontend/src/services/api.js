@@ -86,6 +86,13 @@ export const sendMetaReply = (data) => api.post('/meta/send-reply', data)
 export const getModerationLog = (params) => api.get('/meta/moderation', { params })
 export const getModerationStats = (days = 7) => api.get('/meta/moderation/stats', { params: { days } })
 export const reviewComment = (id) => api.post(`/meta/moderation/${id}/review`)
+export const replyToComment = (id, reply) => api.post(`/meta/moderation/${id}/reply`, { reply })
+export const hideComment = (id, hide = true) => api.post(`/meta/moderation/${id}/hide`, { hide })
+export const reprocessComment = (id) => api.post(`/meta/moderation/${id}/reprocess`, { execute_actions: true })
+export const getMetaPosts = (params) => api.get('/meta/posts', { params })
+export const syncComments = (data) => api.post('/meta/comments/sync', data)
+export const getModerationSettings = () => api.get('/meta/moderation/settings')
+export const updateModerationSettings = (data) => api.post('/meta/moderation/settings', data)
 
 // ── Gmail ──
 export const getGmailStatus = () => api.get('/gmail/status')

@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Request, HTTPException, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -17,6 +17,8 @@ from app.models.customer import Customer
 from app.services.meta_service import (
     verify_signature, parse_webhook_entry, parse_comment_events,
     send_message, get_user_profile, reply_to_comment, hide_comment,
+    unhide_comment, fetch_page_posts, fetch_instagram_media,
+    fetch_comments_for_post,
 )
 from app.services.ai_service import triage_ticket as ai_triage, ai_auto_reply, moderate_comment
 from app.services.protocol_service import assign_protocol
@@ -325,11 +327,18 @@ async def _get_kb_context(db: AsyncSession, category: str | None) -> str:
 
 # ── Comment moderation ──
 
+async def _get_moderation_setting(db: AsyncSession, key: str, default: str = "true") -> str:
+    """Get a moderation setting value from the database."""
+    result = await db.execute(text(f"SELECT value FROM moderation_settings WHERE key = :key"), {"key": key})
+    row = result.first()
+    return row[0] if row else default
+
+
 async def _process_comment(db: AsyncSession, comment_data: dict):
     """Process and moderate a single comment from Instagram or Facebook."""
     platform = comment_data["platform"]
     comment_id = comment_data["comment_id"]
-    text = comment_data["text"]
+    comment_text = comment_data["text"]
     author_name = comment_data.get("author_name", "")
 
     # Check if already processed
@@ -339,41 +348,53 @@ async def _process_comment(db: AsyncSession, comment_data: dict):
     if existing.scalars().first():
         return
 
-    # AI moderation
-    result = moderate_comment(
-        comment_text=text,
-        author_name=author_name,
-        post_caption=comment_data.get("post_caption", ""),
-        platform=platform,
-    )
+    # Check if AI moderation is enabled
+    ai_enabled = (await _get_moderation_setting(db, "ai_enabled")) == "true"
 
-    if not result:
-        logger.warning(f"AI moderation returned empty for comment {comment_id}")
-        return
-
-    action = result.get("action", "ignore")
-    reply_text = result.get("reply", "")
-
-    # Execute actions
+    result = None
+    action = "ignore"
+    reply_text = ""
+    stored_action = "pending"
     reply_sent = False
     was_hidden = False
 
-    if action in ("hide", "hide_reply"):
-        was_hidden = await hide_comment(platform, comment_id)
+    if ai_enabled:
+        result = moderate_comment(
+            comment_text=comment_text,
+            author_name=author_name,
+            post_caption=comment_data.get("post_caption", ""),
+            platform=platform,
+        )
 
-    if action in ("reply", "hide_reply") and reply_text:
-        sent = await reply_to_comment(platform, comment_id, reply_text)
-        reply_sent = sent is not None
+        if result:
+            action = result.get("action", "ignore")
+            reply_text = result.get("reply", "")
 
-    # Map action to stored value
-    if action == "hide_reply":
-        stored_action = "hidden_replied"
-    elif action == "hide":
-        stored_action = "hidden"
-    elif action == "reply":
-        stored_action = "replied"
+            # Check auto_reply and auto_hide settings before executing
+            auto_reply = (await _get_moderation_setting(db, "auto_reply")) == "true"
+            auto_hide = (await _get_moderation_setting(db, "auto_hide")) == "true"
+
+            if action in ("hide", "hide_reply") and auto_hide:
+                was_hidden = await hide_comment(platform, comment_id)
+
+            if action in ("reply", "hide_reply") and reply_text and auto_reply:
+                sent = await reply_to_comment(platform, comment_id, reply_text)
+                reply_sent = sent is not None
+
+            # Map action to stored value
+            if action == "hide_reply":
+                stored_action = "hidden_replied"
+            elif action == "hide":
+                stored_action = "hidden"
+            elif action == "reply":
+                stored_action = "replied"
+            else:
+                stored_action = "ignored"
+        else:
+            logger.warning(f"AI moderation returned empty for comment {comment_id}")
+            stored_action = "pending"
     else:
-        stored_action = "ignored"
+        stored_action = "pending"
 
     # Save to database
     record = SocialComment(
@@ -383,19 +404,19 @@ async def _process_comment(db: AsyncSession, comment_data: dict):
         parent_comment_id=comment_data.get("parent_comment_id"),
         author_id=comment_data.get("author_id", ""),
         author_name=author_name,
-        text=text,
+        text=comment_text,
         ai_action=stored_action,
         ai_reply=reply_text if reply_text else None,
-        ai_sentiment=result.get("sentiment"),
-        ai_category=result.get("category"),
-        ai_confidence=result.get("confidence"),
+        ai_sentiment=result.get("sentiment") if result else None,
+        ai_category=result.get("category") if result else None,
+        ai_confidence=result.get("confidence") if result else None,
         reply_sent=reply_sent,
         was_hidden=was_hidden,
     )
     db.add(record)
     await db.commit()
 
-    logger.info(f"Moderated {platform} comment {comment_id}: action={stored_action}, sentiment={result.get('sentiment')}")
+    logger.info(f"Moderated {platform} comment {comment_id}: action={stored_action}, sentiment={result.get('sentiment') if result else 'N/A'}")
 
 
 # ── Agent-facing API endpoints ──
@@ -515,6 +536,7 @@ async def get_moderation_log(
     platform: str | None = None,
     action: str | None = None,
     sentiment: str | None = None,
+    search: str | None = None,
     page: int = 1,
     per_page: int = 50,
     user: User = Depends(get_current_user),
@@ -529,6 +551,11 @@ async def get_moderation_log(
         query = query.where(SocialComment.ai_action == action)
     if sentiment:
         query = query.where(SocialComment.ai_sentiment == sentiment)
+    if search:
+        search_filter = f"%{search}%"
+        query = query.where(
+            SocialComment.text.ilike(search_filter) | SocialComment.author_name.ilike(search_filter)
+        )
 
     # Count total
     from sqlalchemy import func as sql_func
@@ -539,6 +566,11 @@ async def get_moderation_log(
         count_query = count_query.where(SocialComment.ai_action == action)
     if sentiment:
         count_query = count_query.where(SocialComment.ai_sentiment == sentiment)
+    if search:
+        search_filter = f"%{search}%"
+        count_query = count_query.where(
+            SocialComment.text.ilike(search_filter) | SocialComment.author_name.ilike(search_filter)
+        )
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
@@ -650,3 +682,245 @@ async def review_comment(
     await db.commit()
 
     return {"ok": True}
+
+
+# ── New moderation action endpoints ──
+
+@router.get("/posts")
+async def get_posts(
+    user: User = Depends(get_current_user),
+):
+    """Fetch recent posts from Facebook and Instagram."""
+    posts = []
+
+    if settings.META_PAGE_ID:
+        fb_posts = await fetch_page_posts(settings.META_PAGE_ID)
+        posts.extend(fb_posts)
+
+    if settings.META_INSTAGRAM_ACCOUNT_ID:
+        ig_posts = await fetch_instagram_media(settings.META_INSTAGRAM_ACCOUNT_ID)
+        posts.extend(ig_posts)
+
+    # Sort by created_at descending
+    posts.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+
+    return {"posts": posts}
+
+
+@router.post("/comments/sync")
+async def sync_comments(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Sync comments from Facebook/Instagram posts and process them with AI."""
+    data = await request.json()
+    sync_all = data.get("sync_all", False)
+    post_ids = data.get("post_ids", [])
+    platform_filter = data.get("platform")
+
+    # Gather posts to sync
+    posts_to_sync = []
+
+    if sync_all:
+        if settings.META_PAGE_ID:
+            fb_posts = await fetch_page_posts(settings.META_PAGE_ID)
+            posts_to_sync.extend([(p["id"], "facebook") for p in fb_posts])
+        if settings.META_INSTAGRAM_ACCOUNT_ID:
+            ig_posts = await fetch_instagram_media(settings.META_INSTAGRAM_ACCOUNT_ID)
+            posts_to_sync.extend([(p["id"], "instagram") for p in ig_posts])
+    else:
+        for pid in post_ids:
+            posts_to_sync.append((pid, platform_filter or "instagram"))
+
+    synced = 0
+    errors = 0
+
+    for post_id, platform in posts_to_sync:
+        try:
+            comments = await fetch_comments_for_post(platform, post_id)
+            for comment_data in comments:
+                try:
+                    await _process_comment(db, comment_data)
+                    synced += 1
+                except Exception as e:
+                    logger.error(f"Error processing synced comment: {e}")
+                    errors += 1
+        except Exception as e:
+            logger.error(f"Error fetching comments for post {post_id}: {e}")
+            errors += 1
+
+    return {"synced": synced, "errors": errors, "total_posts": len(posts_to_sync)}
+
+
+@router.post("/moderation/{comment_db_id}/reply")
+async def reply_to_moderation_comment(
+    comment_db_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Send a manual reply to a moderated comment."""
+    data = await request.json()
+    reply_text = data.get("reply", "").strip()
+    if not reply_text:
+        raise HTTPException(400, "reply é obrigatório")
+
+    result = await db.execute(select(SocialComment).where(SocialComment.id == comment_db_id))
+    comment = result.scalars().first()
+    if not comment:
+        raise HTTPException(404, "Comentário não encontrado")
+
+    sent = await reply_to_comment(comment.platform, comment.comment_id, reply_text)
+    if not sent:
+        raise HTTPException(500, "Falha ao enviar resposta via Meta API")
+
+    comment.ai_reply = reply_text
+    comment.reply_sent = True
+    if comment.ai_action == "pending":
+        comment.ai_action = "replied"
+    await db.commit()
+
+    return {"ok": True, "reply_sent": True}
+
+
+@router.post("/moderation/{comment_db_id}/hide")
+async def hide_moderation_comment(
+    comment_db_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Hide or unhide a moderated comment."""
+    data = await request.json()
+    should_hide = data.get("hide", True)
+
+    result = await db.execute(select(SocialComment).where(SocialComment.id == comment_db_id))
+    comment = result.scalars().first()
+    if not comment:
+        raise HTTPException(404, "Comentário não encontrado")
+
+    if should_hide:
+        success = await hide_comment(comment.platform, comment.comment_id)
+    else:
+        success = await unhide_comment(comment.platform, comment.comment_id)
+
+    if not success:
+        action_label = "ocultar" if should_hide else "mostrar"
+        raise HTTPException(500, f"Falha ao {action_label} comentário via Meta API")
+
+    comment.was_hidden = should_hide
+    await db.commit()
+
+    return {"ok": True, "was_hidden": should_hide}
+
+
+@router.post("/moderation/{comment_db_id}/reprocess")
+async def reprocess_comment(
+    comment_db_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Re-run AI moderation on a comment and optionally execute actions."""
+    data = await request.json()
+    execute_actions = data.get("execute_actions", False)
+
+    result_row = await db.execute(select(SocialComment).where(SocialComment.id == comment_db_id))
+    comment = result_row.scalars().first()
+    if not comment:
+        raise HTTPException(404, "Comentário não encontrado")
+
+    # Re-run AI moderation
+    ai_result = moderate_comment(
+        comment_text=comment.text,
+        author_name=comment.author_name or "",
+        post_caption=comment.post_caption or "",
+        platform=comment.platform,
+    )
+
+    if not ai_result:
+        raise HTTPException(500, "IA não retornou resultado")
+
+    action = ai_result.get("action", "ignore")
+    reply_text = ai_result.get("reply", "")
+
+    # Update AI fields
+    comment.ai_sentiment = ai_result.get("sentiment")
+    comment.ai_category = ai_result.get("category")
+    comment.ai_confidence = ai_result.get("confidence")
+    comment.ai_reply = reply_text if reply_text else comment.ai_reply
+
+    # Map action
+    if action == "hide_reply":
+        comment.ai_action = "hidden_replied"
+    elif action == "hide":
+        comment.ai_action = "hidden"
+    elif action == "reply":
+        comment.ai_action = "replied"
+    else:
+        comment.ai_action = "ignored"
+
+    # Execute actions if requested
+    if execute_actions:
+        if action in ("hide", "hide_reply"):
+            comment.was_hidden = await hide_comment(comment.platform, comment.comment_id)
+        if action in ("reply", "hide_reply") and reply_text:
+            sent = await reply_to_comment(comment.platform, comment.comment_id, reply_text)
+            comment.reply_sent = sent is not None
+
+    await db.commit()
+
+    return {
+        "ok": True,
+        "ai_action": comment.ai_action,
+        "ai_sentiment": comment.ai_sentiment,
+        "ai_category": comment.ai_category,
+        "ai_confidence": comment.ai_confidence,
+        "ai_reply": comment.ai_reply,
+    }
+
+
+@router.get("/moderation/settings")
+async def get_moderation_settings(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get current moderation settings."""
+    result = await db.execute(text("SELECT key, value FROM moderation_settings"))
+    rows = result.all()
+    settings_dict = {row[0]: row[1] for row in rows}
+    return {
+        "ai_enabled": settings_dict.get("ai_enabled", "true") == "true",
+        "auto_reply": settings_dict.get("auto_reply", "true") == "true",
+        "auto_hide": settings_dict.get("auto_hide", "true") == "true",
+    }
+
+
+@router.post("/moderation/settings")
+async def update_moderation_settings(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Update moderation settings (ai_enabled, auto_reply, auto_hide)."""
+    data = await request.json()
+    allowed_keys = {"ai_enabled", "auto_reply", "auto_hide"}
+    now = datetime.now(timezone.utc).isoformat()
+
+    for key, value in data.items():
+        if key not in allowed_keys:
+            continue
+        str_value = "true" if value else "false"
+        await db.execute(
+            text(
+                "INSERT INTO moderation_settings (key, value, updated_at, updated_by) "
+                "VALUES (:key, :value, :updated_at, :updated_by) "
+                "ON CONFLICT (key) DO UPDATE SET value = :value, updated_at = :updated_at, updated_by = :updated_by"
+            ),
+            {"key": key, "value": str_value, "updated_at": now, "updated_by": user.name},
+        )
+
+    await db.commit()
+
+    return await get_moderation_settings(user=user, db=db)
