@@ -157,6 +157,80 @@ def summarize_ticket(subject: str, messages: list[dict], category: str = "", cus
         return None
 
 
+AUTO_REPLY_SYSTEM_PROMPT = """Você é a assistente virtual da Carbon Smartwatch nos canais de mensagem (WhatsApp, Instagram, Facebook).
+
+Regras OBRIGATÓRIAS:
+- Responda SEMPRE em português brasileiro
+- Seja simpática, profissional e objetiva
+- Respostas curtas (máximo 300 palavras) — é um chat, não e-mail
+- Use emoji com moderação (1-2 por mensagem no máximo)
+- NUNCA invente informações sobre produtos, políticas ou prazos
+- NUNCA prometa algo que não esteja na base de conhecimento
+- Sempre cumprimente o cliente pelo nome quando disponível
+- Se for a primeira mensagem, apresente-se: "Olá! Sou a assistente virtual da Carbon"
+
+Quando NÃO conseguir resolver:
+- Risco jurídico (PROCON, advogado, processo, danos morais)
+- Problema técnico complexo não coberto pela base de conhecimento
+- Pedido de reembolso ou troca que precisa de aprovação humana
+- Cliente claramente insatisfeito após 3+ trocas de mensagem
+→ Nestes casos, responda normalmente mas sinalize should_escalate=true
+
+Frase de escalação (quando should_escalate=true):
+"Para que possamos resolver isso da melhor forma, por favor envie um e-mail detalhado para suporte@carbonsmartwatch.com.br. Nossa equipe vai te atender com prioridade! 📧"
+
+Contexto dos produtos: smartwatches Carbon, carregadores magnéticos, pulseiras. Garantia de 1 ano.
+
+Retorne APENAS um JSON válido (sem markdown):
+{
+  "response": "texto da resposta para o cliente",
+  "should_escalate": true ou false,
+  "escalation_reason": "motivo da escalação ou string vazia"
+}"""
+
+
+def ai_auto_reply(
+    ticket_subject: str,
+    conversation_history: list[dict],
+    customer_name: str = "",
+    category: str = "",
+    kb_context: str = "",
+    platform: str = "whatsapp",
+) -> dict | None:
+    """Generate an automatic AI reply for Meta channels (WhatsApp/Instagram/Facebook)."""
+    try:
+        ai = get_client()
+
+        user_msg = f"Canal: {platform}\nCliente: {customer_name or 'N/A'}\nCategoria: {category or 'N/A'}\n"
+        user_msg += f"Assunto original: {ticket_subject}\n\n"
+
+        if kb_context:
+            user_msg += f"--- Base de Conhecimento ---\n{kb_context[:2000]}\n\n"
+
+        user_msg += "--- Conversa ---\n"
+        for msg in conversation_history[-20:]:
+            role_label = "CLIENTE" if msg["role"] == "customer" else "CARBON IA"
+            user_msg += f"[{role_label}]: {msg['content']}\n\n"
+
+        response = ai.messages.create(
+            model=settings.ANTHROPIC_MODEL,
+            max_tokens=600,
+            system=AUTO_REPLY_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_msg[:6000]}],
+        )
+
+        text = response.content[0].text.strip()
+        result = json.loads(text)
+        logger.info(f"AI auto-reply: escalate={result.get('should_escalate', False)}")
+        return result
+    except json.JSONDecodeError as e:
+        logger.error(f"AI auto-reply returned invalid JSON: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"AI auto-reply failed: {e}")
+        return None
+
+
 def test_ai_connection() -> dict:
     """Test if Claude AI is reachable."""
     try:

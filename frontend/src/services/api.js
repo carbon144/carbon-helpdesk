@@ -75,12 +75,19 @@ export const deleteMacro = (id) => api.delete(`/kb/macros/${id}`)
 export const getSlackStatus = () => api.get('/slack/status')
 export const sendSlackReply = (data) => api.post('/slack/send-reply', data)
 
+// ── Meta (WhatsApp, Instagram, Facebook) ──
+export const getMetaStatus = () => api.get('/meta/status')
+export const pauseTicketAI = (ticketId) => api.post(`/meta/tickets/${ticketId}/pause-ai`)
+export const resumeTicketAI = (ticketId) => api.post(`/meta/tickets/${ticketId}/resume-ai`)
+export const sendMetaReply = (data) => api.post('/meta/send-reply', data)
+
 // ── Gmail ──
 export const getGmailStatus = () => api.get('/gmail/status')
 export const getGmailAuthUrl = () => api.get('/gmail/auth-url')
 export const fetchGmailEmails = () => api.post('/gmail/fetch')
 export const fetchGmailHistory = (days = 30) => api.post('/gmail/fetch-history', { days }, { timeout: LONG_OPERATION_TIMEOUT_MS })
 export const sendGmailReply = (data) => api.post('/gmail/send-reply', data)
+export const composeEmail = (data) => api.post('/gmail/compose', data)
 
 // ── AI ──
 export const getAIStatus = () => api.get('/ai/status')

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { getSlackStatus, getGmailStatus, getGmailAuthUrl, fetchGmailEmails, getAIStatus } from '../services/api'
+import { getSlackStatus, getGmailStatus, getGmailAuthUrl, fetchGmailEmails, getAIStatus, getMetaStatus } from '../services/api'
 
 export default function IntegrationsPage() {
   const [slackStatus, setSlackStatus] = useState(null)
   const [gmailStatus, setGmailStatus] = useState(null)
   const [aiStatus, setAiStatus] = useState(null)
+  const [metaStatus, setMetaStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [fetching, setFetching] = useState(false)
   const [fetchResult, setFetchResult] = useState(null)
@@ -15,10 +16,11 @@ export default function IntegrationsPage() {
 
   const loadStatus = async () => {
     try {
-      const [slack, gmail, ai] = await Promise.allSettled([getSlackStatus(), getGmailStatus(), getAIStatus()])
+      const [slack, gmail, ai, meta] = await Promise.allSettled([getSlackStatus(), getGmailStatus(), getAIStatus(), getMetaStatus()])
       setSlackStatus(slack.status === 'fulfilled' ? slack.value.data : { configured: false })
       setGmailStatus(gmail.status === 'fulfilled' ? gmail.value.data : { configured: false })
       setAiStatus(ai.status === 'fulfilled' ? ai.value.data : { configured: false })
+      setMetaStatus(meta.status === 'fulfilled' ? meta.value.data : null)
     } catch (e) {
       console.error('Failed to load integration statuses:', e)
     } finally {
@@ -223,6 +225,99 @@ GMAIL_SUPPORT_EMAIL=suporte@carbonsmartwatch.com.br`}
           <pre className="bg-carbon-800 rounded-lg p-3 mt-2 text-sm text-green-400 overflow-x-auto">
 {`ANTHROPIC_API_KEY=sk-ant-sua-chave-aqui`}
           </pre>
+        </div>
+      </div>
+
+      {/* WhatsApp Business */}
+      <div className="bg-carbon-700 rounded-xl p-6 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-green-600/20 rounded-xl flex items-center justify-center">
+              <i className="fab fa-whatsapp text-2xl text-green-400" />
+            </div>
+            <div>
+              <h2 className="text-white font-semibold text-lg">WhatsApp Business</h2>
+              <p className="text-carbon-400 text-sm">Atendimento automático por IA via WhatsApp</p>
+            </div>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+            metaStatus?.whatsapp?.configured
+              ? 'bg-green-500/20 text-green-400'
+              : 'bg-carbon-600 text-carbon-400'
+          }`}>
+            <i className={`fas ${metaStatus?.whatsapp?.configured ? 'fa-check-circle' : 'fa-times-circle'} mr-1`} />
+            {metaStatus?.whatsapp?.configured ? 'Configurado' : 'Não Configurado'}
+          </span>
+        </div>
+        <div className="border-t border-carbon-600 pt-4">
+          <h3 className="text-white text-sm font-medium mb-3">Como configurar:</h3>
+          <ol className="text-carbon-400 text-sm space-y-2">
+            <li>1. Acesse o <a href="https://developers.facebook.com" target="_blank" rel="noopener" className="text-indigo-400 hover:underline">Meta for Developers</a></li>
+            <li>2. Configure o WhatsApp Business Cloud API no seu App</li>
+            <li>3. Registre o webhook: <code className="bg-carbon-800 px-2 py-0.5 rounded text-green-400">https://SEU-DOMINIO/api/meta/webhook</code></li>
+            <li>4. Configure no <code className="bg-carbon-800 px-2 py-0.5 rounded text-green-400">.env</code>:</li>
+          </ol>
+          <pre className="bg-carbon-800 rounded-lg p-3 mt-2 text-sm text-green-400 overflow-x-auto">
+{`META_APP_SECRET=seu-app-secret
+META_VERIFY_TOKEN=seu-token-verificacao
+META_WHATSAPP_TOKEN=seu-whatsapp-token
+META_WHATSAPP_PHONE_ID=seu-phone-number-id`}
+          </pre>
+        </div>
+      </div>
+
+      {/* Instagram */}
+      <div className="bg-carbon-700 rounded-xl p-6 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-pink-600/20 rounded-xl flex items-center justify-center">
+              <i className="fab fa-instagram text-2xl text-pink-400" />
+            </div>
+            <div>
+              <h2 className="text-white font-semibold text-lg">Instagram Direct</h2>
+              <p className="text-carbon-400 text-sm">Mensagens do Instagram respondidas por IA</p>
+            </div>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+            metaStatus?.instagram?.configured
+              ? 'bg-green-500/20 text-green-400'
+              : 'bg-carbon-600 text-carbon-400'
+          }`}>
+            <i className={`fas ${metaStatus?.instagram?.configured ? 'fa-check-circle' : 'fa-times-circle'} mr-1`} />
+            {metaStatus?.instagram?.configured ? 'Configurado' : 'Não Configurado'}
+          </span>
+        </div>
+        <div className="border-t border-carbon-600 pt-4">
+          <p className="text-carbon-400 text-sm">Usa o mesmo Meta Page Access Token do Facebook. Configure a Page no Meta Business Suite e vincule sua conta do Instagram.</p>
+          <pre className="bg-carbon-800 rounded-lg p-3 mt-2 text-sm text-green-400 overflow-x-auto">
+{`META_PAGE_ACCESS_TOKEN=seu-page-access-token`}
+          </pre>
+        </div>
+      </div>
+
+      {/* Facebook Messenger */}
+      <div className="bg-carbon-700 rounded-xl p-6 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-blue-600/20 rounded-xl flex items-center justify-center">
+              <i className="fab fa-facebook-messenger text-2xl text-blue-400" />
+            </div>
+            <div>
+              <h2 className="text-white font-semibold text-lg">Facebook Messenger</h2>
+              <p className="text-carbon-400 text-sm">Mensagens do Messenger respondidas por IA</p>
+            </div>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+            metaStatus?.facebook?.configured
+              ? 'bg-green-500/20 text-green-400'
+              : 'bg-carbon-600 text-carbon-400'
+          }`}>
+            <i className={`fas ${metaStatus?.facebook?.configured ? 'fa-check-circle' : 'fa-times-circle'} mr-1`} />
+            {metaStatus?.facebook?.configured ? 'Configurado' : 'Não Configurado'}
+          </span>
+        </div>
+        <div className="border-t border-carbon-600 pt-4">
+          <p className="text-carbon-400 text-sm">Usa o mesmo Page Access Token e webhook do Instagram. Ambos são gerenciados pela mesma Facebook Page.</p>
         </div>
       </div>
     </div>

@@ -100,6 +100,11 @@ class TicketResponse(BaseModel):
     source: str | None = None
     slack_channel_id: str | None = None
     slack_thread_ts: str | None = None
+    meta_conversation_id: str | None = None
+    meta_platform: str | None = None
+    ai_auto_mode: bool = True
+    ai_paused_by: str | None = None
+    ai_paused_at: datetime | None = None
     protocol: str | None = None
     protocol_sent: bool = False
     internal_notes: str | None = None

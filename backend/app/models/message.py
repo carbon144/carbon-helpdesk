@@ -25,6 +25,8 @@ class Message(Base):
     attachments: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     ai_suggestion: Mapped[str | None] = mapped_column(Text, nullable=True)
     slack_ts: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    meta_message_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    meta_platform: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     ticket = relationship("Ticket", back_populates="messages")

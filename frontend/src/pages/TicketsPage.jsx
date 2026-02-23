@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useToast } from '../components/Toast'
-import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, fetchGmailHistory, updateTicket } from '../services/api'
+import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, fetchGmailHistory, updateTicket, composeEmail } from '../services/api'
+import MetaBadge from '../components/MetaBadge'
 
 const AUTO_REFRESH_MS = 30_000
 const MS_PER_HOUR = 3_600_000
@@ -120,6 +121,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   const [filterPriority, setFilterPriority] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterTag, setFilterTag] = useState('')
+  const [filterSource, setFilterSource] = useState('')
   const [sort, setSort] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -134,6 +136,11 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState(null)
   const [importError, setImportError] = useState(null)
+  const [showComposeModal, setShowComposeModal] = useState(false)
+  const [composeTo, setComposeTo] = useState('')
+  const [composeSubject, setComposeSubject] = useState('')
+  const [composeBody, setComposeBody] = useState('')
+  const [composeSending, setComposeSending] = useState(false)
   const [editingCell, setEditingCell] = useState(null) // { ticketId, field }
   const searchTimerRef = useRef(null)
 
@@ -171,7 +178,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
 
   useEffect(() => {
     loadTickets()
-  }, [page, filters, activeTab, filterStatus, filterPriority, filterCategory, filterTag, sort, dateFrom, dateTo, customerName])
+  }, [page, filters, activeTab, filterStatus, filterPriority, filterCategory, filterTag, filterSource, sort, dateFrom, dateTo, customerName])
 
   useEffect(() => {
     getUsers().then(r => setAgents(r.data)).catch(() => {})
@@ -179,7 +186,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
 
   useEffect(() => {
     getTicketCounts().then(r => setCounts(r.data)).catch(() => {})
-  }, [activeTab, filterStatus, filterPriority, filterCategory, filterTag, sort, dateFrom, dateTo, customerName])
+  }, [activeTab, filterStatus, filterPriority, filterCategory, filterTag, filterSource, sort, dateFrom, dateTo, customerName])
 
   // Auto-refresh: recarrega lista de tickets a cada 30 segundos
   useEffect(() => {
@@ -189,7 +196,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
       }
     }, AUTO_REFRESH_MS)
     return () => clearInterval(interval)
-  }, [page, activeTab, filterStatus, filterPriority, filterCategory, filterTag, sort, dateFrom, dateTo, customerName])
+  }, [page, activeTab, filterStatus, filterPriority, filterCategory, filterTag, filterSource, sort, dateFrom, dateTo, customerName])
 
   const loadTickets = async () => {
     try {
@@ -199,6 +206,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
         priority: filterPriority || undefined,
         category: filterCategory || undefined,
         tag: filterTag || undefined,
+        source: filterSource || undefined,
         sort: sort || undefined,
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
@@ -329,6 +337,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
     setFilterPriority('')
     setFilterCategory('')
     setFilterTag('')
+    setFilterSource('')
     setSort('')
     setSearch('')
     setDateFrom('')
@@ -337,7 +346,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
     setPage(1)
   }
 
-  const hasActiveFilters = filterStatus || filterPriority || filterCategory || filterTag || sort || dateFrom || dateTo || customerName
+  const hasActiveFilters = filterStatus || filterPriority || filterCategory || filterTag || filterSource || sort || dateFrom || dateTo || customerName
 
   const handleInlineUpdate = async (ticketId, field, value) => {
     try {
@@ -555,7 +564,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
             >
               <i className="fas fa-filter" />
               Filtros
-              {hasActiveFilters && <span className="text-xs font-bold">({[filterStatus, filterPriority, filterCategory, filterTag, sort, dateFrom, dateTo, customerName].filter(Boolean).length})</span>}
+              {hasActiveFilters && <span className="text-xs font-bold">({[filterStatus, filterPriority, filterCategory, filterTag, filterSource, sort, dateFrom, dateTo, customerName].filter(Boolean).length})</span>}
             </button>
 
             <select 
@@ -586,6 +595,15 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
             >
               <i className={`fas fa-envelope ${refreshing ? 'animate-pulse' : ''} mr-2`} />
               {refreshing ? 'Buscando...' : 'Atualizar'}
+            </button>
+
+            <button
+              onClick={() => setShowComposeModal(true)}
+              className="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-blue-300 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30"
+              title="Escrever novo e-mail"
+            >
+              <i className="fas fa-pen-to-square mr-2" />
+              Novo E-mail
             </button>
 
             <button
@@ -706,6 +724,19 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
                 {Object.entries(TAG_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
+            <div>
+              <label className="text-[var(--text-secondary)] text-xs font-medium block mb-2">Canal</label>
+              <select value={filterSource} onChange={(e) => { setFilterSource(e.target.value); setPage(1) }}
+                className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+                <option value="">Todos</option>
+                <option value="web">Web</option>
+                <option value="gmail">Email</option>
+                <option value="slack">Slack</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="instagram">Instagram</option>
+                <option value="facebook">Facebook</option>
+              </select>
+            </div>
             {hasActiveFilters && (
               <div className="flex items-end">
                 <button onClick={clearFilters} className="w-full text-red-400 hover:text-red-300 text-sm font-medium px-3 py-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors">
@@ -823,11 +854,8 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
                         {ticket.legal_risk && (
                           <span className="text-red-300 text-xs font-medium"><i className="fas fa-exclamation-triangle mr-1" />Jurídico</span>
                         )}
-                        {ticket.source === 'slack' && (
-                          <span className="text-blue-300 text-xs font-medium"><i className="fab fa-slack mr-1" /></span>
-                        )}
-                        {ticket.source === 'gmail' && (
-                          <span className="text-red-300 text-xs font-medium"><i className="fas fa-envelope mr-1" /></span>
+                        {ticket.source && ticket.source !== 'web' && (
+                          <MetaBadge source={ticket.source} aiAutoMode={ticket.ai_auto_mode} />
                         )}
                         {ticket.customer?.is_repeat && (
                           <span className="text-purple-300 text-xs font-medium"><i className="fas fa-redo mr-1" /></span>
@@ -1121,6 +1149,94 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
                   )}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Compose Email */}
+      {showComposeModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => !composeSending && setShowComposeModal(false)}>
+          <div className="bg-[var(--bg-secondary)] rounded-2xl w-full max-w-2xl shadow-2xl border border-[var(--border-color)]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600/20 flex items-center justify-center">
+                  <i className="fas fa-pen-to-square text-blue-400 text-lg" />
+                </div>
+                <h2 className="text-[var(--text-primary)] font-semibold text-lg">Novo E-mail</h2>
+              </div>
+              <button onClick={() => setShowComposeModal(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition">
+                <i className="fas fa-times text-lg" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-[var(--text-secondary)] text-sm font-medium block mb-1.5">Para</label>
+                <input
+                  type="email"
+                  value={composeTo}
+                  onChange={e => setComposeTo(e.target.value)}
+                  placeholder="email@cliente.com"
+                  className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg px-3 py-2.5 text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                />
+              </div>
+              <div>
+                <label className="text-[var(--text-secondary)] text-sm font-medium block mb-1.5">Assunto</label>
+                <input
+                  type="text"
+                  value={composeSubject}
+                  onChange={e => setComposeSubject(e.target.value)}
+                  placeholder="Assunto do e-mail"
+                  className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg px-3 py-2.5 text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                />
+              </div>
+              <div>
+                <label className="text-[var(--text-secondary)] text-sm font-medium block mb-1.5">Mensagem</label>
+                <textarea
+                  value={composeBody}
+                  onChange={e => setComposeBody(e.target.value)}
+                  placeholder="Escreva sua mensagem..."
+                  rows={8}
+                  className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg px-3 py-2.5 text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 p-5 border-t border-[var(--border-color)]">
+              <button
+                onClick={() => { setShowComposeModal(false); setComposeTo(''); setComposeSubject(''); setComposeBody('') }}
+                className="px-4 py-2.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  if (!composeTo || !composeSubject || !composeBody) return
+                  setComposeSending(true)
+                  try {
+                    const { data } = await composeEmail({ to: composeTo, subject: composeSubject, body: composeBody })
+                    setShowComposeModal(false)
+                    setComposeTo('')
+                    setComposeSubject('')
+                    setComposeBody('')
+                    loadTickets()
+                    if (data.ticket_number) {
+                      toast.success(`E-mail enviado! Ticket #${data.ticket_number} criado`)
+                    }
+                  } catch (e) {
+                    toast.error(e.response?.data?.detail || 'Erro ao enviar e-mail')
+                  } finally {
+                    setComposeSending(false)
+                  }
+                }}
+                disabled={composeSending || !composeTo || !composeSubject || !composeBody}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {composeSending ? (
+                  <><i className="fas fa-spinner animate-spin" />Enviando...</>
+                ) : (
+                  <><i className="fas fa-paper-plane" />Enviar E-mail</>
+                )}
+              </button>
             </div>
           </div>
         </div>

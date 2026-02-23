@@ -63,6 +63,13 @@ class Ticket(Base):
     slack_thread_ts: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     source: Mapped[str | None] = mapped_column(String(50), default="web", nullable=True)
 
+    # Meta integration (WhatsApp, Instagram, Facebook)
+    meta_conversation_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    meta_platform: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    ai_auto_mode: Mapped[bool] = mapped_column(Boolean, default=True)
+    ai_paused_by: Mapped[str | None] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=True)
+    ai_paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # Protocol number
     protocol: Mapped[str | None] = mapped_column(String(30), nullable=True, unique=True, index=True)
     protocol_sent: Mapped[bool] = mapped_column(Boolean, default=False)

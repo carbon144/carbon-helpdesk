@@ -479,6 +479,80 @@ async def send_gmail_reply(
     return {"ok": True, "gmail_id": response.get("id")}
 
 
+@router.post("/compose")
+async def compose_email(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Compose and send a new email (not a reply to an existing ticket)."""
+    data = await request.json()
+    to_email = data.get("to")
+    to_name = data.get("to_name", "")
+    subject = data.get("subject")
+    body_text = data.get("body")
+
+    if not to_email or not subject or not body_text:
+        raise HTTPException(400, "to, subject e body são obrigatórios")
+
+    # Append agent email signature if exists
+    full_message = body_text
+    if user.email_signature:
+        full_message += f"\n\n--\n{user.email_signature}"
+
+    # Send the email
+    response = send_email(
+        to=to_email,
+        subject=subject,
+        body_text=full_message,
+    )
+
+    if not response:
+        raise HTTPException(500, "Falha ao enviar email")
+
+    # Create ticket for tracking
+    customer = await _find_or_create_customer(db, to_email, to_name or to_email.split("@")[0])
+
+    max_num = await db.execute(select(func.max(Ticket.number)))
+    next_num = (max_num.scalar() or 1000) + 1
+
+    sla_deadline = datetime.now(timezone.utc) + timedelta(hours=settings.SLA_MEDIUM_HOURS)
+
+    ticket = Ticket(
+        number=next_num,
+        subject=subject[:500],
+        status="open",
+        priority="medium",
+        customer_id=customer.id,
+        assigned_to=user.id,
+        source="gmail",
+        sla_deadline=sla_deadline,
+        first_response_at=datetime.now(timezone.utc),
+    )
+    db.add(ticket)
+    await db.flush()
+
+    msg = Message(
+        ticket_id=ticket.id,
+        type="outbound",
+        sender_name=user.name,
+        sender_email=settings.GMAIL_SUPPORT_EMAIL or user.email,
+        body_text=body_text,
+        gmail_message_id=response.get("id"),
+        gmail_thread_id=response.get("threadId"),
+    )
+    db.add(msg)
+
+    try:
+        await assign_protocol(ticket, db)
+    except Exception:
+        pass
+
+    await db.commit()
+
+    return {"ok": True, "ticket_id": ticket.id, "ticket_number": ticket.number}
+
+
 async def _find_or_create_customer(db: AsyncSession, email: str, name: str) -> Customer:
     """Find or create a customer by email."""
     result = await db.execute(select(Customer).where(Customer.email == email))

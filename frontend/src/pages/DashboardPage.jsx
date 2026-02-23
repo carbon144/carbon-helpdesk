@@ -139,7 +139,8 @@ export default function DashboardPage({ user, onNavigate }) {
 }
 
 // ─── Admin Dashboard ───
-const SOURCE_LABELS = { email: 'E-mail', web: 'Web', slack: 'Slack', whatsapp: 'WhatsApp', phone: 'Telefone', api: 'API' }
+const SOURCE_LABELS = { email: 'E-mail', gmail: 'E-mail', web: 'Web', slack: 'Slack', whatsapp: 'WhatsApp', instagram: 'Instagram', facebook: 'Facebook', phone: 'Telefone', api: 'API' }
+const SOURCE_COLORS = { web: '#6B7280', gmail: '#EF4444', email: '#EF4444', slack: '#8B5CF6', whatsapp: '#22C55E', instagram: '#EC4899', facebook: '#3B82F6' }
 
 function AdminDashboard({ stats, goToTickets }) {
   const cs = useChartStyles()

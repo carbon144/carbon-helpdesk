@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     SLACK_SIGNING_SECRET: str = ""
     SLACK_SUPPORT_CHANNEL: str = ""
 
+    # Meta (WhatsApp, Instagram, Facebook)
+    META_APP_SECRET: str = ""
+    META_VERIFY_TOKEN: str = ""
+    META_PAGE_ACCESS_TOKEN: str = ""
+    META_WHATSAPP_TOKEN: str = ""
+    META_WHATSAPP_PHONE_ID: str = ""
+
     SHOPIFY_STORE: str = ""  # ex: carbon-smartwatch.myshopify.com
     SHOPIFY_ACCESS_TOKEN: str = ""  # Admin API access token
 

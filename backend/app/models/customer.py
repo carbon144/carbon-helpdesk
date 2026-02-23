@@ -34,3 +34,6 @@ class Customer(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
+
+    # Meta integration
+    meta_user_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)

@@ -7,7 +7,9 @@ import {
   updateInternalNotes, sendProtocolEmail, backfillProtocols,
   getMediaItems, createMediaItem, suggestMedia, uploadMedia, getCopilotInsights,
   getEcommerceOrders, getShopifyCustomer, refundShopifyOrder, cancelShopifyOrder,
+  pauseTicketAI, resumeTicketAI, sendMetaReply,
 } from '../services/api'
+import MetaBadge from '../components/MetaBadge'
 
 const MS_PER_HOUR = 3_600_000
 const MS_PER_MINUTE = 60_000
@@ -129,7 +131,11 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
   const [otherViewers, setOtherViewers] = useState([])
   // Sidebar tab
   const [sidebarTab, setSidebarTab] = useState('copilot')
+  // Meta AI controls
+  const [aiPausing, setAiPausing] = useState(false)
   const textareaRef = useRef(null)
+
+  const isMetaChannel = ticket && ['whatsapp', 'instagram', 'facebook'].includes(ticket.source)
 
   useEffect(() => {
     loadTicket()
@@ -269,8 +275,38 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
   const handleSend = async () => {
     if (!reply.trim()) return
     setSending(true)
-    try { await addMessage(ticketId, { body_text: reply, type: replyType }); setReply(''); loadTicket() }
+    try {
+      // Meta channel with AI paused: send via Meta API
+      if (isMetaChannel && !ticket.ai_auto_mode) {
+        await sendMetaReply({ ticket_id: ticket.id, message: reply })
+      } else {
+        await addMessage(ticketId, { body_text: reply, type: replyType })
+      }
+      setReply(''); loadTicket()
+    }
     catch (e) { toast.error(e.response?.data?.detail || 'Erro ao enviar mensagem') } finally { setSending(false) }
+  }
+
+  const handlePauseAI = async () => {
+    setAiPausing(true)
+    try {
+      await pauseTicketAI(ticket.id)
+      setTicket(prev => ({ ...prev, ai_auto_mode: false }))
+      toast.success('IA pausada — você pode responder manualmente')
+    } catch (e) {
+      toast.error('Erro ao pausar IA')
+    } finally { setAiPausing(false) }
+  }
+
+  const handleResumeAI = async () => {
+    setAiPausing(true)
+    try {
+      await resumeTicketAI(ticket.id)
+      setTicket(prev => ({ ...prev, ai_auto_mode: true }))
+      toast.success('IA retomada — respostas automáticas ativadas')
+    } catch (e) {
+      toast.error('Erro ao retomar IA')
+    } finally { setAiPausing(false) }
   }
 
   const executeMacroActions = async (macro) => {
@@ -604,6 +640,46 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
         <div className="flex-1 overflow-y-auto">
           {activeTab === 'messages' && (
             <div className="flex flex-col h-full">
+              {/* Meta AI Banner */}
+              {isMetaChannel && (
+                <div className={`flex items-center justify-between px-4 py-2.5 mx-4 mt-3 rounded-lg ${
+                  ticket.ai_auto_mode
+                    ? 'bg-emerald-500/10 border border-emerald-500/20'
+                    : 'bg-yellow-500/10 border border-yellow-500/20'
+                }`}>
+                  <div className="flex items-center gap-2 text-sm">
+                    <MetaBadge source={ticket.source} size="lg" showLabel />
+                    {ticket.ai_auto_mode ? (
+                      <span className="text-emerald-400">
+                        <i className="fas fa-robot mr-1" />
+                        IA respondendo automaticamente
+                      </span>
+                    ) : (
+                      <span className="text-yellow-400">
+                        <i className="fas fa-pause-circle mr-1" />
+                        IA pausada — modo manual
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={ticket.ai_auto_mode ? handlePauseAI : handleResumeAI}
+                    disabled={aiPausing}
+                    className={`px-3 py-1.5 rounded text-xs font-medium transition ${
+                      ticket.ai_auto_mode
+                        ? 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30'
+                        : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
+                    }`}
+                  >
+                    {aiPausing ? (
+                      <i className="fas fa-spinner fa-spin" />
+                    ) : ticket.ai_auto_mode ? (
+                      <><i className="fas fa-pause mr-1" />Pausar IA</>
+                    ) : (
+                      <><i className="fas fa-play mr-1" />Retomar IA</>
+                    )}
+                  </button>
+                </div>
+              )}
               {/* Messages */}
               <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
                 {(ticket.messages || []).map(msg => (
@@ -617,6 +693,11 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                         <span className="text-xs font-medium text-[var(--text-primary)]">
                           {msg.type === 'inbound' ? msg.sender_name || msg.sender_email :
                            msg.type === 'internal_note' ? `${msg.sender_name} (nota)` : msg.sender_name}
+                          {msg.sender_name === 'Carbon IA' && (
+                            <span className="ml-2 text-[10px] bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded">
+                              <i className="fas fa-robot mr-0.5" />IA
+                            </span>
+                          )}
                         </span>
                         <span className="text-[var(--text-tertiary)] text-xs ml-4">{new Date(msg.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                       </div>

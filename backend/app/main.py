@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.database import engine, Base, async_session
-from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards
+from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta
 from app.services.seed import seed_database
 from app.models.csat import CSATRating  # noqa: ensure table created
 
@@ -302,6 +302,17 @@ async def lifespan(app: FastAPI):
                 approved_at TIMESTAMPTZ,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             )""",
+            # Meta integration fields
+            "ALTER TABLE tickets ADD COLUMN IF NOT EXISTS meta_conversation_id VARCHAR(100)",
+            "ALTER TABLE tickets ADD COLUMN IF NOT EXISTS meta_platform VARCHAR(20)",
+            "ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ai_auto_mode BOOLEAN DEFAULT TRUE",
+            "ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ai_paused_by VARCHAR(36)",
+            "ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ai_paused_at TIMESTAMPTZ",
+            "CREATE INDEX IF NOT EXISTS ix_tickets_meta_conversation_id ON tickets (meta_conversation_id)",
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS meta_message_id VARCHAR(100)",
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS meta_platform VARCHAR(20)",
+            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS meta_user_id VARCHAR(100)",
+            "CREATE INDEX IF NOT EXISTS ix_customers_meta_user_id ON customers (meta_user_id)",
         ]
         migration_logger = logging.getLogger("migrations")
         for sql in migration_sqls:
@@ -368,6 +379,7 @@ app.include_router(ecommerce.router, prefix="/api")
 app.include_router(catalog.router, prefix="/api")
 app.include_router(gamification.router, prefix="/api")
 app.include_router(rewards.router, prefix="/api")
+app.include_router(meta.router, prefix="/api")
 app.include_router(ws.router)
 
 # Public CSAT rating page (no auth required - customer clicks email link)
