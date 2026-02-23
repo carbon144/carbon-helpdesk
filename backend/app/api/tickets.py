@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, case
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -39,7 +40,13 @@ def _calc_sla(category: str | None, priority: str, from_time: datetime | None = 
     }
 
 
-def _ticket_to_response(ticket: Ticket) -> TicketResponse:
+def _ticket_to_response(ticket: Ticket, include_messages: bool = False) -> TicketResponse:
+    messages = None
+    if include_messages:
+        try:
+            messages = [MessageResponse.model_validate(m) for m in ticket.messages] if ticket.messages else None
+        except Exception:
+            messages = None
     return TicketResponse(
         id=ticket.id,
         number=ticket.number,
@@ -77,7 +84,7 @@ def _ticket_to_response(ticket: Ticket) -> TicketResponse:
         updated_at=ticket.updated_at,
         resolved_at=ticket.resolved_at,
         first_response_at=ticket.first_response_at,
-        messages=[MessageResponse.model_validate(m) for m in ticket.messages] if ticket.messages else None,
+        messages=messages,
     )
 
 
@@ -306,11 +313,15 @@ async def list_tickets(
 
 @router.get("/{ticket_id}", response_model=TicketResponse)
 async def get_ticket(ticket_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
+    result = await db.execute(
+        select(Ticket)
+        .where(Ticket.id == ticket_id)
+        .options(selectinload(Ticket.messages))
+    )
     ticket = result.scalar_one_or_none()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket não encontrado")
-    return _ticket_to_response(ticket)
+    return _ticket_to_response(ticket, include_messages=True)
 
 
 async def _check_duplicate(db: AsyncSession, customer_email: str, subject: str) -> Ticket | None:
