@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Deploy script for Carbon Helpdesk frontend updates
+# Deploy script for Carbon Expert Hub frontend updates
 # This script deploys 4 frontend files and rebuilds the container
 
 set -e

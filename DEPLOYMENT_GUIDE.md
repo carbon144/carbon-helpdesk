@@ -1,7 +1,7 @@
-# Carbon Helpdesk Deployment Script
+# Carbon Expert Hub Deployment Script
 
 ## Overview
-The `fix-all.sh` script is a comprehensive deployment automation tool for the Carbon Helpdesk application. It uses base64 encoding to safely package and deploy application files.
+The `fix-all.sh` script is a comprehensive deployment automation tool for the Carbon Expert Hub application. It uses base64 encoding to safely package and deploy application files.
 
 ## Files Included
 

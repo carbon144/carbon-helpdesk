@@ -6,7 +6,7 @@
 
 ## Goal
 
-Integrate WhatsApp, Instagram, and Facebook Messenger into Carbon Helpdesk using Meta's APIs directly. All 3 channels are AI-only — Claude responds automatically to every message. Human agents have read-only access with emergency intervention capability (pause AI, take over manually).
+Integrate WhatsApp, Instagram, and Facebook Messenger into Carbon Expert Hub using Meta's APIs directly. All 3 channels are AI-only — Claude responds automatically to every message. Human agents have read-only access with emergency intervention capability (pause AI, take over manually).
 
 ## Key Decisions
 

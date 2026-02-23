@@ -1,6 +1,6 @@
 # E-Commerce Integration Setup Guide
 
-Complete setup guide for Yampi and Appmax integrations in Carbon Helpdesk.
+Complete setup guide for Yampi and Appmax integrations in Carbon Expert Hub.
 
 ## Files Created
 

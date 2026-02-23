@@ -1,4 +1,4 @@
-"""Seed the database with initial data for Carbon Helpdesk."""
+"""Seed the database with initial data for Carbon Expert Hub."""
 from datetime import datetime, timezone, timedelta
 import random
 

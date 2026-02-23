@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "=== Configurando servidor Carbon Helpdesk ==="
+echo "=== Configurando servidor Carbon Expert Hub ==="
 
 # Atualizar sistema
 echo ">>> Atualizando sistema..."

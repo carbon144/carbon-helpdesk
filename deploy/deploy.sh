@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# Carbon Helpdesk - Deploy Script
+# Carbon Expert Hub - Deploy Script
 # Run this from your Mac inside the carbon-helpdesk folder
 # ============================================
 
@@ -8,7 +8,7 @@ SERVER_IP="143.198.20.6"
 SERVER_USER="root"
 REMOTE_DIR="/opt/carbon-helpdesk"
 
-echo "=== Carbon Helpdesk - Deploy ==="
+echo "=== Carbon Expert Hub - Deploy ==="
 echo "Servidor: $SERVER_IP"
 echo ""
 

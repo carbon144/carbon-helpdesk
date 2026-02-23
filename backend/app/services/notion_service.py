@@ -70,17 +70,17 @@ async def _get_or_create_database() -> str | None:
                 json={
                     "parent": {"type": "workspace", "workspace": True},
                     "properties": {
-                        "title": [{"type": "text", "text": {"content": "Carbon Helpdesk"}}]
+                        "title": [{"type": "text", "text": {"content": "Carbon Expert Hub"}}]
                     },
                 },
             )
 
             if page_resp.status_code not in (200, 201):
-                # Try searching for existing Carbon Helpdesk page
+                # Try searching for existing Carbon Expert Hub page
                 search_resp = await client.post(
                     f"{NOTION_API}/search",
                     headers=_headers(),
-                    json={"query": "Carbon Helpdesk", "filter": {"property": "object", "value": "page"}},
+                    json={"query": "Carbon Expert Hub", "filter": {"property": "object", "value": "page"}},
                 )
                 pages = search_resp.json().get("results", [])
                 parent_id = pages[0]["id"] if pages else None

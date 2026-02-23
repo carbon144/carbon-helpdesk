@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-echo "=== Carbon Helpdesk UI/UX Update ==="
+echo "=== Carbon Expert Hub UI/UX Update ==="
 cd /opt/carbon-helpdesk
 
 echo "[1/5] index.css"

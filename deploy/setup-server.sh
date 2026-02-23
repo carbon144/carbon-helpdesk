@@ -1,12 +1,12 @@
 #!/bin/bash
 # ============================================
-# Carbon Helpdesk - Server Setup Script
+# Carbon Expert Hub - Server Setup Script
 # Run this on the DigitalOcean droplet as root
 # ============================================
 
 set -e
 
-echo "=== Carbon Helpdesk - Configurando servidor ==="
+echo "=== Carbon Expert Hub - Configurando servidor ==="
 
 # Update system
 apt-get update && apt-get upgrade -y

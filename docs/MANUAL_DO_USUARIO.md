@@ -1,4 +1,4 @@
-# Manual do Usuario - Carbon Helpdesk v1.0
+# Manual do Usuario - Carbon Expert Hub v1.0
 
 **Sistema de Atendimento ao Cliente - Carbon Smartwatch**
 
@@ -31,7 +31,7 @@
 
 ## 1. Introducao
 
-O Carbon Helpdesk e o sistema centralizado de atendimento ao cliente da Carbon Smartwatch. Ele reune todos os canais de comunicacao (e-mail, Slack e web) em uma unica plataforma, com recursos de inteligencia artificial, automacao e rastreamento de pedidos.
+O Carbon Expert Hub e o sistema centralizado de atendimento ao cliente da Carbon Smartwatch. Ele reune todos os canais de comunicacao (e-mail, Slack e web) em uma unica plataforma, com recursos de inteligencia artificial, automacao e rastreamento de pedidos.
 
 **Principais recursos:**
 - Gestao completa de tickets com SLA automatico
@@ -604,7 +604,7 @@ Acesse **Configuracoes > Respostas Rapidas** para:
 
 ## 8. Inteligencia Artificial
 
-O Carbon Helpdesk utiliza IA (Claude da Anthropic) em diversas funcionalidades.
+O Carbon Expert Hub utiliza IA (Claude da Anthropic) em diversas funcionalidades.
 
 ### 8.1 Triagem Automatica
 
@@ -1187,8 +1187,8 @@ O protocolo e um numero unico de atendimento gerado pelo sistema. Voce pode envi
 A IA utiliza como contexto: a base de conhecimento, os playbooks de atendimento, as politicas da empresa e o historico de mensagens do ticket. Ela nao tem acesso a dados de outros clientes.
 
 ### Posso trabalhar offline?
-Nao. O Carbon Helpdesk e um sistema web que requer conexao com a internet. Se a conexao cair, o indicador de WebSocket ficara vermelho e as notificacoes serao recebidas quando a conexao for restabelecida.
+Nao. O Carbon Expert Hub e um sistema web que requer conexao com a internet. Se a conexao cair, o indicador de WebSocket ficara vermelho e as notificacoes serao recebidas quando a conexao for restabelecida.
 
 ---
 
-**Carbon Helpdesk v1.0** | Sistema de Atendimento ao Cliente | Carbon Smartwatch
+**Carbon Expert Hub v1.0** | Sistema de Atendimento ao Cliente | Carbon Smartwatch

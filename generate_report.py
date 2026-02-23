@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Gerador de Relatório PDF - Diagnóstico Carbon Helpdesk
+Gerador de Relatório PDF - Diagnóstico Carbon Expert Hub
 """
 
 from fpdf import FPDF
@@ -15,7 +15,7 @@ class ReportPDF(FPDF):
     def header(self):
         self.set_font("Helvetica", "B", 9)
         self.set_text_color(150, 150, 150)
-        self.cell(0, 8, "Carbon Helpdesk - Relatorio de Diagnostico", align="L")
+        self.cell(0, 8, "Carbon Expert Hub - Relatorio de Diagnostico", align="L")
         self.cell(0, 8, datetime.now().strftime("%d/%m/%Y"), align="R", new_x="LMARGIN", new_y="NEXT")
         self.set_draw_color(253, 210, 0)
         self.set_line_width(0.8)
@@ -175,7 +175,7 @@ def generate_report():
     pdf.add_page()
     pdf.section_title("1. Visao Geral do Projeto")
     pdf.body_text(
-        "O Carbon Helpdesk e um sistema completo de atendimento ao cliente para a Carbon Smartwatch, "
+        "O Carbon Expert Hub e um sistema completo de atendimento ao cliente para a Carbon Smartwatch, "
         "empresa brasileira de smartwatches. O sistema foi construido com FastAPI (backend), React 18 (frontend), "
         "PostgreSQL 16 e Redis 7, implantado via Docker Compose em um droplet DigitalOcean."
     )
@@ -523,7 +523,7 @@ def generate_report():
     pdf.add_page()
     pdf.section_title("9. Conclusao")
     pdf.body_text(
-        "O Carbon Helpdesk e um sistema robusto e ambicioso, com funcionalidades avancadas de IA, "
+        "O Carbon Expert Hub e um sistema robusto e ambicioso, com funcionalidades avancadas de IA, "
         "integracao multi-canal e e-commerce. O codigo esta funcional mas apresenta problemas significativos "
         "de seguranca, performance e estabilidade que devem ser resolvidos antes de escalar para producao."
     )

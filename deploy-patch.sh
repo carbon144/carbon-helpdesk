@@ -4,11 +4,11 @@ set -e
 cd /opt/carbon-helpdesk
 
 # ═══════════════════════════════════════════════════════════════
-# Deploy script for Carbon Helpdesk patches
+# Deploy script for Carbon Expert Hub patches
 # Writes all modified files using heredocs
 # ═══════════════════════════════════════════════════════════════
 
-echo "Deploying Carbon Helpdesk patches..."
+echo "Deploying Carbon Expert Hub patches..."
 
 # ─── Backend: Macro Model ───
 mkdir -p backend/app/models
@@ -671,7 +671,7 @@ app.include_router(ws.router)
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "Carbon Helpdesk"}
+    return {"status": "ok", "service": "Carbon Expert Hub"}
 EOF
 
 # ─── Frontend: API Service ───

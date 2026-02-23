@@ -50,7 +50,7 @@ export default function LoginPage({ onLogin }) {
               CARBON
             </h1>
             <p className="text-sm font-semibold tracking-widest mt-0.5" style={{ color: 'var(--accent)' }}>
-              HELPDESK
+              EXPERT HUB
             </p>
             <p className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
               Sistema de Atendimento
@@ -125,7 +125,7 @@ export default function LoginPage({ onLogin }) {
           </form>
 
           <p className="text-[11px] text-center mt-6" style={{ color: 'var(--text-tertiary)' }}>
-            Carbon Helpdesk v1.0
+            Carbon Expert Hub v1.0
           </p>
         </div>
       </div>

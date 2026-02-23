@@ -1,7 +1,7 @@
 # E-Commerce Integration - Files Created
 
 ## Summary
-Complete implementation of Yampi and Appmax e-commerce API integrations for Carbon Helpdesk.
+Complete implementation of Yampi and Appmax e-commerce API integrations for Carbon Expert Hub.
 
 ## Files Created/Modified
 

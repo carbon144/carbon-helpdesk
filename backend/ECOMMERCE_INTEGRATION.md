@@ -1,6 +1,6 @@
 # E-commerce Integration API
 
-This document describes the e-commerce integration services for the Carbon Helpdesk project, including Yampi and Appmax API integrations.
+This document describes the e-commerce integration services for the Carbon Expert Hub project, including Yampi and Appmax API integrations.
 
 ## Overview
 

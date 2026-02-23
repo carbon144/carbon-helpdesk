@@ -1,6 +1,6 @@
 ================================================================================
 E-COMMERCE INTEGRATION IMPLEMENTATION SUMMARY
-Carbon Helpdesk Project
+Carbon Expert Hub Project
 ================================================================================
 
 DATE: 2026-02-22
@@ -198,7 +198,7 @@ SETUP INSTRUCTIONS
 
 4. VERIFY INSTALLATION
    curl http://localhost:8000/api/health
-   # Should return {"status": "ok", "service": "Carbon Helpdesk"}
+   # Should return {"status": "ok", "service": "Carbon Expert Hub"}
 
 ================================================================================
 FILE STRUCTURE

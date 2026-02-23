@@ -1,4 +1,4 @@
-# E-Commerce Integration for Carbon Helpdesk
+# E-Commerce Integration for Carbon Expert Hub
 
 Welcome! This document provides a quick overview of the e-commerce integration implementation.
 

@@ -1,4 +1,4 @@
-"""Slack integration service for Carbon Helpdesk."""
+"""Slack integration service for Carbon Expert Hub."""
 from __future__ import annotations
 import logging
 from slack_sdk.web.async_client import AsyncWebClient

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Deploy Carbon Helpdesk to server
+# Deploy Carbon Expert Hub to server
 set -e
 
 SERVER="143.198.20.6"

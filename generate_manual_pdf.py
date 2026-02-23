@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gerador de PDF - Manual do Usuario Carbon Helpdesk."""
+"""Gerador de PDF - Manual do Usuario Carbon Expert Hub."""
 
 from fpdf import FPDF
 from datetime import datetime
@@ -14,7 +14,7 @@ class ManualPDF(FPDF):
         if self.page_no() > 1:
             self.set_font("Helvetica", "B", 9)
             self.set_text_color(150, 150, 150)
-            self.cell(0, 8, "Manual do Usuario - Carbon Helpdesk v1.0", align="L")
+            self.cell(0, 8, "Manual do Usuario - Carbon Expert Hub v1.0", align="L")
             self.ln(4)
             self.set_draw_color(220, 220, 220)
             self.line(10, self.get_y(), 200, self.get_y())
@@ -32,7 +32,7 @@ class ManualPDF(FPDF):
         self.ln(60)
         self.set_font("Helvetica", "B", 36)
         self.set_text_color(30, 30, 50)
-        self.cell(0, 16, "Carbon Helpdesk", align="C", new_x="LMARGIN", new_y="NEXT")
+        self.cell(0, 16, "Carbon Expert Hub", align="C", new_x="LMARGIN", new_y="NEXT")
         self.ln(4)
         self.set_font("Helvetica", "", 18)
         self.set_text_color(100, 100, 120)
@@ -168,7 +168,7 @@ def generate():
     pdf.add_page()
     pdf.section_title("1", "Introducao")
     pdf.body_text(
-        "O Carbon Helpdesk e o sistema centralizado de atendimento ao cliente da Carbon Smartwatch. "
+        "O Carbon Expert Hub e o sistema centralizado de atendimento ao cliente da Carbon Smartwatch. "
         "Ele reune todos os canais de comunicacao (e-mail, Slack e web) em uma unica plataforma, "
         "com recursos de inteligencia artificial, automacao e rastreamento de pedidos."
     )
@@ -461,7 +461,7 @@ def generate():
     # ── 8. IA ──
     pdf.section_title("8", "Inteligencia Artificial")
     pdf.body_text(
-        "O Carbon Helpdesk utiliza IA (Claude da Anthropic) em diversas funcionalidades."
+        "O Carbon Expert Hub utiliza IA (Claude da Anthropic) em diversas funcionalidades."
     )
     pdf.bullet("Triagem Automatica: classifica categoria, prioridade, sentimento e risco juridico")
     pdf.bullet("Sugestao de Resposta: gera respostas profissionais e empaticas (Alt+S)")
@@ -674,7 +674,7 @@ def generate():
     pdf.ln(60)
     pdf.set_font("Helvetica", "B", 16)
     pdf.set_text_color(30, 30, 50)
-    pdf.cell(0, 12, "Carbon Helpdesk v1.0", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 12, "Carbon Expert Hub v1.0", align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(4)
     pdf.set_font("Helvetica", "", 12)
     pdf.set_text_color(100, 100, 120)
