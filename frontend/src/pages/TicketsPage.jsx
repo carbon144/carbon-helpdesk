@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useToast } from '../components/Toast'
-import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, fetchGmailHistory, updateTicket, composeEmail } from '../services/api'
+import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, fetchGmailHistory, updateTicket, composeEmail, getSentMessages } from '../services/api'
 import MetaBadge from '../components/MetaBadge'
 
 const AUTO_REFRESH_MS = 30_000
@@ -122,6 +122,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   const [filterCategory, setFilterCategory] = useState('')
   const [filterTag, setFilterTag] = useState('')
   const [filterSource, setFilterSource] = useState('')
+  const [filterResponse, setFilterResponse] = useState('')
   const [sort, setSort] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -142,6 +143,11 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   const [composeBody, setComposeBody] = useState('')
   const [composeSending, setComposeSending] = useState(false)
   const [editingCell, setEditingCell] = useState(null) // { ticketId, field }
+  const [topView, setTopView] = useState('inbox') // 'inbox' | 'sent'
+  const [sentMessages, setSentMessages] = useState([])
+  const [sentTotal, setSentTotal] = useState(0)
+  const [sentPage, setSentPage] = useState(1)
+  const [sentLoading, setSentLoading] = useState(false)
   const searchTimerRef = useRef(null)
 
   // Debounced search: triggers loadTickets after 400ms of inactivity
@@ -178,7 +184,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
 
   useEffect(() => {
     loadTickets()
-  }, [page, filters, activeTab, filterStatus, filterPriority, filterCategory, filterTag, filterSource, sort, dateFrom, dateTo, customerName])
+  }, [page, filters, activeTab, filterStatus, filterPriority, filterCategory, filterTag, filterSource, filterResponse, sort, dateFrom, dateTo, customerName])
 
   useEffect(() => {
     getUsers().then(r => setAgents(r.data)).catch(() => {})
@@ -207,6 +213,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
         category: filterCategory || undefined,
         tag: filterTag || undefined,
         source: filterSource || undefined,
+        exclude_sources: 'whatsapp,instagram,facebook',
         sort: sort || undefined,
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
@@ -240,12 +247,35 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
       }
 
       const { data } = await getTickets(params)
-      setTickets(data.tickets)
+      let filtered = data.tickets
+      if (filterResponse === 'awaiting') {
+        filtered = filtered.filter(t => !t.first_response_at && !['resolved', 'closed', 'archived'].includes(t.status))
+      } else if (filterResponse === 'responded') {
+        filtered = filtered.filter(t => !!t.first_response_at)
+      }
+      setTickets(filtered)
       setTotal(data.total)
     } catch (e) {
       console.error('Failed to load tickets:', e)
     }
   }
+
+  const loadSentMessages = async () => {
+    setSentLoading(true)
+    try {
+      const { data } = await getSentMessages({ page: sentPage, per_page: 20 })
+      setSentMessages(data.items)
+      setSentTotal(data.total)
+    } catch (e) {
+      console.error('Failed to load sent messages:', e)
+    } finally {
+      setSentLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (topView === 'sent') loadSentMessages()
+  }, [topView, sentPage])
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -338,6 +368,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
     setFilterCategory('')
     setFilterTag('')
     setFilterSource('')
+    setFilterResponse('')
     setSort('')
     setSearch('')
     setDateFrom('')
@@ -346,7 +377,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
     setPage(1)
   }
 
-  const hasActiveFilters = filterStatus || filterPriority || filterCategory || filterTag || filterSource || sort || dateFrom || dateTo || customerName
+  const hasActiveFilters = filterStatus || filterPriority || filterCategory || filterTag || filterSource || filterResponse || sort || dateFrom || dateTo || customerName
 
   const handleInlineUpdate = async (ticketId, field, value) => {
     try {
@@ -461,8 +492,107 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
     ? []
     : Object.entries(STATUS_LABELS)
 
+  const sentLastPage = Math.max(1, Math.ceil(sentTotal / 20))
+
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] p-8">
+      {/* Top-level tabs: Caixa de Entrada | Enviados */}
+      <div className="flex gap-1 mb-6">
+        <button
+          onClick={() => setTopView('inbox')}
+          className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            topView === 'inbox'
+              ? 'bg-indigo-600 text-white'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+          }`}
+        >
+          <i className="fas fa-inbox mr-2" />Caixa de Entrada
+        </button>
+        <button
+          onClick={() => setTopView('sent')}
+          className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            topView === 'sent'
+              ? 'bg-indigo-600 text-white'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+          }`}
+        >
+          <i className="fas fa-paper-plane mr-2" />Enviados
+        </button>
+      </div>
+
+      {/* Sent Messages View */}
+      {topView === 'sent' ? (
+        <div>
+          <div className="bg-[var(--bg-secondary)] rounded-xl overflow-hidden border border-[var(--border-color)]">
+            {sentLoading ? (
+              <div className="p-12 text-center text-[var(--text-secondary)]">Carregando...</div>
+            ) : sentMessages.length === 0 ? (
+              <div className="p-12 text-center text-[var(--text-secondary)]">
+                <i className="fas fa-paper-plane text-4xl mb-3 opacity-30" />
+                <p>Nenhuma mensagem enviada</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[var(--border-color)]">
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Ticket</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Destinatario</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Assunto</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Preview</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Enviado por</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Data</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-color)]">
+                  {sentMessages.map(msg => (
+                    <tr key={msg.message_id}
+                      className="hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors"
+                      onClick={() => onOpenTicket(msg.ticket_id)}>
+                      <td className="px-6 py-4 text-[var(--text-secondary)] text-sm font-medium">#{msg.ticket_number}</td>
+                      <td className="px-6 py-4">
+                        <div className="text-[var(--text-primary)] text-sm">{msg.customer_name || msg.customer_email || '-'}</div>
+                        <div className="text-[var(--text-tertiary)] text-xs">{msg.customer_email || ''}</div>
+                      </td>
+                      <td className="px-6 py-4 text-[var(--text-primary)] text-sm max-w-[200px] truncate">{msg.ticket_subject}</td>
+                      <td className="px-6 py-4 text-[var(--text-secondary)] text-sm max-w-[250px] truncate">{msg.body_text}</td>
+                      <td className="px-6 py-4 text-[var(--text-secondary)] text-sm">{msg.sender_name || '-'}</td>
+                      <td className="px-6 py-4 text-[var(--text-secondary)] text-sm">
+                        {msg.created_at ? (
+                          <>
+                            <div>{new Date(msg.created_at).toLocaleDateString('pt-BR')}</div>
+                            <div className="text-[var(--text-tertiary)] text-xs">{new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+                          </>
+                        ) : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {sentTotal > 20 && (
+            <div className="flex justify-center gap-2 mt-6">
+              <button disabled={sentPage <= 1} onClick={() => setSentPage(1)}
+                className="px-3 py-2 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg disabled:opacity-30 text-sm font-medium">&laquo;</button>
+              <button disabled={sentPage <= 1} onClick={() => setSentPage(p => p - 1)}
+                className="px-4 py-2 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg disabled:opacity-30 text-sm font-medium">
+                <i className="fas fa-chevron-left mr-2" />Anterior
+              </button>
+              <span className="px-4 py-2 text-[var(--text-secondary)] text-sm font-medium">
+                Pagina {sentPage} de {sentLastPage}
+              </span>
+              <button disabled={sentPage >= sentLastPage} onClick={() => setSentPage(p => p + 1)}
+                className="px-4 py-2 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg disabled:opacity-30 text-sm font-medium">
+                Proxima<i className="fas fa-chevron-right ml-2" />
+              </button>
+              <button disabled={sentPage >= sentLastPage} onClick={() => setSentPage(sentLastPage)}
+                className="px-3 py-2 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg disabled:opacity-30 text-sm font-medium">&raquo;</button>
+            </div>
+          )}
+        </div>
+      ) : (
+      <>
       {/* Page Header with Counter Cards */}
       <div className="mb-6">
         <div className="grid grid-cols-5 gap-4 mb-6">
@@ -732,9 +862,15 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
                 <option value="web">Web</option>
                 <option value="gmail">Email</option>
                 <option value="slack">Slack</option>
-                <option value="whatsapp">WhatsApp</option>
-                <option value="instagram">Instagram</option>
-                <option value="facebook">Facebook</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[var(--text-secondary)] text-xs font-medium block mb-2">Resposta</label>
+              <select value={filterResponse} onChange={(e) => { setFilterResponse(e.target.value); setPage(1) }}
+                className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+                <option value="">Todos</option>
+                <option value="awaiting">Aguardando resposta</option>
+                <option value="responded">Respondido</option>
               </select>
             </div>
             {hasActiveFilters && (
@@ -867,7 +1003,20 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-[var(--text-secondary)] text-sm">{ticket.customer?.name || '-'}</div>
+                    <div className="text-[var(--text-secondary)] text-sm">{ticket.customer?.name || ticket.customer_name || '-'}</div>
+                    {!['resolved', 'closed', 'archived'].includes(ticket.status) && (
+                      <div className="mt-0.5">
+                        {ticket.first_response_at ? (
+                          <span className="text-green-400 text-[10px] font-medium inline-flex items-center gap-1">
+                            <i className="fas fa-check-circle" /> Respondido
+                          </span>
+                        ) : (
+                          <span className="text-red-400 text-[10px] font-medium inline-flex items-center gap-1">
+                            <i className="fas fa-circle" /> Aguardando resposta
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
                     {editingCell?.ticketId === ticket.id && editingCell?.field === 'status' ? (
@@ -994,26 +1143,48 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
       </div>
 
       {/* Pagination */}
-      {total > 20 && (
-        <div className="flex justify-center gap-2 mt-6">
-          <button
-            disabled={page <= 1}
-            onClick={() => setPage(p => p - 1)}
-            className="px-4 py-2.5 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg disabled:opacity-30 text-sm font-medium transition-colors hover:bg-[var(--bg-tertiary)]"
-          >
-            <i className="fas fa-chevron-left mr-2" />Anterior
-          </button>
-          <span className="px-4 py-2.5 text-[var(--text-secondary)] text-sm font-medium">
-            Página {page} de {Math.ceil(total / 20)}
-          </span>
-          <button
-            disabled={page >= Math.ceil(total / 20)}
-            onClick={() => setPage(p => p + 1)}
-            className="px-4 py-2.5 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg disabled:opacity-30 text-sm font-medium transition-colors hover:bg-[var(--bg-tertiary)]"
-          >
-            Próxima<i className="fas fa-chevron-right ml-2" />
-          </button>
-        </div>
+      {total > 20 && (() => {
+        const lastPage = Math.ceil(total / 20)
+        return (
+          <div className="flex justify-center gap-2 mt-6">
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage(1)}
+              className="px-3 py-2.5 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg disabled:opacity-30 text-sm font-medium transition-colors hover:bg-[var(--bg-tertiary)]"
+              title="Primeira página"
+            >
+              &laquo;
+            </button>
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage(p => p - 1)}
+              className="px-4 py-2.5 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg disabled:opacity-30 text-sm font-medium transition-colors hover:bg-[var(--bg-tertiary)]"
+            >
+              <i className="fas fa-chevron-left mr-2" />Anterior
+            </button>
+            <span className="px-4 py-2.5 text-[var(--text-secondary)] text-sm font-medium">
+              Página {page} de {lastPage}
+            </span>
+            <button
+              disabled={page >= lastPage}
+              onClick={() => setPage(p => p + 1)}
+              className="px-4 py-2.5 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg disabled:opacity-30 text-sm font-medium transition-colors hover:bg-[var(--bg-tertiary)]"
+            >
+              Próxima<i className="fas fa-chevron-right ml-2" />
+            </button>
+            <button
+              disabled={page >= lastPage}
+              onClick={() => setPage(lastPage)}
+              className="px-3 py-2.5 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg disabled:opacity-30 text-sm font-medium transition-colors hover:bg-[var(--bg-tertiary)]"
+              title="Última página"
+            >
+              &raquo;
+            </button>
+          </div>
+        )
+      })()}
+
+      </>
       )}
 
       {/* Modal: Import History */}

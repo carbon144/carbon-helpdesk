@@ -13,6 +13,7 @@ import MediaPage from '../pages/MediaPage'
 import CatalogPage from '../pages/CatalogPage'
 import LeaderboardPage from '../pages/LeaderboardPage'
 import ModerationPage from '../pages/ModerationPage'
+import CanaisIAPage from '../pages/CanaisIAPage'
 import { getTicketCounts } from '../services/api'
 
 const AUTO_REFRESH_MS = 30_000
@@ -22,6 +23,7 @@ export default function Layout({ user, onLogout }) {
   const [selectedTicketId, setSelectedTicketId] = useState(null)
   const [ticketFilters, setTicketFilters] = useState({})
   const [ticketCount, setTicketCount] = useState(0)
+  const [metaCount, setMetaCount] = useState(0)
 
   useEffect(() => {
     loadTicketCounts()
@@ -41,6 +43,7 @@ export default function Layout({ user, onLogout }) {
     try {
       const { data } = await getTicketCounts()
       setTicketCount(data.mine)
+      setMetaCount(data.meta_channels || 0)
     } catch (e) {
       console.error('Failed to load ticket counts', e)
     }
@@ -91,6 +94,8 @@ export default function Layout({ user, onLogout }) {
         return <CatalogPage />
       case 'leaderboard':
         return <LeaderboardPage user={user} />
+      case 'canais-ia':
+        return <CanaisIAPage onOpenTicket={handleOpenTicket} user={user} />
       case 'moderation':
         return <ModerationPage />
       case 'tracking':
@@ -110,6 +115,7 @@ export default function Layout({ user, onLogout }) {
         page={page}
         setPage={(p) => { setPage(p); setSelectedTicketId(null); setTicketFilters({}) }}
         ticketCount={ticketCount}
+        metaCount={metaCount}
       />
       <main className="flex-1 overflow-auto" style={{ background: 'var(--bg-primary)' }}>
         {renderPage()}

@@ -119,6 +119,8 @@ class TicketResponse(BaseModel):
     updated_at: datetime
     resolved_at: datetime | None = None
     first_response_at: datetime | None = None
+    last_agent_response_at: datetime | None = None
+    customer_name: str | None = None
     messages: list[MessageResponse] | None = None
 
     class Config:

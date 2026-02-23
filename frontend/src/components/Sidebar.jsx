@@ -13,13 +13,14 @@ const NAV_ITEMS = [
   { id: 'assistant', label: 'Assistente IA', icon: 'fa-robot', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
   { id: 'leaderboard', label: 'Performance', icon: 'fa-gamepad', roles: ['super_admin', 'admin', 'supervisor'] },
   { id: 'tracking', label: 'Rastreamento', icon: 'fa-truck-fast', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
+  { id: 'canais-ia', label: 'Canais IA', icon: 'fa-comments', roles: ['super_admin', 'admin', 'supervisor'] },
   { id: 'moderation', label: 'Moderacao Social', icon: 'fa-shield-alt', roles: ['super_admin', 'admin', 'supervisor'] },
   { id: 'reports', label: 'Relatórios', icon: 'fa-chart-bar', roles: ['super_admin', 'admin', 'supervisor'] },
   { id: 'integrations', label: 'Integrações', icon: 'fa-plug', roles: ['super_admin'] },
   { id: 'settings', label: 'Configurações', icon: 'fa-cog', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
 ]
 
-export default function Sidebar({ user, onLogout, page, setPage, ticketCount }) {
+export default function Sidebar({ user, onLogout, page, setPage, ticketCount, metaCount }) {
   const userRole = user?.role || 'agent'
 
   return (
@@ -27,7 +28,7 @@ export default function Sidebar({ user, onLogout, page, setPage, ticketCount }) 
       style={{ background: '#1d1d1f', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
       {/* Logo */}
       <div className="px-4 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-        <img src="/assets/carbon-logo.svg" alt="Carbon Helpdesk" className="h-8" />
+        <img src="/assets/carbon-logo.svg" alt="Carbon Expert Hub" className="h-8" />
       </div>
 
       {/* Nav */}
@@ -55,6 +56,12 @@ export default function Sidebar({ user, onLogout, page, setPage, ticketCount }) 
                 <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
                   style={{ background: '#fdd200', color: '#1d1d1f' }}>
                   {ticketCount}
+                </span>
+              )}
+              {item.id === 'canais-ia' && metaCount > 0 && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
+                  style={{ background: '#25D366', color: '#fff' }}>
+                  {metaCount}
                 </span>
               )}
             </button>

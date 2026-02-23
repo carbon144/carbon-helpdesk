@@ -52,6 +52,7 @@ export const autoAssign = () => api.post('/tickets/auto-assign')
 export const getNextTicket = () => api.get('/tickets/next')
 export const getCustomerHistory = (customerId) => api.get(`/tickets/customer/${customerId}/history`)
 export const getTicketPreview = (ticketId) => api.get(`/tickets/${ticketId}/preview`)
+export const getSentMessages = (params) => api.get('/tickets/sent-messages', { params })
 export const addMessage = (ticketId, data) => api.post(`/tickets/${ticketId}/messages`, data)
 
 // ── Inboxes ──

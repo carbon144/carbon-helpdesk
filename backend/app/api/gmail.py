@@ -159,6 +159,22 @@ async def fetch_emails(
             )
             existing_ticket = result.scalars().first()
 
+        # If no thread match, try to find open ticket from same customer
+        if not existing_ticket:
+            customer_check = await db.execute(
+                select(Customer).where(Customer.email == email_data["from_email"])
+            )
+            existing_customer = customer_check.scalars().first()
+            if existing_customer:
+                result = await db.execute(
+                    select(Ticket).where(
+                        Ticket.customer_id == existing_customer.id,
+                        Ticket.source == "gmail",
+                        Ticket.status.notin_(["resolved", "closed", "archived"]),
+                    ).order_by(Ticket.updated_at.desc())
+                )
+                existing_ticket = result.scalars().first()
+
         if existing_ticket:
             # Add message to existing ticket
             msg = Message(
@@ -322,6 +338,22 @@ async def fetch_email_history(
                 select(Ticket).join(Message).where(Message.gmail_thread_id == gmail_thread_id)
             )
             existing_ticket = result.scalars().first()
+
+        # If no thread match, try to find open ticket from same customer
+        if not existing_ticket:
+            customer_check = await db.execute(
+                select(Customer).where(Customer.email == email_data["from_email"])
+            )
+            existing_customer = customer_check.scalars().first()
+            if existing_customer:
+                result = await db.execute(
+                    select(Ticket).where(
+                        Ticket.customer_id == existing_customer.id,
+                        Ticket.source == "gmail",
+                        Ticket.status.notin_(["resolved", "closed", "archived"]),
+                    ).order_by(Ticket.updated_at.desc())
+                )
+                existing_ticket = result.scalars().first()
 
         if existing_ticket:
             msg = Message(

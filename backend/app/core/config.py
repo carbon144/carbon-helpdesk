@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Carbon Helpdesk"
+    PROJECT_NAME: str = "Carbon Expert Hub"
     VERSION: str = "1.0.0"
 
     DATABASE_URL: str = ""  # REQUIRED: set via .env or environment variable

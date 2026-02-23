@@ -84,6 +84,8 @@ def _ticket_to_response(ticket: Ticket, include_messages: bool = False) -> Ticke
         updated_at=ticket.updated_at,
         resolved_at=ticket.resolved_at,
         first_response_at=ticket.first_response_at,
+        last_agent_response_at=getattr(ticket, 'last_agent_response_at', None),
+        customer_name=ticket.customer.name if ticket.customer else None,
         messages=messages,
     )
 
@@ -141,6 +143,15 @@ async def get_ticket_counts(
         )
     )
 
+    # Meta channels (WhatsApp, Instagram, Facebook)
+    meta_sources = ["whatsapp", "instagram", "facebook"]
+    meta_total = await db.scalar(
+        select(func.count(Ticket.id)).where(
+            Ticket.source.in_(meta_sources),
+            Ticket.status.notin_(excluded)
+        )
+    )
+
     return {
         "total_open": total_open or 0,
         "mine": mine or 0,
@@ -148,7 +159,54 @@ async def get_ticket_counts(
         "unassigned": unassigned or 0,
         "escalated": escalated or 0,
         "archived": archived or 0,
+        "meta_channels": meta_total or 0,
     }
+
+
+@router.get("/sent-messages")
+async def get_sent_messages(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Return outbound email messages (not Meta) with ticket info."""
+    base_query = (
+        select(Message, Ticket)
+        .join(Ticket, Message.ticket_id == Ticket.id)
+        .where(
+            Message.type == "outbound",
+            Message.meta_message_id.is_(None),
+        )
+    )
+
+    count_q = select(func.count()).select_from(base_query.subquery())
+    total = (await db.execute(count_q)).scalar()
+
+    results = await db.execute(
+        base_query
+        .order_by(Message.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+    )
+    rows = results.all()
+
+    items = []
+    for msg, ticket in rows:
+        items.append({
+            "message_id": msg.id,
+            "ticket_id": ticket.id,
+            "ticket_number": ticket.number,
+            "ticket_subject": ticket.subject,
+            "sender_name": msg.sender_name,
+            "sender_email": msg.sender_email,
+            "body_text": (msg.body_text or "")[:200],
+            "created_at": msg.created_at.isoformat() if msg.created_at else None,
+            "customer_name": ticket.customer.name if ticket.customer else None,
+            "customer_email": ticket.customer.email if ticket.customer else None,
+        })
+
+    return {"items": items, "total": total or 0, "page": page, "per_page": per_page}
 
 
 @router.get("/statuses")
@@ -192,6 +250,7 @@ async def list_tickets(
     date_to: str | None = None,
     customer_name: str | None = None,
     source: str | None = None,
+    exclude_sources: str | None = None,
     sla_breached: bool | None = None,
     legal_risk: bool | None = None,
     page: int = Query(1, ge=1),
@@ -235,7 +294,12 @@ async def list_tickets(
     if tag:
         query = query.where(Ticket.tags.any(tag))
     if source:
-        query = query.where(Ticket.source == source)
+        if "," in source:
+            query = query.where(Ticket.source.in_(source.split(",")))
+        else:
+            query = query.where(Ticket.source == source)
+    if exclude_sources:
+        query = query.where(Ticket.source.notin_(exclude_sources.split(",")))
     if sla_breached is not None:
         query = query.where(Ticket.sla_breached == sla_breached)
     if legal_risk is not None:
