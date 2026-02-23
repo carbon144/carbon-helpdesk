@@ -1,4 +1,5 @@
 """AI Triage Service using Claude API."""
+from __future__ import annotations
 import json
 import logging
 from anthropic import Anthropic

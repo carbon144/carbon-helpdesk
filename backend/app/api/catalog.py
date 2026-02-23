@@ -1,4 +1,5 @@
 """Product catalog endpoint — static product data from Carbon."""
+from __future__ import annotations
 from fastapi import APIRouter, Depends
 from app.core.security import get_current_user
 from app.models.user import User

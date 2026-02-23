@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 from datetime import datetime, timezone
 
 from sqlalchemy import String, Text, Boolean, DateTime
@@ -15,7 +16,7 @@ class KBArticle(Base):
     title: Mapped[str] = mapped_column(String(500))
     content: Mapped[str] = mapped_column(Text)
     category: Mapped[str] = mapped_column(String(100), index=True)
-    tags: Mapped[list | None] = mapped_column(ARRAY(String), nullable=True)
+    tags: Mapped[Optional[list]] = mapped_column(ARRAY(String), nullable=True)
     is_published: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

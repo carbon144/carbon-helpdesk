@@ -2,6 +2,7 @@
 SLA Configuration by category as per Carbon requirements document.
 Each category has response_hours (first response) and resolution_hours (full resolution).
 """
+from __future__ import annotations
 
 # SLA por categoria conforme documento de requisitos Carbon
 SLA_BY_CATEGORY = {

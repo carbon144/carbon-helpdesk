@@ -1,4 +1,5 @@
 """RF-032: Export tickets to CSV with streaming."""
+from __future__ import annotations
 import csv
 import io
 from datetime import datetime

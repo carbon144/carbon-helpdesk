@@ -1,4 +1,5 @@
 """AI triage and suggestion endpoints."""
+from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException

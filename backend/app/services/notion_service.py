@@ -1,4 +1,5 @@
 """Notion integration: log refunds & cancellations to Notion database."""
+from __future__ import annotations
 import logging
 import httpx
 from datetime import datetime, timezone

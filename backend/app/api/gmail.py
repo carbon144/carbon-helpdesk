@@ -1,4 +1,5 @@
 """Gmail integration endpoints."""
+from __future__ import annotations
 import logging
 from datetime import datetime, timezone, timedelta
 from email.utils import parsedate_to_datetime

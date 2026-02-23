@@ -1,4 +1,5 @@
 """Public CSAT rating endpoint — no auth required (customer clicks email link)."""
+from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 

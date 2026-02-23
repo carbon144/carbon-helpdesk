@@ -1,4 +1,5 @@
 """Media library endpoints — Google Drive + Instagram integration."""
+from __future__ import annotations
 import logging
 import re
 import os

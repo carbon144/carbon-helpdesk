@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 from datetime import datetime, timezone
 
 from sqlalchemy import String, Text, DateTime, ForeignKey, Enum as SAEnum
@@ -16,17 +17,17 @@ class Message(Base):
     type: Mapped[str] = mapped_column(
         SAEnum("inbound", "outbound", "internal_note", name="message_type"),
     )
-    sender_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    sender_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    body_html: Mapped[str | None] = mapped_column(Text, nullable=True)
-    body_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    gmail_message_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    gmail_thread_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
-    attachments: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    ai_suggestion: Mapped[str | None] = mapped_column(Text, nullable=True)
-    slack_ts: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    meta_message_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    meta_platform: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    sender_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    sender_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    body_html: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    body_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    gmail_message_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    gmail_thread_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    attachments: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    ai_suggestion: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    slack_ts: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    meta_message_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    meta_platform: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     ticket = relationship("Ticket", back_populates="messages")

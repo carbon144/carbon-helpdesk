@@ -1,6 +1,7 @@
 """RF-021-024: Tracking service for package tracking via 17track + Correios.
 Supports Correios (Brazil), Cainiao/AliExpress, and any carrier via 17track.
 """
+from __future__ import annotations
 import logging
 import re
 from datetime import datetime, timezone

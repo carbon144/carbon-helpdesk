@@ -1,4 +1,5 @@
 """Meta Platform webhook — handles WhatsApp, Instagram, and Facebook Messenger."""
+from __future__ import annotations
 import logging
 from datetime import datetime, timezone, timedelta
 
