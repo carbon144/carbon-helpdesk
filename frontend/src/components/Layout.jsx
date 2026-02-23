@@ -12,6 +12,7 @@ import AssistantPage from '../pages/AssistantPage'
 import MediaPage from '../pages/MediaPage'
 import CatalogPage from '../pages/CatalogPage'
 import LeaderboardPage from '../pages/LeaderboardPage'
+import ModerationPage from '../pages/ModerationPage'
 import { getTicketCounts } from '../services/api'
 
 const AUTO_REFRESH_MS = 30_000
@@ -90,6 +91,8 @@ export default function Layout({ user, onLogout }) {
         return <CatalogPage />
       case 'leaderboard':
         return <LeaderboardPage user={user} />
+      case 'moderation':
+        return <ModerationPage />
       case 'tracking':
         return <TrackingPage onOpenTicket={handleOpenTicket} />
       case 'settings':

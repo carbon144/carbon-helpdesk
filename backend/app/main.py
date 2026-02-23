@@ -11,6 +11,7 @@ from app.core.database import engine, Base, async_session
 from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta
 from app.services.seed import seed_database
 from app.models.csat import CSATRating  # noqa: ensure table created
+from app.models.social_comment import SocialComment  # noqa: ensure table created
 
 escalation_logger = logging.getLogger("escalation")
 
@@ -313,6 +314,34 @@ async def lifespan(app: FastAPI):
             "ALTER TABLE messages ADD COLUMN IF NOT EXISTS meta_platform VARCHAR(20)",
             "ALTER TABLE customers ADD COLUMN IF NOT EXISTS meta_user_id VARCHAR(100)",
             "CREATE INDEX IF NOT EXISTS ix_customers_meta_user_id ON customers (meta_user_id)",
+            # Social comments moderation table
+            """CREATE TABLE IF NOT EXISTS social_comments (
+                id VARCHAR(36) PRIMARY KEY,
+                platform VARCHAR(20) NOT NULL,
+                comment_id VARCHAR(100) UNIQUE NOT NULL,
+                post_id VARCHAR(100),
+                parent_comment_id VARCHAR(100),
+                author_id VARCHAR(100) NOT NULL,
+                author_name VARCHAR(255),
+                text TEXT NOT NULL,
+                post_caption TEXT,
+                ai_action VARCHAR(30) NOT NULL,
+                ai_reply TEXT,
+                ai_sentiment VARCHAR(20),
+                ai_category VARCHAR(50),
+                ai_confidence FLOAT,
+                reply_sent BOOLEAN DEFAULT FALSE,
+                was_hidden BOOLEAN DEFAULT FALSE,
+                manually_reviewed BOOLEAN DEFAULT FALSE,
+                reviewed_by VARCHAR(255),
+                commented_at TIMESTAMPTZ,
+                moderated_at TIMESTAMPTZ DEFAULT NOW(),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )""",
+            "CREATE INDEX IF NOT EXISTS ix_social_comments_platform ON social_comments (platform)",
+            "CREATE INDEX IF NOT EXISTS ix_social_comments_comment_id ON social_comments (comment_id)",
+            "CREATE INDEX IF NOT EXISTS ix_social_comments_ai_action ON social_comments (ai_action)",
+            "CREATE INDEX IF NOT EXISTS ix_social_comments_post_id ON social_comments (post_id)",
         ]
         migration_logger = logging.getLogger("migrations")
         for sql in migration_sqls:

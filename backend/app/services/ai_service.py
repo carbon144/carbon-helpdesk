@@ -231,6 +231,77 @@ def ai_auto_reply(
         return None
 
 
+MODERATE_COMMENT_PROMPT = """Você é o moderador de redes sociais da Carbon Smartwatch (Instagram e Facebook).
+
+Analise o comentário abaixo e decida a ação. Retorne APENAS um JSON válido (sem markdown):
+
+{
+  "action": "reply" | "hide_reply" | "hide" | "ignore",
+  "reply": "texto da resposta (ou string vazia se action=hide/ignore)",
+  "sentiment": "positive" | "neutral" | "negative" | "offensive",
+  "category": "elogio" | "duvida" | "reclamacao" | "ofensivo" | "spam" | "mencao" | "outro",
+  "confidence": 0.0 a 1.0
+}
+
+Regras de AÇÃO:
+- "reply": responde publicamente ao comentário (elogios, dúvidas, reclamações moderadas)
+- "hide_reply": OCULTA o comentário E responde em privado/publicamente (ofensivo mas merece resposta)
+- "hide": apenas oculta sem responder (spam, palavrões sem contexto, conteúdo impróprio)
+- "ignore": não faz nada (emojis solo como 🔥❤️, tags de amigos como "@fulano", risadas "kkkk", "kkk" sem contexto)
+
+Regras de RESPOSTA:
+- Respostas CURTAS (máximo 2 frases) — é comentário de rede social, não e-mail
+- Tom amigável e leve, pode usar 1-2 emojis
+- Português brasileiro
+- Para elogios: agradeça com entusiasmo
+- Para dúvidas: responda objetivamente ou direcione ao DM/link da bio
+- Para reclamações: peça para enviar DM com detalhes
+- Para ofensivos: responda com educação e firmeza se for hide_reply
+- NUNCA responda com agressividade ou sarcasmo
+- NUNCA invente informações sobre produtos
+
+Contexto: Carbon Smartwatch — smartwatches, carregadores magnéticos, pulseiras. Garantia 1 ano."""
+
+
+def moderate_comment(
+    comment_text: str,
+    author_name: str = "",
+    post_caption: str = "",
+    platform: str = "instagram",
+) -> dict | None:
+    """Analyze a social media comment and decide moderation action.
+
+    Returns: {"action": str, "reply": str, "sentiment": str, "category": str, "confidence": float}
+    """
+    try:
+        ai = get_client()
+
+        user_msg = f"Plataforma: {platform}\n"
+        if author_name:
+            user_msg += f"Autor: {author_name}\n"
+        if post_caption:
+            user_msg += f"Legenda do post: {post_caption[:300]}\n"
+        user_msg += f"\nComentário:\n{comment_text}"
+
+        response = ai.messages.create(
+            model=settings.ANTHROPIC_MODEL,
+            max_tokens=400,
+            system=MODERATE_COMMENT_PROMPT,
+            messages=[{"role": "user", "content": user_msg[:3000]}],
+        )
+
+        text = response.content[0].text.strip()
+        result = json.loads(text)
+        logger.info(f"Comment moderation: action={result.get('action')}, sentiment={result.get('sentiment')}")
+        return result
+    except json.JSONDecodeError as e:
+        logger.error(f"Comment moderation returned invalid JSON: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Comment moderation failed: {e}")
+        return None
+
+
 def test_ai_connection() -> dict:
     """Test if Claude AI is reachable."""
     try:

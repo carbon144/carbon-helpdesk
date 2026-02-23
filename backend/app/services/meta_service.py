@@ -139,3 +139,128 @@ def parse_webhook_entry(entry: dict, webhook_object: str = "") -> list[dict]:
             })
 
     return messages
+
+
+def parse_comment_events(entry: dict, webhook_object: str = "") -> list[dict]:
+    """Parse comment events from a Meta webhook entry.
+
+    Returns list of:
+        {
+            "platform": "instagram" | "facebook",
+            "comment_id": str,
+            "post_id": str,
+            "author_id": str,
+            "author_name": str,
+            "text": str,
+            "parent_comment_id": str | None,
+            "timestamp": str,
+        }
+    """
+    comments = []
+
+    # Instagram comment webhooks
+    if webhook_object == "instagram" and "changes" in entry:
+        for change in entry.get("changes", []):
+            if change.get("field") != "comments":
+                continue
+            value = change.get("value", {})
+            # Instagram sends comment data in the value
+            comment_id = value.get("id", "")
+            text = value.get("text", "")
+            if not comment_id or not text:
+                continue
+            comments.append({
+                "platform": "instagram",
+                "comment_id": comment_id,
+                "post_id": value.get("media", {}).get("id", ""),
+                "author_id": value.get("from", {}).get("id", ""),
+                "author_name": value.get("from", {}).get("username", ""),
+                "text": text,
+                "parent_comment_id": value.get("parent_id"),
+                "timestamp": str(value.get("timestamp", "")),
+            })
+
+    # Facebook page feed comments
+    if webhook_object == "page" and "changes" in entry:
+        for change in entry.get("changes", []):
+            if change.get("field") != "feed":
+                continue
+            value = change.get("value", {})
+            if value.get("item") != "comment":
+                continue
+            comment_id = value.get("comment_id", "")
+            text = value.get("message", "")
+            if not comment_id or not text:
+                continue
+            # Ignore own page comments
+            page_id = entry.get("id", "")
+            sender_id = value.get("from", {}).get("id", "")
+            if sender_id == page_id:
+                continue
+            comments.append({
+                "platform": "facebook",
+                "comment_id": comment_id,
+                "post_id": value.get("post_id", ""),
+                "author_id": sender_id,
+                "author_name": value.get("from", {}).get("name", ""),
+                "text": text,
+                "parent_comment_id": value.get("parent_id"),
+                "timestamp": str(value.get("created_time", "")),
+            })
+
+    return comments
+
+
+async def reply_to_comment(platform: str, comment_id: str, text: str) -> dict | None:
+    """Reply to a comment on Instagram or Facebook."""
+    try:
+        if platform == "instagram":
+            url = f"{GRAPH_API_BASE}/{comment_id}/replies"
+            token = settings.META_PAGE_ACCESS_TOKEN
+            payload = {"message": text}
+        else:
+            url = f"{GRAPH_API_BASE}/{comment_id}/comments"
+            token = settings.META_PAGE_ACCESS_TOKEN
+            payload = {"message": text}
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                url,
+                json=payload,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            resp.raise_for_status()
+            result = resp.json()
+            logger.info(f"Replied to {platform} comment {comment_id}")
+            return result
+    except Exception as e:
+        logger.error(f"Failed to reply to {platform} comment {comment_id}: {e}")
+        return None
+
+
+async def hide_comment(platform: str, comment_id: str) -> bool:
+    """Hide/delete a comment on Instagram or Facebook.
+
+    Instagram: uses hide=true (reversible)
+    Facebook: deletes the comment (irreversible)
+    """
+    try:
+        token = settings.META_PAGE_ACCESS_TOKEN
+        async with httpx.AsyncClient(timeout=30) as client:
+            if platform == "instagram":
+                resp = await client.post(
+                    f"{GRAPH_API_BASE}/{comment_id}",
+                    json={"hide": True},
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+            else:
+                resp = await client.delete(
+                    f"{GRAPH_API_BASE}/{comment_id}",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+            resp.raise_for_status()
+            logger.info(f"Hidden/deleted {platform} comment {comment_id}")
+            return True
+    except Exception as e:
+        logger.error(f"Failed to hide {platform} comment {comment_id}: {e}")
+        return False

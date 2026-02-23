@@ -81,6 +81,11 @@ export const pauseTicketAI = (ticketId) => api.post(`/meta/tickets/${ticketId}/p
 export const resumeTicketAI = (ticketId) => api.post(`/meta/tickets/${ticketId}/resume-ai`)
 export const sendMetaReply = (data) => api.post('/meta/send-reply', data)
 
+// ── Moderação de Redes Sociais ──
+export const getModerationLog = (params) => api.get('/meta/moderation', { params })
+export const getModerationStats = (days = 7) => api.get('/meta/moderation/stats', { params: { days } })
+export const reviewComment = (id) => api.post(`/meta/moderation/${id}/review`)
+
 // ── Gmail ──
 export const getGmailStatus = () => api.get('/gmail/status')
 export const getGmailAuthUrl = () => api.get('/gmail/auth-url')
