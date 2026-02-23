@@ -1,20 +1,22 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense, lazy } from 'react'
 import Sidebar from './Sidebar'
 import TicketsPage from '../pages/TicketsPage'
 import TicketDetailPage from '../pages/TicketDetailPage'
 import DashboardPage from '../pages/DashboardPage'
-import KBPage from '../pages/KBPage'
-import IntegrationsPage from '../pages/IntegrationsPage'
-import ReportsPage from '../pages/ReportsPage'
-import SettingsPage from '../pages/SettingsPage'
-import TrackingPage from '../pages/TrackingPage'
-import AssistantPage from '../pages/AssistantPage'
-import MediaPage from '../pages/MediaPage'
-import CatalogPage from '../pages/CatalogPage'
-import LeaderboardPage from '../pages/LeaderboardPage'
-import ModerationPage from '../pages/ModerationPage'
-import CanaisIAPage from '../pages/CanaisIAPage'
 import { getTicketCounts } from '../services/api'
+
+// Lazy-load secondary pages for faster initial load
+const KBPage = lazy(() => import('../pages/KBPage'))
+const IntegrationsPage = lazy(() => import('../pages/IntegrationsPage'))
+const ReportsPage = lazy(() => import('../pages/ReportsPage'))
+const SettingsPage = lazy(() => import('../pages/SettingsPage'))
+const TrackingPage = lazy(() => import('../pages/TrackingPage'))
+const AssistantPage = lazy(() => import('../pages/AssistantPage'))
+const MediaPage = lazy(() => import('../pages/MediaPage'))
+const CatalogPage = lazy(() => import('../pages/CatalogPage'))
+const LeaderboardPage = lazy(() => import('../pages/LeaderboardPage'))
+const ModerationPage = lazy(() => import('../pages/ModerationPage'))
+const CanaisIAPage = lazy(() => import('../pages/CanaisIAPage'))
 
 const AUTO_REFRESH_MS = 30_000
 
@@ -118,7 +120,13 @@ export default function Layout({ user, onLogout }) {
         metaCount={metaCount}
       />
       <main className="flex-1 overflow-auto" style={{ background: 'var(--bg-primary)' }}>
-        {renderPage()}
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-full">
+            <i className="fas fa-spinner fa-spin text-2xl" style={{ color: 'var(--accent)' }} />
+          </div>
+        }>
+          {renderPage()}
+        </Suspense>
       </main>
     </div>
   )
