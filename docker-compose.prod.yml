@@ -61,6 +61,8 @@ services:
       META_WHATSAPP_PHONE_ID: ${META_WHATSAPP_PHONE_ID:-}
       META_PAGE_ID: ${META_PAGE_ID:-}
       META_INSTAGRAM_ACCOUNT_ID: ${META_INSTAGRAM_ACCOUNT_ID:-}
+    volumes:
+      - uploads:/app/uploads
     ports:
       - "8000:8000"
     depends_on:
@@ -95,3 +97,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:
