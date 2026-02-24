@@ -144,6 +144,16 @@ async def get_stats(
     )
     resolved_today = resolved_today_q.scalar()
 
+    # Responded today (distinct tickets with outbound messages today)
+    responded_result = await db.execute(
+        select(func.count(func.distinct(Message.ticket_id)))
+        .where(
+            Message.type == "outbound",
+            Message.created_at >= today_start,
+        )
+    )
+    responded_today = responded_result.scalar() or 0
+
     # FCR - First Contact Resolution (resolved tickets with <=1 outbound message)
     from sqlalchemy import literal_column
     fcr_subq = (
@@ -195,6 +205,7 @@ async def get_stats(
         "escalated_count": escalated,
         "open_tickets": open_tickets,
         "resolved_today": resolved_today,
+        "responded_today": responded_today,
         "fcr_count": fcr_count,
         "fcr_rate": fcr_rate,
         "unassigned_count": unassigned_count,

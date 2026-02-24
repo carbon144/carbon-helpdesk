@@ -211,7 +211,7 @@ def move_from_spam(message_id: str) -> bool:
         return False
 
 
-def send_email(to: str, subject: str, body_text: str, thread_id: str | None = None, in_reply_to: str | None = None) -> dict | None:
+def send_email(to: str, subject: str, body_text: str, thread_id: str | None = None, in_reply_to: str | None = None, cc: list[str] | None = None, bcc: list[str] | None = None) -> dict | None:
     """Send an email via Gmail API."""
     service = get_gmail_service()
     if not service:
@@ -226,6 +226,10 @@ def send_email(to: str, subject: str, body_text: str, thread_id: str | None = No
         if in_reply_to:
             message["In-Reply-To"] = in_reply_to
             message["References"] = in_reply_to
+        if cc:
+            message["Cc"] = ", ".join(cc)
+        if bcc:
+            message["Bcc"] = ", ".join(bcc)
 
         raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
         body = {"raw": raw}

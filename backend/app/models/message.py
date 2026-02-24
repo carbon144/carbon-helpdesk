@@ -2,7 +2,7 @@ import uuid
 from typing import Optional
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Text, DateTime, ForeignKey, Enum as SAEnum
+from sqlalchemy import String, Text, DateTime, Boolean, ForeignKey, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
@@ -32,6 +32,14 @@ class Message(Base):
     # Email thread tracking
     email_message_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     email_references: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # CC/BCC tracking
+    cc: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    bcc: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Scheduled send
+    scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_scheduled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 

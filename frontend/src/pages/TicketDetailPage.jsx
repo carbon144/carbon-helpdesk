@@ -146,6 +146,13 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
   const [historyMode, setHistoryMode] = useState('ticket') // 'ticket' or 'full'
   const [fullHistory, setFullHistory] = useState(null)
   const [loadingHistory, setLoadingHistory] = useState(false)
+  // CC/BCC
+  const [showCcBcc, setShowCcBcc] = useState(false)
+  const [replyCc, setReplyCc] = useState('')
+  const [replyBcc, setReplyBcc] = useState('')
+  // Scheduled send
+  const [showSchedulePicker, setShowSchedulePicker] = useState(false)
+  const [scheduleDate, setScheduleDate] = useState('')
 
   const isMetaChannel = ticket && ['whatsapp', 'instagram', 'facebook'].includes(ticket.source)
 
@@ -303,17 +310,26 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
     try { const { data } = await getTicket(ticketId); setTicket(data) } catch (e) { toast.error('Falha ao carregar ticket') }
   }
 
-  const handleSend = async () => {
+  const handleSend = async (scheduledAt) => {
     if (!reply.trim()) return
     setSending(true)
     try {
+      // Build cc/bcc arrays from comma-separated strings
+      const ccArr = replyCc ? replyCc.split(',').map(e => e.trim()).filter(Boolean) : undefined
+      const bccArr = replyBcc ? replyBcc.split(',').map(e => e.trim()).filter(Boolean) : undefined
+
       // Meta channel with AI paused: send via Meta API
       if (isMetaChannel && !ticket.ai_auto_mode) {
         await sendMetaReply({ ticket_id: ticket.id, message: reply })
       } else {
-        await addMessage(ticketId, { body_text: reply, type: replyType })
+        const payload = { body_text: reply, type: replyType }
+        if (ccArr && ccArr.length) payload.cc = ccArr
+        if (bccArr && bccArr.length) payload.bcc = bccArr
+        if (scheduledAt) payload.scheduled_at = scheduledAt
+        await addMessage(ticketId, payload)
       }
-      setReply(''); loadTicket()
+      setReply(''); setReplyCc(''); setReplyBcc(''); setShowCcBcc(false); setShowSchedulePicker(false); setScheduleDate(''); loadTicket()
+      if (scheduledAt) toast.success('Mensagem programada com sucesso')
     }
     catch (e) { toast.error(e.response?.data?.detail || 'Erro ao enviar mensagem') } finally { setSending(false) }
   }
@@ -860,12 +876,18 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                                     {msg.type === 'internal_note' && <i className="fas fa-sticky-note mr-1" />}
                                     {msg.sender_name || msg.sender_email || 'Sistema'}
                                   </span>
+                                  {msg.is_scheduled && (
+                                    <span className="text-[10px] bg-purple-500/15 text-purple-400 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                      <i className="fas fa-clock" />Programado {msg.scheduled_at ? new Date(msg.scheduled_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
+                                    </span>
+                                  )}
                                   <span className="text-[10px]" style={{
                                     color: msg.type === 'outbound' ? 'rgba(255,255,255,0.6)' : 'var(--text-tertiary)',
                                   }}>
                                     {new Date(msg.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                                   </span>
                                 </div>
+                                {msg.cc && <div className="text-[10px] mb-0.5" style={{ color: msg.type === 'outbound' ? 'rgba(255,255,255,0.5)' : 'var(--text-tertiary)' }}>CC: {msg.cc}</div>}
                                 <div className="text-sm whitespace-pre-wrap break-words">{msg.body_text}</div>
                               </div>
                             </div>
@@ -891,9 +913,15 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                                 <i className="fas fa-robot mr-0.5" />IA
                               </span>
                             )}
+                            {msg.is_scheduled && (
+                              <span className="ml-2 text-[10px] bg-purple-500/15 text-purple-400 px-1.5 py-0.5 rounded">
+                                <i className="fas fa-clock mr-0.5" />Programado {msg.scheduled_at ? new Date(msg.scheduled_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
+                              </span>
+                            )}
                           </span>
                           <span className="text-[var(--text-tertiary)] text-xs ml-4">{new Date(msg.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
+                        {msg.cc && <div className="text-[var(--text-tertiary)] text-[10px] mb-1">CC: {msg.cc}</div>}
                         <p className="text-[var(--text-primary)] text-sm whitespace-pre-wrap leading-relaxed">{msg.body_text}</p>
                       </div>
                     </div>
@@ -945,6 +973,12 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                     className={`text-xs px-3 py-1 rounded-full transition ${replyType === 'internal_note' ? 'bg-yellow-600 text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
                     <i className="fas fa-sticky-note mr-1" />Nota
                   </button>
+                  {replyType === 'outbound' && ticket?.source === 'gmail' && (
+                    <button onClick={() => setShowCcBcc(!showCcBcc)}
+                      className={`text-xs px-2.5 py-1 rounded-full transition ${showCcBcc ? 'bg-blue-600/20 text-blue-400' : 'text-[var(--text-tertiary)] hover:text-blue-400 hover:bg-[var(--bg-tertiary)]'}`}>
+                      <i className="fas fa-at mr-1" />CC/CCO
+                    </button>
+                  )}
                   <div className="ml-auto flex items-center gap-2">
                     {/* Macros dropdown */}
                     {macros.length > 0 && (
@@ -983,6 +1017,27 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                     <span className="text-[var(--text-tertiary)] text-xs">Ctrl+Enter</span>
                   </div>
                 </div>
+                {/* CC/BCC fields */}
+                {showCcBcc && replyType === 'outbound' && ticket?.source === 'gmail' && (
+                  <div className="mb-2 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <label className="text-[var(--text-tertiary)] text-xs w-8 shrink-0">CC</label>
+                      <input
+                        type="text" value={replyCc} onChange={e => setReplyCc(e.target.value)}
+                        placeholder="email1@exemplo.com, email2@exemplo.com"
+                        className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg px-3 py-1.5 text-[var(--text-primary)] text-xs focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[var(--text-tertiary)] text-xs w-8 shrink-0">CCO</label>
+                      <input
+                        type="text" value={replyBcc} onChange={e => setReplyBcc(e.target.value)}
+                        placeholder="email1@exemplo.com, email2@exemplo.com"
+                        className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg px-3 py-1.5 text-[var(--text-primary)] text-xs focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <div className="flex-1 relative">
                     <textarea ref={textareaRef} value={reply} onChange={handleReplyChange} onKeyDown={handleKeyDown} rows={5}
@@ -1080,11 +1135,48 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-left hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] transition">
                             <i className="fas fa-check w-4" />Resolver sem enviar
                           </button>
+                          {replyType === 'outbound' && ticket?.source === 'gmail' && (
+                            <>
+                              <div className="border-t border-[var(--border-color)] my-1" />
+                              <button onClick={() => { setShowSendMenu(false); setShowSchedulePicker(!showSchedulePicker) }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-left hover:bg-purple-500/10 text-purple-400 transition">
+                                <i className="fas fa-clock w-4" />Programar envio
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
+                {/* Schedule picker */}
+                {showSchedulePicker && replyType === 'outbound' && (
+                  <div className="flex items-center gap-2 mt-2 p-2 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                    <i className="fas fa-clock text-purple-400 text-xs" />
+                    <span className="text-purple-300 text-xs">Programar para:</span>
+                    <input
+                      type="datetime-local"
+                      value={scheduleDate}
+                      onChange={e => setScheduleDate(e.target.value)}
+                      min={new Date().toISOString().slice(0, 16)}
+                      className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg px-2 py-1 text-[var(--text-primary)] text-xs focus:outline-none focus:border-purple-500"
+                    />
+                    <button
+                      onClick={() => {
+                        if (!scheduleDate || !reply.trim()) return
+                        handleSend(new Date(scheduleDate).toISOString())
+                      }}
+                      disabled={!scheduleDate || !reply.trim() || sending}
+                      className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded-lg text-xs font-medium transition disabled:opacity-40"
+                    >
+                      <i className="fas fa-paper-plane mr-1" />Programar
+                    </button>
+                    <button onClick={() => { setShowSchedulePicker(false); setScheduleDate('') }}
+                      className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-xs transition">
+                      <i className="fas fa-times" />
+                    </button>
+                  </div>
+                )}
                 {/* Quick macro pills */}
                 {macros.length > 0 && (
                 <div className="flex items-center gap-2 mt-2 flex-wrap">

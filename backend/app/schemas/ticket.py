@@ -42,6 +42,9 @@ class MessageCreate(BaseModel):
     body_text: str
     body_html: str | None = None
     type: str = "outbound"  # outbound or internal_note
+    cc: list[str] | None = None
+    bcc: list[str] | None = None
+    scheduled_at: datetime | None = None
 
 
 class MessageResponse(BaseModel):
@@ -53,6 +56,10 @@ class MessageResponse(BaseModel):
     body_text: str | None = None
     body_html: str | None = None
     ai_suggestion: str | None = None
+    cc: str | None = None
+    bcc: str | None = None
+    scheduled_at: datetime | None = None
+    is_scheduled: bool = False
     created_at: datetime
 
     class Config:

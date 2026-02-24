@@ -33,6 +33,74 @@ async def _run_escalation_loop():
         await asyncio.sleep(300)  # 5 minutes
 
 
+async def _run_scheduled_email_loop():
+    """Background task: send scheduled emails every 30 seconds."""
+    from datetime import datetime, timezone
+    from sqlalchemy import select
+    from app.models.ticket import Ticket
+    from app.models.message import Message
+    from app.services.gmail_service import send_email
+
+    logger = logging.getLogger("scheduled_email")
+    await asyncio.sleep(15)  # Wait for startup
+
+    while True:
+        try:
+            async with async_session() as db:
+                now = datetime.now(timezone.utc)
+                result = await db.execute(
+                    select(Message).where(
+                        Message.is_scheduled == True,
+                        Message.scheduled_at <= now,
+                    )
+                )
+                scheduled_msgs = result.scalars().all()
+
+                for msg in scheduled_msgs:
+                    try:
+                        # Get the ticket
+                        ticket_result = await db.execute(
+                            select(Ticket).where(Ticket.id == msg.ticket_id)
+                        )
+                        ticket = ticket_result.scalar_one_or_none()
+                        if not ticket:
+                            msg.is_scheduled = False
+                            continue
+
+                        if ticket.source == "gmail" and ticket.customer:
+                            # Find gmail thread info
+                            thread_result = await db.execute(
+                                select(Message).where(
+                                    Message.ticket_id == ticket.id,
+                                    Message.gmail_thread_id.isnot(None),
+                                ).limit(1)
+                            )
+                            first_msg = thread_result.scalars().first()
+
+                            cc_list = [e.strip() for e in msg.cc.split(",") if e.strip()] if msg.cc else None
+                            bcc_list = [e.strip() for e in msg.bcc.split(",") if e.strip()] if msg.bcc else None
+
+                            send_email(
+                                to=ticket.customer.email,
+                                subject=f"Re: {ticket.subject}",
+                                body_text=msg.body_text or "",
+                                thread_id=first_msg.gmail_thread_id if first_msg else None,
+                                in_reply_to=first_msg.gmail_message_id if first_msg else None,
+                                cc=cc_list,
+                                bcc=bcc_list,
+                            )
+
+                        msg.is_scheduled = False
+                        logger.info(f"Scheduled email sent for message {msg.id} on ticket {ticket.id}")
+                    except Exception as e:
+                        logger.error(f"Failed to send scheduled message {msg.id}: {e}")
+
+                await db.commit()
+        except Exception as e:
+            logger.error(f"Scheduled email loop error: {e}")
+        await asyncio.sleep(30)  # Check every 30 seconds
+
+
 async def _run_email_fetch_loop():
     """Background task: fetch new Gmail emails every 60 seconds."""
     from datetime import datetime, timezone, timedelta
@@ -367,6 +435,11 @@ async def lifespan(app: FastAPI):
             "CREATE INDEX IF NOT EXISTS ix_customers_merged_into_id ON customers(merged_into_id)",
             "CREATE INDEX IF NOT EXISTS ix_tickets_merged_into_id ON tickets(merged_into_id)",
             "CREATE INDEX IF NOT EXISTS ix_tickets_email_message_id ON tickets(email_message_id)",
+            # CC/BCC and scheduled send on messages
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS cc TEXT",
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS bcc TEXT",
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ",
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_scheduled BOOLEAN DEFAULT FALSE",
         ]
         migration_logger = logging.getLogger("migrations")
         for sql in migration_sqls:
@@ -392,11 +465,13 @@ async def lifespan(app: FastAPI):
     # Start background tasks
     escalation_task = asyncio.create_task(_run_escalation_loop())
     email_fetch_task = asyncio.create_task(_run_email_fetch_loop())
+    scheduled_email_task = asyncio.create_task(_run_scheduled_email_loop())
 
     yield
 
     escalation_task.cancel()
     email_fetch_task.cancel()
+    scheduled_email_task.cancel()
 
 
 app = FastAPI(

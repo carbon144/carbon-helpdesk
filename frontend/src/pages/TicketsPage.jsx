@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useToast } from '../components/Toast'
-import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, fetchGmailHistory, updateTicket, composeEmail, getSentMessages, fetchSpamEmails, rescueFromSpam, rescueAndCreateTicket } from '../services/api'
+import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, fetchGmailHistory, updateTicket, composeEmail, getSentMessages, fetchSpamEmails, rescueFromSpam, bulkRescueFromSpam, rescueAndCreateTicket } from '../services/api'
 import MetaBadge from '../components/MetaBadge'
 
 const AUTO_REFRESH_MS = 30_000
@@ -89,8 +89,8 @@ const TAG_LABELS = {
 }
 
 const SORT_OPTIONS = [
-  { value: '', label: 'Mais recentes', icon: 'fa-arrow-down' },
   { value: 'oldest', label: 'Mais antigos', icon: 'fa-arrow-up' },
+  { value: 'newest', label: 'Mais recentes', icon: 'fa-arrow-down' },
   { value: 'sla', label: 'SLA (urgente primeiro)', icon: 'fa-clock' },
   { value: 'priority', label: 'Prioridade', icon: 'fa-exclamation' },
   { value: 'updated', label: 'Última atualização', icon: 'fa-sync-alt' },
@@ -129,7 +129,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   const [filterTag, setFilterTag] = useState('')
   const [filterSource, setFilterSource] = useState('')
   const [filterResponse, setFilterResponse] = useState('')
-  const [sort, setSort] = useState('')
+  const [sort, setSort] = useState('oldest')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [customerName, setCustomerName] = useState('')
@@ -157,6 +157,8 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   const [spamEmails, setSpamEmails] = useState([])
   const [spamLoading, setSpamLoading] = useState(false)
   const [spamRescuing, setSpamRescuing] = useState(null) // gmail_id being rescued
+  const [selectedSpam, setSelectedSpam] = useState(new Set())
+  const [bulkRescuing, setBulkRescuing] = useState(false)
   const searchTimerRef = useRef(null)
 
   // Debounced search: triggers loadTickets after 300ms of inactivity
@@ -292,6 +294,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
 
   const loadSpamEmails = async () => {
     setSpamLoading(true)
+    setSelectedSpam(new Set())
     try {
       const { data } = await fetchSpamEmails()
       setSpamEmails(data.emails || [])
@@ -331,6 +334,43 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
       toast.error('Falha ao criar ticket do spam')
     } finally {
       setSpamRescuing(null)
+    }
+  }
+
+  const toggleSpamSelect = (gmailId) => {
+    setSelectedSpam(prev => {
+      const next = new Set(prev)
+      if (next.has(gmailId)) next.delete(gmailId)
+      else next.add(gmailId)
+      return next
+    })
+  }
+
+  const toggleSpamSelectAll = () => {
+    if (selectedSpam.size === spamEmails.length) {
+      setSelectedSpam(new Set())
+    } else {
+      setSelectedSpam(new Set(spamEmails.map(e => e.gmail_id)))
+    }
+  }
+
+  const handleBulkRescueSpam = async () => {
+    if (selectedSpam.size === 0) return
+    setBulkRescuing(true)
+    try {
+      const ids = Array.from(selectedSpam)
+      const { data } = await bulkRescueFromSpam(ids)
+      const rescuedSet = new Set(data.rescued_ids || ids)
+      setSpamEmails(prev => prev.filter(e => !rescuedSet.has(e.gmail_id)))
+      setSelectedSpam(new Set())
+      const msg = data.failed > 0
+        ? `${data.rescued} resgatados, ${data.failed} falharam`
+        : `${data.rescued} emails movidos para a caixa de entrada`
+      toast.success(msg)
+    } catch (e) {
+      toast.error('Falha ao resgatar emails em massa')
+    } finally {
+      setBulkRescuing(false)
     }
   }
 
@@ -431,7 +471,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
     setFilterTag('')
     setFilterSource('')
     setFilterResponse('')
-    setSort('')
+    setSort('oldest')
     setSearch('')
     setDateFrom('')
     setDateTo('')
@@ -439,7 +479,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
     setPage(1)
   }
 
-  const hasActiveFilters = filterStatus || filterPriority || filterCategory || filterTag || filterSource || filterResponse || sort || dateFrom || dateTo || customerName
+  const hasActiveFilters = filterStatus || filterPriority || filterCategory || filterTag || filterSource || filterResponse || (sort && sort !== 'oldest') || dateFrom || dateTo || customerName
 
   const handleInlineUpdate = async (ticketId, field, value) => {
     try {
@@ -839,15 +879,15 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
             >
               <i className="fas fa-filter" />
               Filtros
-              {hasActiveFilters && <span className="text-xs font-bold">({[filterStatus, filterPriority, filterCategory, filterTag, filterSource, sort, dateFrom, dateTo, customerName].filter(Boolean).length})</span>}
+              {hasActiveFilters && <span className="text-xs font-bold">({[filterStatus, filterPriority, filterCategory, filterTag, filterSource, sort !== "oldest" && sort, dateFrom, dateTo, customerName].filter(Boolean).length})</span>}
             </button>
 
             <select 
               value={sort} 
               onChange={(e) => { setSort(e.target.value); setPage(1) }}
               className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                sort 
-                  ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30' 
+                sort && sort !== 'oldest'
+                  ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
                   : 'text-[var(--text-secondary)] bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >

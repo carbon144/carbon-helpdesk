@@ -178,8 +178,9 @@ function AdminDashboard({ stats, goToTickets }) {
         <KPICard label="Não Atribuídos" value={stats.unassigned_count || 0} icon="fa-user-slash" color="orange" onClick={() => goToTickets({ assigned_to: 'none' })} />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <KPICard label="Resolvidos Hoje" value={stats.resolved_today} icon="fa-check-circle" color="green" onClick={() => goToTickets({ status: 'resolved' })} />
+        <KPICard label="Respondidos Hoje" value={stats.responded_today || 0} icon="fa-paper-plane" color="blue" />
         <KPICard label="Tempo Resolução" value={`${stats.avg_resolution_hours}h`} icon="fa-check-double" color="purple" />
         <KPICard label="SLA Quebrados" value={stats.sla_breached} icon="fa-exclamation-triangle" color="red" onClick={() => goToTickets({ sla_breached: 'true' })} />
         <KPICard label="Resolv. 1ª Resp" value={stats.fcr_count || 0} icon="fa-bullseye" color="green" />
@@ -290,12 +291,13 @@ function GestaoDashboard({ stats, goToTickets }) {
         <KPICard label="Tempo Médio Resolução" value={`${stats.avg_resolution_hours}h`} icon="fa-check-double" color="purple" />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <KPICard label="Abertos" value={stats.open_tickets} icon="fa-folder-open" color="blue" onClick={() => goToTickets({ status: 'open' })} />
         <KPICard label="Escalados" value={stats.escalated_count} icon="fa-arrow-up" color="red" onClick={() => goToTickets({ status: 'escalated' })} />
         <KPICard label="Risco Jurídico" value={stats.legal_risk_count} icon="fa-gavel" color="red" onClick={() => goToTickets({ legal_risk: 'true' })} />
         <KPICard label="FCR" value={`${stats.fcr_rate || 0}%`} icon="fa-bullseye" color="green" />
         <KPICard label="Resolvidos Hoje" value={stats.resolved_today} icon="fa-check-circle" color="green" onClick={() => goToTickets({ status: 'resolved' })} />
+        <KPICard label="Respondidos Hoje" value={stats.responded_today || 0} icon="fa-paper-plane" color="blue" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

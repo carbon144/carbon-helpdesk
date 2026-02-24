@@ -117,6 +117,7 @@ export const sendGmailReply = (data) => api.post('/gmail/send-reply', data)
 export const composeEmail = (data) => api.post('/gmail/compose', data)
 export const fetchSpamEmails = () => api.get('/gmail/spam')
 export const rescueFromSpam = (messageId) => api.post(`/gmail/spam/rescue/${messageId}`)
+export const bulkRescueFromSpam = (messageIds) => api.post('/gmail/spam/rescue-bulk', { message_ids: messageIds })
 export const rescueAndCreateTicket = (messageId, data) => api.post(`/gmail/spam/rescue-and-create/${messageId}`, data)
 
 // ── AI ──

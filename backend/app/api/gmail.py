@@ -655,9 +655,17 @@ async def send_gmail_reply(
     data = await request.json()
     ticket_id = data.get("ticket_id")
     message_text = data.get("message")
+    cc = data.get("cc")  # list of emails
+    bcc = data.get("bcc")  # list of emails
 
     if not ticket_id or not message_text:
         raise HTTPException(400, "ticket_id e message são obrigatórios")
+
+    # Clean cc/bcc: filter empty strings
+    if cc:
+        cc = [e.strip() for e in cc if e.strip()]
+    if bcc:
+        bcc = [e.strip() for e in bcc if e.strip()]
 
     result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
     ticket = result.scalars().first()
@@ -696,6 +704,8 @@ async def send_gmail_reply(
         body_text=full_message,
         thread_id=gmail_thread_id,
         in_reply_to=in_reply_to,
+        cc=cc or None,
+        bcc=bcc or None,
     )
 
     if not response:
@@ -711,29 +721,55 @@ async def compose_email(
     user: User = Depends(get_current_user),
 ):
     """Compose and send a new email (not a reply to an existing ticket)."""
+    from datetime import datetime as dt_cls
     data = await request.json()
     to_email = data.get("to")
     to_name = data.get("to_name", "")
     subject = data.get("subject")
     body_text = data.get("body")
+    cc = data.get("cc")  # list of emails
+    bcc = data.get("bcc")  # list of emails
+    scheduled_at_str = data.get("scheduled_at")  # ISO datetime string
 
     if not to_email or not subject or not body_text:
         raise HTTPException(400, "to, subject e body são obrigatórios")
+
+    # Clean cc/bcc: filter empty strings
+    if cc:
+        cc = [e.strip() for e in cc if e.strip()]
+    if bcc:
+        bcc = [e.strip() for e in bcc if e.strip()]
+
+    # Parse scheduled_at
+    scheduled_at = None
+    if scheduled_at_str:
+        try:
+            scheduled_at = dt_cls.fromisoformat(scheduled_at_str.replace("Z", "+00:00"))
+            if scheduled_at.tzinfo is None:
+                scheduled_at = scheduled_at.replace(tzinfo=timezone.utc)
+        except Exception:
+            scheduled_at = None
+
+    is_scheduled = scheduled_at is not None and scheduled_at > datetime.now(timezone.utc)
 
     # Append agent email signature if exists
     full_message = body_text
     if user.email_signature:
         full_message += f"\n\n--\n{user.email_signature}"
 
-    # Send the email
-    response = send_email(
-        to=to_email,
-        subject=subject,
-        body_text=full_message,
-    )
+    response = None
+    if not is_scheduled:
+        # Send the email immediately
+        response = send_email(
+            to=to_email,
+            subject=subject,
+            body_text=full_message,
+            cc=cc or None,
+            bcc=bcc or None,
+        )
 
-    if not response:
-        raise HTTPException(500, "Falha ao enviar email")
+        if not response:
+            raise HTTPException(500, "Falha ao enviar email")
 
     # Create ticket for tracking
     customer = await _find_or_create_customer(db, to_email, to_name or to_email.split("@")[0])
@@ -752,7 +788,7 @@ async def compose_email(
         assigned_to=user.id,
         source="gmail",
         sla_deadline=sla_deadline,
-        first_response_at=datetime.now(timezone.utc),
+        first_response_at=None if is_scheduled else datetime.now(timezone.utc),
     )
     db.add(ticket)
     await db.flush()
@@ -763,8 +799,12 @@ async def compose_email(
         sender_name=user.name,
         sender_email=settings.GMAIL_SUPPORT_EMAIL or user.email,
         body_text=body_text,
-        gmail_message_id=response.get("id"),
-        gmail_thread_id=response.get("threadId"),
+        gmail_message_id=response.get("id") if response else None,
+        gmail_thread_id=response.get("threadId") if response else None,
+        cc=", ".join(cc) if cc else None,
+        bcc=", ".join(bcc) if bcc else None,
+        scheduled_at=scheduled_at if is_scheduled else None,
+        is_scheduled=is_scheduled,
     )
     db.add(msg)
 
@@ -775,7 +815,12 @@ async def compose_email(
 
     await db.commit()
 
-    return {"ok": True, "ticket_id": ticket.id, "ticket_number": ticket.number}
+    return {
+        "ok": True,
+        "ticket_id": ticket.id,
+        "ticket_number": ticket.number,
+        "scheduled": is_scheduled,
+    }
 
 
 # ---- Spam ----
@@ -785,6 +830,39 @@ async def get_spam_emails(user: User = Depends(get_current_user)):
     """Fetch emails from Gmail SPAM folder."""
     emails = fetch_spam_emails(max_results=50)
     return {"emails": emails, "total": len(emails)}
+
+
+@router.post("/spam/rescue-bulk")
+async def bulk_rescue_from_spam(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Move multiple emails from SPAM to INBOX."""
+    data = await request.json()
+    message_ids = data.get("message_ids", [])
+    if not message_ids:
+        raise HTTPException(400, "message_ids é obrigatório")
+
+    rescued = []
+    failed = []
+    for mid in message_ids:
+        try:
+            success = move_from_spam(mid)
+            if success:
+                rescued.append(mid)
+            else:
+                failed.append(mid)
+        except Exception:
+            failed.append(mid)
+
+    return {
+        "ok": True,
+        "rescued": len(rescued),
+        "failed": len(failed),
+        "rescued_ids": rescued,
+        "failed_ids": failed,
+    }
 
 
 @router.post("/spam/rescue/{message_id}")

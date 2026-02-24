@@ -326,12 +326,12 @@ async def list_tickets(
         query = query.order_by(Ticket.sla_deadline.asc().nulls_last())
     elif sort == "priority":
         query = query.order_by(Ticket.priority.desc())
-    elif sort == "oldest":
-        query = query.order_by(effective_date.asc())
+    elif sort == "newest":
+        query = query.order_by(effective_date.desc())
     elif sort == "updated":
         query = query.order_by(Ticket.updated_at.desc().nulls_last())
     else:
-        query = query.order_by(effective_date.desc())
+        query = query.order_by(effective_date.asc())
 
     query = query.offset((page - 1) * per_page).limit(per_page)
     query = query.options(joinedload(Ticket.customer), joinedload(Ticket.agent))
@@ -971,6 +971,19 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
     ticket = result.scalar_one_or_none()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket não encontrado")
+
+    # Clean cc/bcc from body
+    cc_list = [e.strip() for e in body.cc if e.strip()] if body.cc else None
+    bcc_list = [e.strip() for e in body.bcc if e.strip()] if body.bcc else None
+
+    # Parse scheduled_at
+    is_scheduled = False
+    scheduled_at = body.scheduled_at
+    if scheduled_at:
+        if scheduled_at.tzinfo is None:
+            scheduled_at = scheduled_at.replace(tzinfo=timezone.utc)
+        is_scheduled = scheduled_at > datetime.now(timezone.utc)
+
     msg = Message(
         ticket_id=ticket.id,
         type=body.type,
@@ -978,11 +991,15 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
         sender_name=user.name,
         body_text=body.body_text,
         body_html=body.body_html,
+        cc=", ".join(cc_list) if cc_list else None,
+        bcc=", ".join(bcc_list) if bcc_list else None,
+        scheduled_at=scheduled_at if is_scheduled else None,
+        is_scheduled=is_scheduled,
     )
     db.add(msg)
-    if body.type == "outbound" and not ticket.first_response_at:
+    if body.type == "outbound" and not is_scheduled and not ticket.first_response_at:
         ticket.first_response_at = datetime.now(timezone.utc)
-    if body.type == "outbound":
+    if body.type == "outbound" and not is_scheduled:
         ticket.last_agent_response_at = datetime.now(timezone.utc)
         # Auto-move to "Respondidos": when agent replies, set status to waiting
         if ticket.status in ("open", "in_progress", "analyzing"):
@@ -992,7 +1009,7 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
     await db.commit()
     await db.refresh(msg)
 
-    if body.type == "outbound":
+    if body.type == "outbound" and not is_scheduled:
         try:
             if ticket.source == "slack" and ticket.slack_channel_id and ticket.slack_thread_ts:
                 from app.services.slack_service import send_agent_reply_to_slack
@@ -1017,6 +1034,8 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
                     body_text=body.body_text or "",
                     thread_id=first_msg.gmail_thread_id if first_msg else None,
                     in_reply_to=first_msg.gmail_message_id if first_msg else None,
+                    cc=cc_list,
+                    bcc=bcc_list,
                 )
         except Exception as e:
             logger.error(f"Failed to send reply to source: {e}")
