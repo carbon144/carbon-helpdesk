@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 
 logger = logging.getLogger(__name__)
 from pydantic import BaseModel
@@ -963,6 +963,60 @@ async def get_tracking(ticket_id: str, db: AsyncSession = Depends(get_db), user:
     return tracking_result
 
 
+# ── Attachment Upload ──
+
+@router.post("/upload-attachment")
+async def upload_attachment(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+):
+    """Upload a file for email attachment. Returns drive URL and metadata."""
+    import json, io
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaIoBaseUpload
+
+    if not settings.GOOGLE_SERVICE_ACCOUNT_JSON:
+        raise HTTPException(400, "Google Drive não configurado")
+
+    creds_data = json.loads(settings.GOOGLE_SERVICE_ACCOUNT_JSON)
+    creds = service_account.Credentials.from_service_account_info(
+        creds_data, scopes=["https://www.googleapis.com/auth/drive.file"]
+    )
+    service = build("drive", "v3", credentials=creds)
+
+    content = await file.read()
+    media_body = MediaIoBaseUpload(io.BytesIO(content), mimetype=file.content_type or "application/octet-stream")
+
+    file_metadata = {"name": file.filename or "attachment"}
+    if settings.GOOGLE_DRIVE_FOLDER_ID:
+        file_metadata["parents"] = [settings.GOOGLE_DRIVE_FOLDER_ID]
+
+    result = service.files().create(
+        body=file_metadata, media_body=media_body, fields="id,webViewLink,name,size"
+    ).execute()
+
+    drive_file_id = result["id"]
+    drive_url = result.get("webViewLink", f"https://drive.google.com/file/d/{drive_file_id}/view")
+
+    # Make publicly accessible
+    try:
+        service.permissions().create(
+            fileId=drive_file_id,
+            body={"type": "anyone", "role": "reader"},
+        ).execute()
+    except Exception:
+        pass
+
+    return {
+        "drive_file_id": drive_file_id,
+        "drive_url": drive_url,
+        "name": file.filename,
+        "size": len(content),
+        "mime_type": file.content_type,
+    }
+
+
 # ── Messages ──
 
 @router.post("/{ticket_id}/messages", response_model=MessageResponse, status_code=201)
@@ -993,6 +1047,7 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
         body_html=body.body_html,
         cc=", ".join(cc_list) if cc_list else None,
         bcc=", ".join(bcc_list) if bcc_list else None,
+        attachments=body.attachments if body.attachments else None,
         scheduled_at=scheduled_at if is_scheduled else None,
         is_scheduled=is_scheduled,
     )
@@ -1028,10 +1083,15 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
                     ).limit(1)
                 )
                 first_msg = thread_msg.scalars().first()
+                email_body = body.body_text or ""
+                if body.attachments:
+                    email_body += "\n\n\U0001f4ce Anexos:\n"
+                    for att in body.attachments:
+                        email_body += f"- {att['name']}: {att['drive_url']}\n"
                 send_email(
                     to=ticket.customer.email,
                     subject=f"Re: {ticket.subject}",
-                    body_text=body.body_text or "",
+                    body_text=email_body,
                     thread_id=first_msg.gmail_thread_id if first_msg else None,
                     in_reply_to=first_msg.gmail_message_id if first_msg else None,
                     cc=cc_list,

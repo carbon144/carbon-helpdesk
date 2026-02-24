@@ -195,6 +195,10 @@ export const uploadMedia = (formData) => api.post('/media/upload', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },
   timeout: 120000,
 })
+export const uploadAttachment = (formData) => api.post('/tickets/upload-attachment', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' },
+  timeout: 120000,
+})
 
 // ── Tracking ──
 export const getTrackingList = (params) => api.get('/tracking/list', { params })

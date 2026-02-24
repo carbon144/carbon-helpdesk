@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useToast } from '../components/Toast'
-import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, fetchGmailHistory, updateTicket, composeEmail, getSentMessages, fetchSpamEmails, rescueFromSpam, bulkRescueFromSpam, rescueAndCreateTicket } from '../services/api'
+import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, fetchGmailHistory, updateTicket, composeEmail, getSentMessages, fetchSpamEmails, rescueFromSpam, bulkRescueFromSpam, rescueAndCreateTicket, uploadAttachment } from '../services/api'
 import MetaBadge from '../components/MetaBadge'
 
 const AUTO_REFRESH_MS = 30_000
@@ -151,6 +151,9 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
   const [composeSending, setComposeSending] = useState(false)
+  const [composeAttachments, setComposeAttachments] = useState([])
+  const [composeUploading, setComposeUploading] = useState(false)
+  const composeAttachmentRef = useRef(null)
   const [editingCell, setEditingCell] = useState(null) // { ticketId, field }
   const [topView, setTopView] = useState('inbox') // 'inbox' | 'sent' | 'spam'
   const [sentMessages, setSentMessages] = useState([])
@@ -195,6 +198,25 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
       if (filters.priority) setFilterPriority(filters.priority)
     }
   }, [filters])
+
+  const handleComposeAttachmentUpload = async (e) => {
+    const files = Array.from(e.target.files)
+    if (!files.length) return
+    setComposeUploading(true)
+    try {
+      for (const file of files) {
+        const formData = new FormData()
+        formData.append('file', file)
+        const { data } = await uploadAttachment(formData)
+        setComposeAttachments(prev => [...prev, data])
+      }
+    } catch (err) {
+      toast.error('Erro ao fazer upload do anexo')
+    } finally {
+      setComposeUploading(false)
+      e.target.value = ''
+    }
+  }
 
   const loadTickets = async () => {
     try {
@@ -1652,10 +1674,34 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
                   className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg px-3 py-2.5 text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
                 />
               </div>
+              <div>
+                <button onClick={() => composeAttachmentRef.current?.click()}
+                  disabled={composeUploading}
+                  className={`text-xs px-3 py-1.5 rounded-lg transition ${composeAttachments.length > 0 ? 'bg-emerald-600/20 text-emerald-400' : 'text-[var(--text-tertiary)] hover:text-emerald-400 hover:bg-[var(--bg-tertiary)] border border-[var(--border-color)]'}`}>
+                  <i className={`fas ${composeUploading ? 'fa-spinner animate-spin' : 'fa-paperclip'} mr-1`} />
+                  {composeAttachments.length > 0 ? `${composeAttachments.length} anexo${composeAttachments.length > 1 ? 's' : ''}` : 'Anexar arquivos'}
+                </button>
+                <input ref={composeAttachmentRef} type="file" multiple className="hidden" onChange={handleComposeAttachmentUpload} />
+                {composeAttachments.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {composeAttachments.map((att, i) => (
+                      <span key={i} className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 text-xs px-2.5 py-1 rounded-lg">
+                        <i className="fas fa-paperclip text-[10px]" />
+                        <span className="max-w-[150px] truncate">{att.name}</span>
+                        <span className="text-emerald-600 text-[10px]">({(att.size / 1024).toFixed(0)}KB)</span>
+                        <button onClick={() => setComposeAttachments(prev => prev.filter((_, j) => j !== i))}
+                          className="hover:text-red-400 transition ml-0.5">
+                          <i className="fas fa-times text-[10px]" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex justify-end gap-3 p-5 border-t border-[var(--border-color)]">
               <button
-                onClick={() => { setShowComposeModal(false); setComposeTo(''); setComposeCc(''); setComposeBcc(''); setComposeShowCcBcc(false); setComposeSubject(''); setComposeBody('') }}
+                onClick={() => { setShowComposeModal(false); setComposeTo(''); setComposeCc(''); setComposeBcc(''); setComposeShowCcBcc(false); setComposeSubject(''); setComposeBody(''); setComposeAttachments([]) }}
                 className="px-4 py-2.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition"
               >
                 Cancelar
@@ -1667,7 +1713,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
                   try {
                     const ccList = composeCc ? composeCc.split(',').map(e => e.trim()).filter(Boolean) : undefined
                     const bccList = composeBcc ? composeBcc.split(',').map(e => e.trim()).filter(Boolean) : undefined
-                    const { data } = await composeEmail({ to: composeTo, subject: composeSubject, body: composeBody, cc: ccList, bcc: bccList })
+                    const { data } = await composeEmail({ to: composeTo, subject: composeSubject, body: composeBody, cc: ccList, bcc: bccList, attachments: composeAttachments.length ? composeAttachments : undefined })
                     setShowComposeModal(false)
                     setComposeTo('')
                     setComposeCc('')
@@ -1675,6 +1721,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
                     setComposeShowCcBcc(false)
                     setComposeSubject('')
                     setComposeBody('')
+                    setComposeAttachments([])
                     loadTickets()
                     if (data.ticket_number) {
                       toast.success(`E-mail enviado! Ticket #${data.ticket_number} criado`)

@@ -45,6 +45,7 @@ class MessageCreate(BaseModel):
     cc: list[str] | None = None
     bcc: list[str] | None = None
     scheduled_at: datetime | None = None
+    attachments: list[dict] | None = None  # [{name, drive_url, drive_file_id, size, mime_type}]
 
 
 class MessageResponse(BaseModel):
@@ -58,6 +59,7 @@ class MessageResponse(BaseModel):
     ai_suggestion: str | None = None
     cc: str | None = None
     bcc: str | None = None
+    attachments: dict | list | None = None
     scheduled_at: datetime | None = None
     is_scheduled: bool = False
     created_at: datetime

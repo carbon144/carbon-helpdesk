@@ -657,6 +657,7 @@ async def send_gmail_reply(
     message_text = data.get("message")
     cc = data.get("cc")  # list of emails
     bcc = data.get("bcc")  # list of emails
+    attachments = data.get("attachments")  # list of attachment dicts
 
     if not ticket_id or not message_text:
         raise HTTPException(400, "ticket_id e message são obrigatórios")
@@ -698,6 +699,12 @@ async def send_gmail_reply(
     if user.email_signature:
         full_message += f"\n\n--\n{user.email_signature}"
 
+    # Append attachment links to email body
+    if attachments:
+        full_message += "\n\n\U0001f4ce Anexos:\n"
+        for att in attachments:
+            full_message += f"- {att['name']}: {att['drive_url']}\n"
+
     response = send_email(
         to=customer.email,
         subject=subject,
@@ -730,6 +737,7 @@ async def compose_email(
     cc = data.get("cc")  # list of emails
     bcc = data.get("bcc")  # list of emails
     scheduled_at_str = data.get("scheduled_at")  # ISO datetime string
+    attachments = data.get("attachments")  # list of attachment dicts
 
     if not to_email or not subject or not body_text:
         raise HTTPException(400, "to, subject e body são obrigatórios")
@@ -756,6 +764,12 @@ async def compose_email(
     full_message = body_text
     if user.email_signature:
         full_message += f"\n\n--\n{user.email_signature}"
+
+    # Append attachment links to email body
+    if attachments:
+        full_message += "\n\n\U0001f4ce Anexos:\n"
+        for att in attachments:
+            full_message += f"- {att['name']}: {att['drive_url']}\n"
 
     response = None
     if not is_scheduled:
@@ -803,6 +817,7 @@ async def compose_email(
         gmail_thread_id=response.get("threadId") if response else None,
         cc=", ".join(cc) if cc else None,
         bcc=", ".join(bcc) if bcc else None,
+        attachments=attachments if attachments else None,
         scheduled_at=scheduled_at if is_scheduled else None,
         is_scheduled=is_scheduled,
     )

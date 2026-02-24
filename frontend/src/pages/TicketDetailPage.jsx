@@ -5,7 +5,7 @@ import {
   triageTicket, suggestReply, updateSupplierNotes, updateTracking, refreshTracking,
   blacklistCustomer, unblacklistCustomer, generateSummary, getNextTicket,
   updateInternalNotes, sendProtocolEmail, backfillProtocols,
-  getMediaItems, createMediaItem, suggestMedia, uploadMedia, getCopilotInsights,
+  getMediaItems, createMediaItem, suggestMedia, uploadMedia, uploadAttachment, getCopilotInsights,
   getEcommerceOrders, getShopifyCustomer, refundShopifyOrder, cancelShopifyOrder,
   pauseTicketAI, resumeTicketAI, sendMetaReply, submitCsat,
   mergeTickets, mergeCustomers, searchCustomers, getCustomerFullHistory,
@@ -153,6 +153,10 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
   // Scheduled send
   const [showSchedulePicker, setShowSchedulePicker] = useState(false)
   const [scheduleDate, setScheduleDate] = useState('')
+  // Attachments
+  const [replyAttachments, setReplyAttachments] = useState([])
+  const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const attachmentInputRef = useRef(null)
 
   const isMetaChannel = ticket && ['whatsapp', 'instagram', 'facebook'].includes(ticket.source)
 
@@ -310,6 +314,25 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
     try { const { data } = await getTicket(ticketId); setTicket(data) } catch (e) { toast.error('Falha ao carregar ticket') }
   }
 
+  const handleAttachmentUpload = async (e) => {
+    const files = Array.from(e.target.files)
+    if (!files.length) return
+    setUploadingAttachment(true)
+    try {
+      for (const file of files) {
+        const formData = new FormData()
+        formData.append('file', file)
+        const { data } = await uploadAttachment(formData)
+        setReplyAttachments(prev => [...prev, data])
+      }
+    } catch (err) {
+      toast.error('Erro ao fazer upload do anexo')
+    } finally {
+      setUploadingAttachment(false)
+      e.target.value = ''
+    }
+  }
+
   const handleSend = async (scheduledAt) => {
     if (!reply.trim()) return
     setSending(true)
@@ -326,9 +349,10 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
         if (ccArr && ccArr.length) payload.cc = ccArr
         if (bccArr && bccArr.length) payload.bcc = bccArr
         if (scheduledAt) payload.scheduled_at = scheduledAt
+        if (replyAttachments.length > 0) payload.attachments = replyAttachments
         await addMessage(ticketId, payload)
       }
-      setReply(''); setReplyCc(''); setReplyBcc(''); setShowCcBcc(false); setShowSchedulePicker(false); setScheduleDate(''); loadTicket()
+      setReply(''); setReplyCc(''); setReplyBcc(''); setShowCcBcc(false); setShowSchedulePicker(false); setScheduleDate(''); setReplyAttachments([]); loadTicket()
       if (scheduledAt) toast.success('Mensagem programada com sucesso')
     }
     catch (e) { toast.error(e.response?.data?.detail || 'Erro ao enviar mensagem') } finally { setSending(false) }
@@ -889,6 +913,17 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                                 </div>
                                 {msg.cc && <div className="text-[10px] mb-0.5" style={{ color: msg.type === 'outbound' ? 'rgba(255,255,255,0.5)' : 'var(--text-tertiary)' }}>CC: {msg.cc}</div>}
                                 <div className="text-sm whitespace-pre-wrap break-words">{msg.body_text}</div>
+                                {msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {msg.attachments.map((att, i) => (
+                                      <a key={i} href={att.drive_url} target="_blank" rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs px-2.5 py-1.5 rounded-lg transition border border-[var(--border-color)]">
+                                        <i className="fas fa-paperclip text-[10px]" />
+                                        <span className="max-w-[200px] truncate">{att.name}</span>
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </React.Fragment>
@@ -923,6 +958,17 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                         </div>
                         {msg.cc && <div className="text-[var(--text-tertiary)] text-[10px] mb-1">CC: {msg.cc}</div>}
                         <p className="text-[var(--text-primary)] text-sm whitespace-pre-wrap leading-relaxed">{msg.body_text}</p>
+                        {msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {msg.attachments.map((att, i) => (
+                              <a key={i} href={att.drive_url} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs px-2.5 py-1.5 rounded-lg transition border border-[var(--border-color)]">
+                                <i className="fas fa-paperclip text-[10px]" />
+                                <span className="max-w-[200px] truncate">{att.name}</span>
+                              </a>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))
@@ -979,6 +1025,13 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                       <i className="fas fa-at mr-1" />CC/CCO
                     </button>
                   )}
+                  <button onClick={() => attachmentInputRef.current?.click()}
+                    disabled={uploadingAttachment}
+                    className={`text-xs px-2.5 py-1 rounded-full transition ${replyAttachments.length > 0 ? 'bg-emerald-600/20 text-emerald-400' : 'text-[var(--text-tertiary)] hover:text-emerald-400 hover:bg-[var(--bg-tertiary)]'}`}>
+                    <i className={`fas ${uploadingAttachment ? 'fa-spinner animate-spin' : 'fa-paperclip'} mr-1`} />
+                    {replyAttachments.length > 0 ? `${replyAttachments.length} anexo${replyAttachments.length > 1 ? 's' : ''}` : 'Anexar'}
+                  </button>
+                  <input ref={attachmentInputRef} type="file" multiple className="hidden" onChange={handleAttachmentUpload} />
                   <div className="ml-auto flex items-center gap-2">
                     {/* Macros dropdown */}
                     {macros.length > 0 && (
@@ -1036,6 +1089,21 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                         className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg px-3 py-1.5 text-[var(--text-primary)] text-xs focus:outline-none focus:border-blue-500"
                       />
                     </div>
+                  </div>
+                )}
+                {replyAttachments.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    {replyAttachments.map((att, i) => (
+                      <span key={i} className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 text-xs px-2.5 py-1 rounded-lg">
+                        <i className="fas fa-paperclip text-[10px]" />
+                        <span className="max-w-[150px] truncate">{att.name}</span>
+                        <span className="text-emerald-600 text-[10px]">({(att.size / 1024).toFixed(0)}KB)</span>
+                        <button onClick={() => setReplyAttachments(prev => prev.filter((_, j) => j !== i))}
+                          className="hover:text-red-400 transition ml-0.5">
+                          <i className="fas fa-times text-[10px]" />
+                        </button>
+                      </span>
+                    ))}
                   </div>
                 )}
                 <div className="flex gap-2">
