@@ -145,6 +145,9 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   const [importError, setImportError] = useState(null)
   const [showComposeModal, setShowComposeModal] = useState(false)
   const [composeTo, setComposeTo] = useState('')
+  const [composeCc, setComposeCc] = useState('')
+  const [composeBcc, setComposeBcc] = useState('')
+  const [composeShowCcBcc, setComposeShowCcBcc] = useState(false)
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
   const [composeSending, setComposeSending] = useState(false)
@@ -1590,7 +1593,13 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="text-[var(--text-secondary)] text-sm font-medium block mb-1.5">Para</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[var(--text-secondary)] text-sm font-medium">Para</label>
+                  <button onClick={() => setComposeShowCcBcc(!composeShowCcBcc)}
+                    className="text-xs text-blue-400 hover:text-blue-300 transition">
+                    {composeShowCcBcc ? 'Ocultar CC/CCO' : 'CC/CCO'}
+                  </button>
+                </div>
                 <input
                   type="email"
                   value={composeTo}
@@ -1599,6 +1608,30 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
                   className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg px-3 py-2.5 text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 />
               </div>
+              {composeShowCcBcc && (
+                <>
+                  <div>
+                    <label className="text-[var(--text-secondary)] text-sm font-medium block mb-1.5">CC</label>
+                    <input
+                      type="text"
+                      value={composeCc}
+                      onChange={e => setComposeCc(e.target.value)}
+                      placeholder="email1@example.com, email2@example.com"
+                      className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg px-3 py-2.5 text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[var(--text-secondary)] text-sm font-medium block mb-1.5">CCO</label>
+                    <input
+                      type="text"
+                      value={composeBcc}
+                      onChange={e => setComposeBcc(e.target.value)}
+                      placeholder="email1@example.com, email2@example.com"
+                      className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg px-3 py-2.5 text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    />
+                  </div>
+                </>
+              )}
               <div>
                 <label className="text-[var(--text-secondary)] text-sm font-medium block mb-1.5">Assunto</label>
                 <input
@@ -1622,7 +1655,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
             </div>
             <div className="flex justify-end gap-3 p-5 border-t border-[var(--border-color)]">
               <button
-                onClick={() => { setShowComposeModal(false); setComposeTo(''); setComposeSubject(''); setComposeBody('') }}
+                onClick={() => { setShowComposeModal(false); setComposeTo(''); setComposeCc(''); setComposeBcc(''); setComposeShowCcBcc(false); setComposeSubject(''); setComposeBody('') }}
                 className="px-4 py-2.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition"
               >
                 Cancelar
@@ -1632,9 +1665,14 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
                   if (!composeTo || !composeSubject || !composeBody) return
                   setComposeSending(true)
                   try {
-                    const { data } = await composeEmail({ to: composeTo, subject: composeSubject, body: composeBody })
+                    const ccList = composeCc ? composeCc.split(',').map(e => e.trim()).filter(Boolean) : undefined
+                    const bccList = composeBcc ? composeBcc.split(',').map(e => e.trim()).filter(Boolean) : undefined
+                    const { data } = await composeEmail({ to: composeTo, subject: composeSubject, body: composeBody, cc: ccList, bcc: bccList })
                     setShowComposeModal(false)
                     setComposeTo('')
+                    setComposeCc('')
+                    setComposeBcc('')
+                    setComposeShowCcBcc(false)
                     setComposeSubject('')
                     setComposeBody('')
                     loadTickets()
