@@ -12,7 +12,7 @@ sshpass -p "$PASS" rsync -avz --exclude 'node_modules' --exclude '.git' --exclud
   ~/Desktop/carbon-helpdesk/ ${USER}@${SERVER}:${REMOTE_DIR}/
 
 echo "=== Rebuilding and restarting containers ==="
-sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no ${USER}@${SERVER} "cd ${REMOTE_DIR} && docker compose up -d --build"
+sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no ${USER}@${SERVER} "cd ${REMOTE_DIR} && docker compose -f docker-compose.prod.yml up -d --build"
 
 echo "=== Done! ==="
 echo "Access: http://${SERVER}"
