@@ -652,6 +652,48 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
             </button>
           </div>
 
+          {/* Barra de acao flutuante quando tem itens selecionados */}
+          {selectedSpam.size > 0 && (
+            <div className="mb-3 flex items-center gap-3 p-3 rounded-xl border border-blue-500/30 bg-blue-500/10">
+              <span className="text-sm text-blue-300 font-medium">
+                {selectedSpam.size} selecionado{selectedSpam.size > 1 ? 's' : ''}
+              </span>
+              <div className="flex gap-2 ml-auto">
+                <button
+                  onClick={handleBulkRescueSpam}
+                  disabled={bulkRescuing}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition disabled:opacity-50"
+                >
+                  <i className={`fas ${bulkRescuing ? 'fa-spinner animate-spin' : 'fa-inbox'} mr-1.5`} />
+                  Mover para Caixa de Entrada
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Excluir permanentemente ${selectedSpam.size} email(s)?`)) return
+                    setBulkRescuing(true)
+                    try {
+                      const ids = Array.from(selectedSpam)
+                      // Apenas remove da lista local (Gmail ja marcou como spam)
+                      setSpamEmails(prev => prev.filter(e => !selectedSpam.has(e.gmail_id)))
+                      setSelectedSpam(new Set())
+                      toast.success(`${ids.length} email(s) removido(s)`)
+                    } finally { setBulkRescuing(false) }
+                  }}
+                  disabled={bulkRescuing}
+                  className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-lg text-xs font-medium transition disabled:opacity-50"
+                >
+                  <i className="fas fa-trash mr-1.5" />Excluir
+                </button>
+                <button
+                  onClick={() => setSelectedSpam(new Set())}
+                  className="px-3 py-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg text-xs transition"
+                >
+                  Limpar
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="bg-[var(--bg-secondary)] rounded-xl overflow-hidden border border-[var(--border-color)]">
             {spamLoading ? (
               <div className="p-12 text-center text-[var(--text-secondary)]">Carregando spam...</div>
@@ -662,9 +704,30 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
               </div>
             ) : (
               <div className="divide-y divide-[var(--border-color)]">
+                {/* Header: selecionar todos */}
+                <div className="px-4 py-2.5 flex items-center gap-3 bg-[var(--bg-tertiary)]">
+                  <input
+                    type="checkbox"
+                    checked={selectedSpam.size === spamEmails.length && spamEmails.length > 0}
+                    onChange={toggleSpamSelectAll}
+                    className="w-4 h-4 rounded accent-blue-500 cursor-pointer"
+                  />
+                  <span className="text-xs text-[var(--text-secondary)]">
+                    {selectedSpam.size === spamEmails.length ? 'Desmarcar todos' : 'Selecionar todos'}
+                  </span>
+                  <span className="text-xs text-[var(--text-tertiary)] ml-auto">{spamEmails.length} email{spamEmails.length > 1 ? 's' : ''}</span>
+                </div>
                 {spamEmails.map(email => (
-                  <div key={email.gmail_id} className="p-4 hover:bg-[var(--bg-tertiary)] transition-colors">
-                    <div className="flex items-start justify-between gap-4">
+                  <div key={email.gmail_id}
+                    className={`p-4 hover:bg-[var(--bg-tertiary)] transition-colors ${selectedSpam.has(email.gmail_id) ? 'bg-blue-500/5' : ''}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedSpam.has(email.gmail_id)}
+                        onChange={() => toggleSpamSelect(email.gmail_id)}
+                        className="w-4 h-4 rounded accent-blue-500 cursor-pointer mt-1 flex-shrink-0"
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-[var(--text-primary)] font-medium text-sm truncate">{email.from_name}</span>
