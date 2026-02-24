@@ -601,6 +601,7 @@ async def bulk_update(body: TicketBulkUpdate, db: AsyncSession = Depends(get_db)
         raise HTTPException(status_code=400, detail=f"Prioridade inválida: {body.priority}")
     result = await db.execute(select(Ticket).where(Ticket.id.in_(body.ticket_ids)))
     tickets = result.scalars().all()
+    csat_tickets = []
     for ticket in tickets:
         changes = {}
         if body.status:
@@ -608,6 +609,7 @@ async def bulk_update(body: TicketBulkUpdate, db: AsyncSession = Depends(get_db)
             ticket.status = body.status
             if body.status in ("resolved", "closed") and not ticket.resolved_at:
                 ticket.resolved_at = datetime.now(timezone.utc)
+                csat_tickets.append(ticket)
         if body.priority:
             changes["priority"] = {"from": ticket.priority, "to": body.priority}
             ticket.priority = body.priority
@@ -623,6 +625,15 @@ async def bulk_update(body: TicketBulkUpdate, db: AsyncSession = Depends(get_db)
         ticket.updated_at = datetime.now(timezone.utc)
         db.add(AuditLog(ticket_id=ticket.id, user_id=user.id, action="bulk_update", details=changes))
     await db.commit()
+
+    # Send CSAT emails for newly resolved/closed tickets
+    for ticket in csat_tickets:
+        try:
+            from app.services.csat_service import send_csat_email
+            send_csat_email(ticket)
+        except Exception as e:
+            logger.warning(f"Failed to send CSAT email for ticket #{ticket.number}: {e}")
+
     return {"updated": len(tickets)}
 
 
@@ -1018,6 +1029,33 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
             scheduled_at = scheduled_at.replace(tzinfo=timezone.utc)
         is_scheduled = scheduled_at > datetime.now(timezone.utc)
 
+    # For outbound gmail messages, try to send email BEFORE saving to DB
+    # This way if email fails, the agent sees the error and can retry
+    if body.type == "outbound" and not is_scheduled and ticket.source == "gmail" and ticket.customer:
+        from app.services.gmail_service import send_email
+        thread_msg = await db.execute(
+            select(Message).where(
+                Message.ticket_id == ticket.id,
+                Message.gmail_thread_id.isnot(None),
+            ).limit(1)
+        )
+        first_msg = thread_msg.scalars().first()
+        email_body = body.body_text or ""
+        if user.email_signature:
+            email_body += f"\n\n--\n{user.email_signature}"
+        email_result = send_email(
+            to=ticket.customer.email,
+            subject=f"Re: {ticket.subject}",
+            body_text=email_body,
+            thread_id=first_msg.gmail_thread_id if first_msg else None,
+            in_reply_to=first_msg.gmail_message_id if first_msg else None,
+            cc=cc_list,
+            bcc=bcc_list,
+            attachments=body.attachments if body.attachments else None,
+        )
+        if not email_result:
+            raise HTTPException(status_code=502, detail="Falha ao enviar email. Verifique a conexão com o Gmail.")
+
     msg = Message(
         ticket_id=ticket.id,
         type=body.type,
@@ -1044,6 +1082,7 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
     await db.commit()
     await db.refresh(msg)
 
+    # For outbound slack messages, send after saving (best-effort)
     if body.type == "outbound" and not is_scheduled:
         try:
             if ticket.source == "slack" and ticket.slack_channel_id and ticket.slack_thread_ts:
@@ -1054,28 +1093,8 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
                     agent_name=user.name,
                     message_text=body.body_text or "",
                 )
-            elif ticket.source == "gmail" and ticket.customer:
-                from app.services.gmail_service import send_email
-                thread_msg = await db.execute(
-                    select(Message).where(
-                        Message.ticket_id == ticket.id,
-                        Message.gmail_thread_id.isnot(None),
-                    ).limit(1)
-                )
-                first_msg = thread_msg.scalars().first()
-                email_body = body.body_text or ""
-                send_email(
-                    to=ticket.customer.email,
-                    subject=f"Re: {ticket.subject}",
-                    body_text=email_body,
-                    thread_id=first_msg.gmail_thread_id if first_msg else None,
-                    in_reply_to=first_msg.gmail_message_id if first_msg else None,
-                    cc=cc_list,
-                    bcc=bcc_list,
-                    attachments=body.attachments if body.attachments else None,
-                )
         except Exception as e:
-            logger.error(f"Failed to send reply to source: {e}")
+            logger.error(f"Failed to send reply to Slack: {e}")
 
     # RF-019: Auto-generate summary every 3 messages
     try:
@@ -1151,7 +1170,7 @@ class CSATSubmit(BaseModel):
 
 
 @router.post("/{ticket_id}/csat")
-async def submit_csat(ticket_id: str, body: CSATSubmit, db: AsyncSession = Depends(get_db)):
+async def submit_csat(ticket_id: str, body: CSATSubmit, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     from app.models.csat import CSATRating
     result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
     ticket = result.scalar_one_or_none()

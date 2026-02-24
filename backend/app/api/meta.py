@@ -160,14 +160,17 @@ async def _process_inbound_message(db: AsyncSession, msg_data: dict):
 async def _find_or_create_customer(
     db: AsyncSession, platform: str, sender_id: str, sender_name: str
 ) -> Customer:
-    """Find customer by meta_user_id or create a new one."""
+    """Find customer by meta_user_id or create a new one, following merge chain."""
+    from app.services.customer_matcher import _follow_merge_chain
+
     result = await db.execute(
         select(Customer).where(Customer.meta_user_id == sender_id)
     )
     customer = result.scalars().first()
 
     if customer:
-        return customer
+        # Follow merge chain — if customer was merged, use the target customer
+        return await _follow_merge_chain(db, customer)
 
     # Fetch profile name from Meta if not provided
     if not sender_name:

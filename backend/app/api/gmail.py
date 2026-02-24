@@ -989,7 +989,9 @@ async def rescue_and_create_ticket(
 
 
 async def _find_or_create_customer(db: AsyncSession, email: str, name: str) -> Customer:
-    """Find or create a customer by email."""
+    """Find or create a customer by email, following merge chain."""
+    from app.services.customer_matcher import _follow_merge_chain
+
     result = await db.execute(select(Customer).where(Customer.email == email))
     customer = result.scalars().first()
     if not customer:
@@ -997,6 +999,8 @@ async def _find_or_create_customer(db: AsyncSession, email: str, name: str) -> C
         db.add(customer)
         await db.flush()
     else:
+        # Follow merge chain — if customer was merged, use the target customer
+        customer = await _follow_merge_chain(db, customer)
         customer.total_tickets += 1
         if customer.total_tickets > 2:
             customer.is_repeat = True
