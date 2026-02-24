@@ -4,7 +4,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
+from pathlib import Path
 
 from app.core.config import settings
 from app.core.database import engine, Base, async_session
@@ -37,6 +39,7 @@ async def _run_scheduled_email_loop():
     """Background task: send scheduled emails every 30 seconds."""
     from datetime import datetime, timezone
     from sqlalchemy import select
+    from sqlalchemy.orm import joinedload
     from app.models.ticket import Ticket
     from app.models.message import Message
     from app.services.gmail_service import send_email
@@ -58,15 +61,18 @@ async def _run_scheduled_email_loop():
 
                 for msg in scheduled_msgs:
                     try:
-                        # Get the ticket
+                        # Get the ticket with customer eagerly loaded
                         ticket_result = await db.execute(
-                            select(Ticket).where(Ticket.id == msg.ticket_id)
+                            select(Ticket)
+                            .where(Ticket.id == msg.ticket_id)
+                            .options(joinedload(Ticket.customer))
                         )
                         ticket = ticket_result.scalar_one_or_none()
                         if not ticket:
                             msg.is_scheduled = False
                             continue
 
+                        sent = False
                         if ticket.source == "gmail" and ticket.customer:
                             # Find gmail thread info
                             thread_result = await db.execute(
@@ -80,7 +86,7 @@ async def _run_scheduled_email_loop():
                             cc_list = [e.strip() for e in msg.cc.split(",") if e.strip()] if msg.cc else None
                             bcc_list = [e.strip() for e in msg.bcc.split(",") if e.strip()] if msg.bcc else None
 
-                            send_email(
+                            response = send_email(
                                 to=ticket.customer.email,
                                 subject=f"Re: {ticket.subject}",
                                 body_text=msg.body_text or "",
@@ -88,10 +94,20 @@ async def _run_scheduled_email_loop():
                                 in_reply_to=first_msg.gmail_message_id if first_msg else None,
                                 cc=cc_list,
                                 bcc=bcc_list,
+                                attachments=msg.attachments if msg.attachments else None,
                             )
+                            if response:
+                                msg.gmail_message_id = response.get("id")
+                                msg.gmail_thread_id = response.get("threadId")
+                                sent = True
+                            else:
+                                logger.warning(f"Scheduled email send failed for message {msg.id}, will retry")
+                        else:
+                            sent = True  # Non-Gmail tickets: just mark as sent
 
-                        msg.is_scheduled = False
-                        logger.info(f"Scheduled email sent for message {msg.id} on ticket {ticket.id}")
+                        if sent:
+                            msg.is_scheduled = False
+                            logger.info(f"Scheduled email sent for message {msg.id} on ticket {ticket.id}")
                     except Exception as e:
                         logger.error(f"Failed to send scheduled message {msg.id}: {e}")
 
@@ -515,6 +531,11 @@ app.include_router(ws.router)
 # Public CSAT rating page (no auth required - customer clicks email link)
 from app.api import csat as csat_public
 app.include_router(csat_public.router, prefix="/api")
+
+# Serve uploaded attachments
+_uploads_dir = Path("uploads")
+_uploads_dir.mkdir(exist_ok=True)
+app.mount("/api/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 @app.get("/api/health")

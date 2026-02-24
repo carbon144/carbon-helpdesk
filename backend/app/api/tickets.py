@@ -970,48 +970,28 @@ async def upload_attachment(
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
 ):
-    """Upload a file for email attachment. Returns drive URL and metadata."""
-    import json, io
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
-    from googleapiclient.http import MediaIoBaseUpload
+    """Upload a file for email attachment. Stores locally."""
+    import uuid
+    from pathlib import Path
 
-    if not settings.GOOGLE_SERVICE_ACCOUNT_JSON:
-        raise HTTPException(400, "Google Drive não configurado")
-
-    creds_data = json.loads(settings.GOOGLE_SERVICE_ACCOUNT_JSON)
-    creds = service_account.Credentials.from_service_account_info(
-        creds_data, scopes=["https://www.googleapis.com/auth/drive.file"]
-    )
-    service = build("drive", "v3", credentials=creds)
-
+    # 25MB limit
+    MAX_SIZE = 25 * 1024 * 1024
     content = await file.read()
-    media_body = MediaIoBaseUpload(io.BytesIO(content), mimetype=file.content_type or "application/octet-stream")
+    if len(content) > MAX_SIZE:
+        raise HTTPException(400, f"Arquivo muito grande. Máximo: 25MB")
 
-    file_metadata = {"name": file.filename or "attachment"}
-    if settings.GOOGLE_DRIVE_FOLDER_ID:
-        file_metadata["parents"] = [settings.GOOGLE_DRIVE_FOLDER_ID]
+    uploads_dir = Path("uploads")
+    uploads_dir.mkdir(exist_ok=True)
 
-    result = service.files().create(
-        body=file_metadata, media_body=media_body, fields="id,webViewLink,name,size"
-    ).execute()
-
-    drive_file_id = result["id"]
-    drive_url = result.get("webViewLink", f"https://drive.google.com/file/d/{drive_file_id}/view")
-
-    # Make publicly accessible
-    try:
-        service.permissions().create(
-            fileId=drive_file_id,
-            body={"type": "anyone", "role": "reader"},
-        ).execute()
-    except Exception:
-        pass
+    # UUID prefix to avoid collisions
+    safe_name = f"{uuid.uuid4().hex[:8]}_{file.filename or 'attachment'}"
+    file_path = uploads_dir / safe_name
+    file_path.write_bytes(content)
 
     return {
-        "drive_file_id": drive_file_id,
-        "drive_url": drive_url,
         "name": file.filename,
+        "file_path": str(file_path),
+        "url": f"/api/uploads/{safe_name}",
         "size": len(content),
         "mime_type": file.content_type,
     }
@@ -1084,10 +1064,6 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
                 )
                 first_msg = thread_msg.scalars().first()
                 email_body = body.body_text or ""
-                if body.attachments:
-                    email_body += "\n\n\U0001f4ce Anexos:\n"
-                    for att in body.attachments:
-                        email_body += f"- {att['name']}: {att['drive_url']}\n"
                 send_email(
                     to=ticket.customer.email,
                     subject=f"Re: {ticket.subject}",
@@ -1096,6 +1072,7 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
                     in_reply_to=first_msg.gmail_message_id if first_msg else None,
                     cc=cc_list,
                     bcc=bcc_list,
+                    attachments=body.attachments if body.attachments else None,
                 )
         except Exception as e:
             logger.error(f"Failed to send reply to source: {e}")
@@ -1274,10 +1251,10 @@ async def merge_tickets(
         select(Message).where(Message.ticket_id == source.id)
     )
     source_messages = messages_result.scalars().all()
-    moved_count = 0
+    moved_message_ids = []
     for msg in source_messages:
+        moved_message_ids.append(msg.id)
         msg.ticket_id = target.id
-        moved_count += 1
 
     # 2. Copy internal notes from source to target (append)
     if source.internal_notes:
@@ -1305,7 +1282,8 @@ async def merge_tickets(
             "source_ticket_number": source.number,
             "target_ticket_id": target.id,
             "target_ticket_number": target.number,
-            "messages_moved": moved_count,
+            "messages_moved": len(moved_message_ids),
+            "moved_message_ids": moved_message_ids,
         },
     ))
 
@@ -1316,7 +1294,7 @@ async def merge_tickets(
 
     logger.info(
         f"Ticket merge: #{source.number} -> #{target.number} "
-        f"({moved_count} messages moved) by {user.name}"
+        f"({len(moved_message_ids)} messages moved) by {user.name}"
     )
 
     return _ticket_to_response(target)
@@ -1361,54 +1339,17 @@ async def unmerge_ticket(
     )
     audit = audit_result.scalar_one_or_none()
 
-    # Move messages back: find messages in target that originally belonged to source
-    # We use created_at range from audit log, or move all messages that were in the target
-    # after the merge. Safest: find messages in target created before the source was merged.
-    # Actually, the simplest approach: messages in target whose sender matches source customer
-    # But the most reliable: use the merge timestamp from audit log
+    # Move messages back using the exact IDs stored in the merge audit log
     restored_count = 0
-    if audit and audit.created_at:
-        # Messages that were added to target at/after merge time (from source)
-        # These are messages currently in target that were originally from source
-        # We look for messages created before the merge that now live in target
-        # Actually, we just need to find messages in target whose original ticket was source
-        # Since we don't track original_ticket_id, we'll use a different approach:
-        # Find all messages in target created before the merge happened
-        # and that have sender matching source's customer
-        pass
+    moved_ids = audit.details.get("moved_message_ids", []) if audit and audit.details else []
 
-    # Simpler reliable approach: move ALL messages from target back to source
-    # that were created before the source ticket was last updated (merge time)
-    merge_time = source.updated_at
-    if merge_time:
+    if moved_ids:
         msgs_result = await db.execute(
-            select(Message)
-            .where(
-                Message.ticket_id == target_id,
-                Message.created_at <= merge_time,
-            )
-            .order_by(Message.created_at.asc())
+            select(Message).where(Message.id.in_(moved_ids))
         )
-        candidate_msgs = msgs_result.scalars().all()
-
-        # Filter: only move messages whose sender matches the source ticket's customer
-        # or that were clearly part of the source conversation
-        source_customer_result = await db.execute(
-            select(Customer).where(Customer.id == source.customer_id)
-        )
-        source_customer = source_customer_result.scalar_one_or_none()
-
-        # Get all messages that were originally in source (by checking if they existed before merge)
-        # Best approach: get original message IDs from before merge
-        # Since we moved ALL messages from source, any message in target that was created
-        # before the source ticket existed is a target original, rest are from source
-        source_created = source.created_at
-
-        for msg in candidate_msgs:
-            # Messages created within the source ticket's lifetime belong to source
-            if source_created and msg.created_at >= source_created:
-                msg.ticket_id = source.id
-                restored_count += 1
+        for msg in msgs_result.scalars().all():
+            msg.ticket_id = source.id
+            restored_count += 1
 
     # Restore source ticket status
     source.status = "open"

@@ -153,6 +153,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   const [composeSending, setComposeSending] = useState(false)
   const [composeAttachments, setComposeAttachments] = useState([])
   const [composeUploading, setComposeUploading] = useState(false)
+  const [composeDragging, setComposeDragging] = useState(false)
   const composeAttachmentRef = useRef(null)
   const [editingCell, setEditingCell] = useState(null) // { ticketId, field }
   const [topView, setTopView] = useState('inbox') // 'inbox' | 'sent' | 'spam'
@@ -216,6 +217,39 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
       setComposeUploading(false)
       e.target.value = ''
     }
+  }
+
+  const handleComposeDrop = async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setComposeDragging(false)
+    const files = Array.from(e.dataTransfer.files)
+    if (!files.length) return
+    setComposeUploading(true)
+    try {
+      for (const file of files) {
+        const formData = new FormData()
+        formData.append('file', file)
+        const { data } = await uploadAttachment(formData)
+        setComposeAttachments(prev => [...prev, data])
+      }
+    } catch (err) {
+      toast.error('Falha ao enviar anexo')
+    } finally {
+      setComposeUploading(false)
+    }
+  }
+
+  const handleComposeDragOver = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setComposeDragging(true)
+  }
+
+  const handleComposeDragLeave = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setComposeDragging(false)
   }
 
   const loadTickets = async () => {
@@ -1664,7 +1698,12 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
                   className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg px-3 py-2.5 text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 />
               </div>
-              <div>
+              <div className={`relative ${composeDragging ? 'ring-2 ring-emerald-400 ring-dashed rounded-lg' : ''}`} onDrop={handleComposeDrop} onDragOver={handleComposeDragOver} onDragLeave={handleComposeDragLeave}>
+                {composeDragging && (
+                  <div className="absolute inset-0 bg-emerald-500/10 border-2 border-dashed border-emerald-400 rounded-xl z-10 flex items-center justify-center pointer-events-none">
+                    <span className="text-emerald-400 font-medium text-sm"><i className="fas fa-cloud-upload-alt mr-2" />Solte os arquivos aqui</span>
+                  </div>
+                )}
                 <label className="text-[var(--text-secondary)] text-sm font-medium block mb-1.5">Mensagem</label>
                 <textarea
                   value={composeBody}

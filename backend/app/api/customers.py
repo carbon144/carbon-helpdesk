@@ -232,11 +232,11 @@ async def merge_customers(
         select(Ticket).where(Ticket.customer_id == source.id)
     )
     source_tickets = tickets_result.scalars().all()
-    transferred_count = 0
+    transferred_ticket_ids = []
     for ticket in source_tickets:
+        transferred_ticket_ids.append(ticket.id)
         ticket.customer_id = target.id
         ticket.updated_at = datetime.now(timezone.utc)
-        transferred_count += 1
 
     # 2. Merge data: fill empty fields on target from source
     if not target.cpf and source.cpf:
@@ -298,7 +298,8 @@ async def merge_customers(
             "target_customer_id": target.id,
             "target_name": target.name,
             "target_email": target.email,
-            "tickets_transferred": transferred_count,
+            "tickets_transferred": len(transferred_ticket_ids),
+            "transferred_ticket_ids": transferred_ticket_ids,
         },
     ))
 
@@ -306,13 +307,13 @@ async def merge_customers(
 
     logger.info(
         f"Customer merge: {source.email} -> {target.email} "
-        f"({transferred_count} tickets transferred) by {user.name}"
+        f"({len(transferred_ticket_ids)} tickets transferred) by {user.name}"
     )
 
     return {
         "ok": True,
         "message": f"Cliente {source.name} mesclado com {target.name}",
-        "tickets_transferred": transferred_count,
+        "tickets_transferred": len(transferred_ticket_ids),
         "target_customer_id": target.id,
     }
 
@@ -360,21 +361,17 @@ async def unmerge_customer(
     audit = audit_result.scalar_one_or_none()
     tickets_transferred = audit.details.get("tickets_transferred", 0) if audit and audit.details else 0
 
-    # Move tickets back: tickets in target that originally belonged to source
-    # We find tickets updated around merge time that now belong to target
+    # Move tickets back using exact IDs from audit log
     restored_count = 0
-    if audit and audit.created_at:
+    transferred_ids = audit.details.get("transferred_ticket_ids", []) if audit and audit.details else []
+    if transferred_ids:
         tickets_result = await db.execute(
-            select(Ticket).where(Ticket.customer_id == target_id)
+            select(Ticket).where(Ticket.id.in_(transferred_ids))
         )
-        all_target_tickets = tickets_result.scalars().all()
-
-        for ticket in all_target_tickets:
-            # Tickets that were updated at merge time (within 5 seconds) came from source
-            if ticket.updated_at and abs((ticket.updated_at - audit.created_at).total_seconds()) < 5:
-                ticket.customer_id = source.id
-                ticket.updated_at = datetime.now(timezone.utc)
-                restored_count += 1
+        for ticket in tickets_result.scalars().all():
+            ticket.customer_id = source.id
+            ticket.updated_at = datetime.now(timezone.utc)
+            restored_count += 1
 
     # Restore source customer
     source.merged_into_id = None

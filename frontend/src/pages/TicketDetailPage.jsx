@@ -156,6 +156,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
   // Attachments
   const [replyAttachments, setReplyAttachments] = useState([])
   const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   const attachmentInputRef = useRef(null)
 
   const isMetaChannel = ticket && ['whatsapp', 'instagram', 'facebook'].includes(ticket.source)
@@ -164,6 +165,9 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
     loadTicket()
     setHistoryMode('ticket')
     setFullHistory(null)
+    setReply(''); setReplyCc(''); setReplyBcc(''); setShowCcBcc(false)
+    setReplyAttachments([]); setShowSchedulePicker(false); setScheduleDate('')
+    setAiSuggestion(null); setAiInlineSuggestion('')
     getMacros().then(r => setMacros(r.data)).catch(() => {})
     getUsers().then(r => setAgents(r.data)).catch(() => {})
 
@@ -333,6 +337,39 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
     }
   }
 
+  const handleDrop = async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    const files = Array.from(e.dataTransfer.files)
+    if (!files.length) return
+    setUploadingAttachment(true)
+    try {
+      for (const file of files) {
+        const formData = new FormData()
+        formData.append('file', file)
+        const { data } = await uploadAttachment(formData)
+        setReplyAttachments(prev => [...prev, data])
+      }
+    } catch (err) {
+      toast.error('Falha ao enviar anexo')
+    } finally {
+      setUploadingAttachment(false)
+    }
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
   const handleSend = async (scheduledAt) => {
     if (!reply.trim()) return
     setSending(true)
@@ -388,7 +425,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
       else if (action.type === 'set_priority') updates.priority = action.value
       else if (action.type === 'set_category') updates.category = action.value
       else if (action.type === 'add_tag') {
-        const currentTags = ticket.tags ? ticket.tags.split(',').map(t => t.trim()) : []
+        const currentTags = ticket.tags ? (Array.isArray(ticket.tags) ? ticket.tags : ticket.tags.split(',').map(t => t.trim())) : []
         if (!currentTags.includes(action.value)) currentTags.push(action.value)
         updates.tags = currentTags.join(', ')
       }
@@ -856,8 +893,8 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
               </div>
               {/* Messages */}
               <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-                {historyMode === 'full' && fullHistory ? (
-                  loadingHistory ? (
+                {historyMode === 'full' ? (
+                  loadingHistory || !fullHistory ? (
                     <div className="flex items-center justify-center py-8">
                       <i className="fas fa-spinner fa-spin text-xl" style={{ color: 'var(--accent)' }} />
                     </div>
@@ -1009,7 +1046,12 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
               </div>
 
               {/* Reply box with integrated macros */}
-              <div className="px-6 py-3 border-t border-[var(--border-color)]">
+              <div className={`px-6 py-3 border-t border-[var(--border-color)] relative ${isDragging ? 'ring-2 ring-emerald-400 ring-dashed' : ''}`} onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
+                {isDragging && (
+                  <div className="absolute inset-0 bg-emerald-500/10 border-2 border-dashed border-emerald-400 rounded-xl z-10 flex items-center justify-center pointer-events-none">
+                    <span className="text-emerald-400 font-medium text-sm"><i className="fas fa-cloud-upload-alt mr-2" />Solte os arquivos aqui</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-3 mb-2">
                   <button onClick={() => setReplyType('outbound')}
                     className={`text-xs px-3 py-1 rounded-full transition ${replyType === 'outbound' ? 'bg-indigo-600 text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>

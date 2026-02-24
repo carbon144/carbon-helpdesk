@@ -4,6 +4,9 @@ import base64
 import logging
 import re
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request as GoogleRequest
@@ -211,14 +214,37 @@ def move_from_spam(message_id: str) -> bool:
         return False
 
 
-def send_email(to: str, subject: str, body_text: str, thread_id: str | None = None, in_reply_to: str | None = None, cc: list[str] | None = None, bcc: list[str] | None = None) -> dict | None:
-    """Send an email via Gmail API."""
+def send_email(to: str, subject: str, body_text: str, thread_id: str | None = None, in_reply_to: str | None = None, cc: list[str] | None = None, bcc: list[str] | None = None, attachments: list[dict] | None = None) -> dict | None:
+    """Send an email via Gmail API. Supports file attachments."""
     service = get_gmail_service()
     if not service:
         return None
 
     try:
-        message = MIMEText(body_text)
+        if attachments:
+            message = MIMEMultipart()
+            message.attach(MIMEText(body_text))
+            for att in attachments:
+                file_path = att.get("file_path")
+                if not file_path:
+                    continue
+                try:
+                    from pathlib import Path
+                    path = Path(file_path)
+                    if not path.exists():
+                        continue
+                    mime_type = att.get("mime_type", "application/octet-stream")
+                    maintype, subtype = mime_type.split("/", 1) if "/" in mime_type else ("application", "octet-stream")
+                    part = MIMEBase(maintype, subtype)
+                    part.set_payload(path.read_bytes())
+                    encoders.encode_base64(part)
+                    part.add_header("Content-Disposition", "attachment", filename=att.get("name", path.name))
+                    message.attach(part)
+                except Exception as e:
+                    logger.warning(f"Failed to attach file {att.get('name')}: {e}")
+        else:
+            message = MIMEText(body_text)
+
         message["to"] = to
         message["subject"] = subject
         if settings.GMAIL_SUPPORT_EMAIL:
