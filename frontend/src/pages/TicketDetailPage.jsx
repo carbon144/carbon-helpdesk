@@ -13,7 +13,6 @@ import MetaBadge from '../components/MetaBadge'
 
 const MS_PER_HOUR = 3_600_000
 const MS_PER_MINUTE = 60_000
-const MS_PER_SECOND = 1_000
 
 const PRIORITY_LABELS = { low: 'Baixa', medium: 'Média', high: 'Alta', urgent: 'Urgente' }
 const SENTIMENT_LABELS = { positive: 'Positivo', neutral: 'Neutro', negative: 'Negativo', angry: 'Irritado' }
@@ -232,11 +231,10 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
       if (diff <= 0) { setSlaCountdown('ESTOURADO'); return }
       const h = Math.floor(diff / MS_PER_HOUR)
       const m = Math.floor((diff % MS_PER_HOUR) / MS_PER_MINUTE)
-      const s = Math.floor((diff % MS_PER_MINUTE) / MS_PER_SECOND)
-      setSlaCountdown(`${h}h ${m}m ${s}s`)
+      setSlaCountdown(`${h}h ${m}m`)
     }
     update()
-    const interval = setInterval(update, 1000)
+    const interval = setInterval(update, 60_000)
     return () => clearInterval(interval)
   }, [ticket?.sla_deadline])
 
@@ -791,9 +789,9 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                 </div>
                 <div className="flex gap-2">
                   <div className="flex-1 relative">
-                    <textarea ref={textareaRef} value={reply} onChange={handleReplyChange} onKeyDown={handleKeyDown} rows={2}
+                    <textarea ref={textareaRef} value={reply} onChange={handleReplyChange} onKeyDown={handleKeyDown} rows={5}
                       placeholder={replyType === 'internal_note' ? 'Nota interna...' : 'Escreva sua resposta... (/ para macros)'}
-                      className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-[var(--text-primary)] text-sm resize-none focus:outline-none focus:border-indigo-500" />
+                      className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-[var(--text-primary)] text-sm resize-y focus:outline-none focus:border-indigo-500" style={{ minHeight: '100px' }} />
                     {/* Slash command inline dropdown */}
                     {slashOpen && filteredSlashMacros.length > 0 && (
                       <div className="absolute bottom-full mb-1 left-0 w-80 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl shadow-xl z-50 overflow-hidden">

@@ -20,6 +20,16 @@ def get_client() -> Anthropic:
     return client
 
 
+def _clean_json(text: str) -> dict:
+    """Parse JSON from Claude response, stripping markdown wrappers if present."""
+    text = text.strip()
+    if text.startswith('```'):
+        lines = text.split('\n')
+        lines = [l for l in lines if not l.strip().startswith('```')]
+        text = '\n'.join(lines).strip()
+    return json.loads(text)
+
+
 TRIAGE_SYSTEM_PROMPT = """Você é um assistente de triagem para o suporte da Carbon Smartwatch, uma empresa brasileira de smartwatches.
 
 Analise a mensagem do cliente e retorne APENAS um JSON válido (sem markdown, sem texto extra) com:
@@ -80,7 +90,7 @@ def triage_ticket(subject: str, body: str, customer_name: str = "", is_repeat: b
 
         text = response.content[0].text.strip()
         # Try to parse JSON
-        result = json.loads(text)
+        result = _clean_json(text)
         logger.info(f"AI triage result: category={result.get('category')}, priority={result.get('priority')}")
         return result
     except json.JSONDecodeError as e:
@@ -221,11 +231,11 @@ def ai_auto_reply(
         )
 
         text = response.content[0].text.strip()
-        result = json.loads(text)
+        result = _clean_json(text)
         logger.info(f"AI auto-reply: escalate={result.get('should_escalate', False)}")
         return result
     except json.JSONDecodeError as e:
-        logger.error(f"AI auto-reply returned invalid JSON: {e}")
+        logger.error(f"AI auto-reply returned invalid JSON: {e} — raw: {text[:200]}")
         return None
     except Exception as e:
         logger.error(f"AI auto-reply failed: {e}")
@@ -292,7 +302,7 @@ def moderate_comment(
         )
 
         text = response.content[0].text.strip()
-        result = json.loads(text)
+        result = _clean_json(text)
         logger.info(f"Comment moderation: action={result.get('action')}, sentiment={result.get('sentiment')}")
         return result
     except json.JSONDecodeError as e:

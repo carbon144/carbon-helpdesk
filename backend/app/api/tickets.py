@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, case
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -95,71 +95,40 @@ async def get_ticket_counts(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Get ticket counts for dashboard cards."""
+    """Get ticket counts for dashboard cards — single query with CASE WHEN."""
+    from sqlalchemy import case, literal_column
+
     excluded = ["resolved", "closed", "archived"]
-
-    # Total open (not resolved/closed/archived)
-    total_open = await db.scalar(
-        select(func.count(Ticket.id)).where(
-            Ticket.status.notin_(excluded)
-        )
-    )
-
-    # Mine (assigned to current user, not resolved/closed/archived)
-    mine = await db.scalar(
-        select(func.count(Ticket.id)).where(
-            Ticket.assigned_to == user.id,
-            Ticket.status.notin_(excluded)
-        )
-    )
-
-    # Unassigned
-    unassigned = await db.scalar(
-        select(func.count(Ticket.id)).where(
-            Ticket.assigned_to.is_(None),
-            Ticket.status.notin_(excluded)
-        )
-    )
-
-    # Escalated
-    escalated = await db.scalar(
-        select(func.count(Ticket.id)).where(
-            Ticket.status == "escalated"
-        )
-    )
-
-    # Team (assigned to any agent, not resolved/closed/archived)
-    team = await db.scalar(
-        select(func.count(Ticket.id)).where(
-            Ticket.assigned_to.isnot(None),
-            Ticket.status.notin_(excluded)
-        )
-    )
-
-    # Archived
-    archived = await db.scalar(
-        select(func.count(Ticket.id)).where(
-            Ticket.status == "archived"
-        )
-    )
-
-    # Meta channels (WhatsApp, Instagram, Facebook)
+    waiting_statuses = ["waiting", "waiting_supplier", "waiting_resend"]
     meta_sources = ["whatsapp", "instagram", "facebook"]
-    meta_total = await db.scalar(
-        select(func.count(Ticket.id)).where(
-            Ticket.source.in_(meta_sources),
-            Ticket.status.notin_(excluded)
-        )
+
+    is_open = Ticket.status.notin_(excluded)
+    is_active = Ticket.status.notin_(excluded + waiting_statuses)
+    is_waiting = Ticket.status.in_(waiting_statuses)
+
+    result = await db.execute(
+        select(
+            func.count().filter(is_open).label("total_open"),
+            func.count().filter(is_active & (Ticket.assigned_to == user.id)).label("mine"),
+            func.count().filter(is_active & Ticket.assigned_to.is_(None)).label("unassigned"),
+            func.count().filter(Ticket.status == "escalated").label("escalated"),
+            func.count().filter(is_active & Ticket.assigned_to.isnot(None)).label("team"),
+            func.count().filter(is_waiting).label("waiting"),
+            func.count().filter(Ticket.status == "archived").label("archived"),
+            func.count().filter(is_open & Ticket.source.in_(meta_sources)).label("meta_channels"),
+        ).select_from(Ticket)
     )
+    row = result.one()
 
     return {
-        "total_open": total_open or 0,
-        "mine": mine or 0,
-        "team": team or 0,
-        "unassigned": unassigned or 0,
-        "escalated": escalated or 0,
-        "archived": archived or 0,
-        "meta_channels": meta_total or 0,
+        "total_open": row.total_open or 0,
+        "mine": row.mine or 0,
+        "team": row.team or 0,
+        "unassigned": row.unassigned or 0,
+        "escalated": row.escalated or 0,
+        "waiting": row.waiting or 0,
+        "archived": row.archived or 0,
+        "meta_channels": row.meta_channels or 0,
     }
 
 
@@ -185,11 +154,12 @@ async def get_sent_messages(
 
     results = await db.execute(
         base_query
+        .options(joinedload(Ticket.customer))
         .order_by(Message.created_at.desc())
         .offset((page - 1) * per_page)
         .limit(per_page)
     )
-    rows = results.all()
+    rows = results.unique().all()
 
     items = []
     for msg, ticket in rows:
@@ -364,8 +334,9 @@ async def list_tickets(
         query = query.order_by(effective_date.desc())
 
     query = query.offset((page - 1) * per_page).limit(per_page)
+    query = query.options(joinedload(Ticket.customer), joinedload(Ticket.agent))
     result = await db.execute(query)
-    tickets = result.scalars().all()
+    tickets = result.unique().scalars().all()
 
     return TicketListResponse(
         tickets=[_ticket_to_response(t) for t in tickets],
@@ -380,9 +351,9 @@ async def get_ticket(ticket_id: str, db: AsyncSession = Depends(get_db), user: U
     result = await db.execute(
         select(Ticket)
         .where(Ticket.id == ticket_id)
-        .options(selectinload(Ticket.messages))
+        .options(selectinload(Ticket.messages), joinedload(Ticket.customer), joinedload(Ticket.agent))
     )
-    ticket = result.scalar_one_or_none()
+    ticket = result.unique().scalar_one_or_none()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket não encontrado")
     return _ticket_to_response(ticket, include_messages=True)

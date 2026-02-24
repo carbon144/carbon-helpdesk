@@ -396,6 +396,20 @@ async def _process_comment(db: AsyncSession, comment_data: dict):
     else:
         stored_action = "pending"
 
+    # Parse comment timestamp from Meta API
+    commented_at = None
+    raw_ts = comment_data.get("timestamp")
+    if raw_ts:
+        from datetime import datetime as dt
+        try:
+            if isinstance(raw_ts, (int, float)):
+                commented_at = dt.fromtimestamp(raw_ts)
+            elif isinstance(raw_ts, str):
+                # Meta API returns ISO 8601 format like "2025-01-15T10:30:00+0000"
+                commented_at = dt.fromisoformat(raw_ts.replace("+0000", "+00:00"))
+        except Exception:
+            pass
+
     # Save to database
     record = SocialComment(
         platform=platform,
@@ -405,6 +419,7 @@ async def _process_comment(db: AsyncSession, comment_data: dict):
         author_id=comment_data.get("author_id", ""),
         author_name=author_name,
         text=comment_text,
+        post_caption=comment_data.get("post_caption") or None,
         ai_action=stored_action,
         ai_reply=reply_text if reply_text else None,
         ai_sentiment=result.get("sentiment") if result else None,
@@ -412,6 +427,7 @@ async def _process_comment(db: AsyncSession, comment_data: dict):
         ai_confidence=result.get("confidence") if result else None,
         reply_sent=reply_sent,
         was_hidden=was_hidden,
+        commented_at=commented_at,
     )
     db.add(record)
     await db.commit()
@@ -537,16 +553,35 @@ async def get_moderation_log(
     action: str | None = None,
     sentiment: str | None = None,
     search: str | None = None,
+    days: int | None = None,
+    post_id: str | None = None,
     page: int = 1,
     per_page: int = 50,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get the social media moderation log with filters."""
-    query = select(SocialComment).order_by(SocialComment.created_at.desc())
+    from datetime import datetime, timedelta, timezone
+
+    # Order by comment timestamp (when user commented), fallback to created_at
+    query = select(SocialComment).order_by(
+        SocialComment.commented_at.desc().nullslast(),
+        SocialComment.created_at.desc(),
+    )
+
+    # Filter by period (days)
+    if days:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        query = query.where(
+            (SocialComment.commented_at >= cutoff) | (
+                SocialComment.commented_at.is_(None) & (SocialComment.created_at >= cutoff)
+            )
+        )
 
     if platform:
         query = query.where(SocialComment.platform == platform)
+    if post_id:
+        query = query.where(SocialComment.post_id == post_id)
     if action:
         query = query.where(SocialComment.ai_action == action)
     if sentiment:
@@ -560,8 +595,16 @@ async def get_moderation_log(
     # Count total
     from sqlalchemy import func as sql_func
     count_query = select(sql_func.count()).select_from(SocialComment)
+    if days:
+        count_query = count_query.where(
+            (SocialComment.commented_at >= cutoff) | (
+                SocialComment.commented_at.is_(None) & (SocialComment.created_at >= cutoff)
+            )
+        )
     if platform:
         count_query = count_query.where(SocialComment.platform == platform)
+    if post_id:
+        count_query = count_query.where(SocialComment.post_id == post_id)
     if action:
         count_query = count_query.where(SocialComment.ai_action == action)
     if sentiment:
@@ -597,7 +640,9 @@ async def get_moderation_log(
                 "was_hidden": c.was_hidden,
                 "manually_reviewed": c.manually_reviewed,
                 "reviewed_by": c.reviewed_by,
+                "commented_at": c.commented_at.isoformat() if c.commented_at else None,
                 "created_at": c.created_at.isoformat() if c.created_at else None,
+                "post_caption": c.post_caption,
             }
             for c in comments
         ],
@@ -684,6 +729,78 @@ async def review_comment(
     return {"ok": True}
 
 
+@router.get("/moderation/posts-grouped")
+async def get_posts_grouped(
+    platform: str | None = None,
+    days: int = 7,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get posts grouped from social_comments with aggregate data."""
+    from sqlalchemy import func as sql_func
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # Build time filter
+    time_filter = (
+        (SocialComment.commented_at >= cutoff) | (
+            SocialComment.commented_at.is_(None) & (SocialComment.created_at >= cutoff)
+        )
+    )
+
+    # Group by post_id to get counts and latest comment
+    query = (
+        select(
+            SocialComment.post_id,
+            SocialComment.platform,
+            sql_func.max(SocialComment.post_caption).label("post_caption"),
+            sql_func.count().label("comment_count"),
+            sql_func.count().filter(SocialComment.ai_action == "pending").label("pending_count"),
+            sql_func.max(SocialComment.commented_at).label("latest_commented_at"),
+        )
+        .where(time_filter)
+        .where(SocialComment.post_id.isnot(None))
+        .where(SocialComment.post_id != "")
+        .group_by(SocialComment.post_id, SocialComment.platform)
+        .order_by(sql_func.max(SocialComment.commented_at).desc().nullslast())
+    )
+
+    if platform:
+        query = query.where(SocialComment.platform == platform)
+
+    result = await db.execute(query)
+    grouped = result.all()
+
+    posts = []
+    for row in grouped:
+        # Get the latest comment for this post
+        latest_q = (
+            select(SocialComment)
+            .where(SocialComment.post_id == row.post_id)
+            .where(time_filter)
+            .order_by(SocialComment.commented_at.desc().nullslast())
+            .limit(1)
+        )
+        latest_result = await db.execute(latest_q)
+        latest = latest_result.scalars().first()
+
+        posts.append({
+            "post_id": row.post_id,
+            "platform": row.platform,
+            "post_caption": row.post_caption,
+            "comment_count": row.comment_count,
+            "pending_count": row.pending_count,
+            "latest_commented_at": row.latest_commented_at.isoformat() if row.latest_commented_at else None,
+            "latest_comment": {
+                "author_name": latest.author_name if latest else None,
+                "text": latest.text if latest else None,
+                "commented_at": latest.commented_at.isoformat() if latest and latest.commented_at else None,
+            } if latest else None,
+        })
+
+    return {"posts": posts}
+
+
 # ── New moderation action endpoints ──
 
 @router.get("/posts")
@@ -714,33 +831,64 @@ async def sync_comments(
     user: User = Depends(get_current_user),
 ):
     """Sync comments from Facebook/Instagram posts and process them with AI."""
+    from datetime import datetime as dt, timedelta, timezone
+
     data = await request.json()
     sync_all = data.get("sync_all", False)
     post_ids = data.get("post_ids", [])
     platform_filter = data.get("platform")
+    sync_days = data.get("days", 7)  # Only sync comments from last N days
 
-    # Gather posts to sync
+    cutoff = dt.now(timezone.utc) - timedelta(days=sync_days)
+
+    # Gather posts to sync (id, platform, caption)
     posts_to_sync = []
 
     if sync_all:
         if settings.META_PAGE_ID:
             fb_posts = await fetch_page_posts(settings.META_PAGE_ID)
-            posts_to_sync.extend([(p["id"], "facebook") for p in fb_posts])
+            posts_to_sync.extend([
+                (p["id"], "facebook", p.get("text", ""))
+                for p in fb_posts
+            ])
         if settings.META_INSTAGRAM_ACCOUNT_ID:
             ig_posts = await fetch_instagram_media(settings.META_INSTAGRAM_ACCOUNT_ID)
-            posts_to_sync.extend([(p["id"], "instagram") for p in ig_posts])
+            posts_to_sync.extend([
+                (p["id"], "instagram", p.get("text", ""))
+                for p in ig_posts
+            ])
     else:
         for pid in post_ids:
-            posts_to_sync.append((pid, platform_filter or "instagram"))
+            posts_to_sync.append((pid, platform_filter or "instagram", ""))
 
     synced = 0
+    skipped_old = 0
     errors = 0
 
-    for post_id, platform in posts_to_sync:
+    for post_id, platform, post_caption in posts_to_sync:
         try:
             comments = await fetch_comments_for_post(platform, post_id)
             for comment_data in comments:
                 try:
+                    # Filter out old comments
+                    raw_ts = comment_data.get("timestamp")
+                    if raw_ts:
+                        try:
+                            if isinstance(raw_ts, (int, float)):
+                                comment_time = dt.fromtimestamp(raw_ts, tz=timezone.utc)
+                            elif isinstance(raw_ts, str):
+                                comment_time = dt.fromisoformat(raw_ts.replace("+0000", "+00:00"))
+                            else:
+                                comment_time = None
+                            if comment_time and comment_time < cutoff:
+                                skipped_old += 1
+                                continue
+                        except Exception:
+                            pass
+
+                    # Inject post_caption into comment_data
+                    comment_data["post_caption"] = post_caption
+
                     await _process_comment(db, comment_data)
                     synced += 1
                 except Exception as e:
@@ -750,7 +898,13 @@ async def sync_comments(
             logger.error(f"Error fetching comments for post {post_id}: {e}")
             errors += 1
 
-    return {"synced": synced, "errors": errors, "total_posts": len(posts_to_sync)}
+    return {
+        "synced": synced,
+        "skipped_old": skipped_old,
+        "errors": errors,
+        "total_posts": len(posts_to_sync),
+        "days_filter": sync_days,
+    }
 
 
 @router.post("/moderation/{comment_db_id}/reply")

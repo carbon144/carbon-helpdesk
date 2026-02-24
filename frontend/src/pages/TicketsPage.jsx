@@ -190,19 +190,22 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
     getUsers().then(r => setAgents(r.data)).catch(() => {})
   }, [])
 
+  // Counts only refresh on tab change, not every filter
   useEffect(() => {
     getTicketCounts().then(r => setCounts(r.data)).catch(() => {})
-  }, [activeTab, filterStatus, filterPriority, filterCategory, filterTag, filterSource, sort, dateFrom, dateTo, customerName])
+  }, [activeTab])
 
-  // Auto-refresh: recarrega lista de tickets a cada 30 segundos
+  // Auto-refresh: stable interval that doesn't recreate on filter changes
+  const loadTicketsRef = useRef(loadTickets)
+  loadTicketsRef.current = loadTickets
   useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
-        loadTickets()
+        loadTicketsRef.current()
       }
     }, AUTO_REFRESH_MS)
     return () => clearInterval(interval)
-  }, [page, activeTab, filterStatus, filterPriority, filterCategory, filterTag, filterSource, sort, dateFrom, dateTo, customerName])
+  }, [])
 
   const loadTickets = async () => {
     try {
@@ -227,14 +230,14 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
 
       if (activeTab === 'mine') {
         params.assigned_to = 'me'
-        params.exclude_status = 'resolved,closed,archived'
+        params.exclude_status = 'resolved,closed,archived,waiting,waiting_supplier,waiting_resend'
         if (filterStatus) params.status = filterStatus
       } else if (activeTab === 'team') {
         params.assigned = 'any'  // tickets atribuídos a qualquer agente (não só eu)
-        params.exclude_status = 'resolved,closed,archived'
+        params.exclude_status = 'resolved,closed,archived,waiting,waiting_supplier,waiting_resend'
         if (filterStatus) params.status = filterStatus
       } else if (activeTab === 'active') {
-        params.exclude_status = 'resolved,closed,archived'
+        params.status = 'waiting,waiting_supplier,waiting_resend'
         if (filterStatus) params.status = filterStatus
       } else if (activeTab === 'resolved') {
         params.status = 'resolved,closed'
@@ -401,7 +404,6 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
       } else if (field === 'priority') {
         toast.success('Prioridade atualizada')
       }
-      getTicketCounts().then(r => setCounts(r.data)).catch(() => {})
     } catch (e) {
       toast.error('Erro ao atualizar ticket')
       console.error('Inline update failed:', e)

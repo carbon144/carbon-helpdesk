@@ -42,8 +42,8 @@ async def get_me(user: User = Depends(get_current_user)):
 
 @router.get("/users", response_model=list[UserResponse])
 async def list_users(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    if user.role not in ("super_admin", "admin", "supervisor"):
-        raise HTTPException(status_code=403, detail="Acesso restrito a administradores e supervisores")
+    if user.role not in ("super_admin", "admin", "supervisor", "agent"):
+        raise HTTPException(status_code=403, detail="Acesso restrito")
     result = await db.execute(select(User).order_by(User.name))
     users = result.scalars().all()
     return [UserResponse.model_validate(u) for u in users]

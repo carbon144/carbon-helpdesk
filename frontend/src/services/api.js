@@ -88,9 +88,11 @@ export const getModerationStats = (days = 7) => api.get('/meta/moderation/stats'
 export const reviewComment = (id) => api.post(`/meta/moderation/${id}/review`)
 export const replyToComment = (id, reply) => api.post(`/meta/moderation/${id}/reply`, { reply })
 export const hideComment = (id, hide = true) => api.post(`/meta/moderation/${id}/hide`, { hide })
+export const analyzeComment = (id) => api.post(`/meta/moderation/${id}/reprocess`, { execute_actions: false })
 export const reprocessComment = (id) => api.post(`/meta/moderation/${id}/reprocess`, { execute_actions: true })
 export const getMetaPosts = (params) => api.get('/meta/posts', { params })
 export const syncComments = (data) => api.post('/meta/comments/sync', data)
+export const getModerationPostsGrouped = (params) => api.get('/meta/moderation/posts-grouped', { params })
 export const getModerationSettings = () => api.get('/meta/moderation/settings')
 export const updateModerationSettings = (data) => api.post('/meta/moderation/settings', data)
 
