@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
+import { useToast } from '../components/Toast'
 import { getSlackStatus, getGmailStatus, getGmailAuthUrl, fetchGmailEmails, getAIStatus, getMetaStatus } from '../services/api'
 
 export default function IntegrationsPage() {
+  const toast = useToast()
   const [slackStatus, setSlackStatus] = useState(null)
   const [gmailStatus, setGmailStatus] = useState(null)
   const [aiStatus, setAiStatus] = useState(null)
@@ -33,7 +35,7 @@ export default function IntegrationsPage() {
       const { data } = await getGmailAuthUrl()
       window.open(data.auth_url, '_blank')
     } catch (e) {
-      alert('Erro: configure GMAIL_CLIENT_ID e GMAIL_CLIENT_SECRET no .env primeiro')
+      toast.error('Erro: configure GMAIL_CLIENT_ID e GMAIL_CLIENT_SECRET no .env primeiro')
     }
   }
 

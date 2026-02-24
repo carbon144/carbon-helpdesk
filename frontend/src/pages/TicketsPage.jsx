@@ -242,7 +242,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
       setTickets(filtered)
       setTotal(data.total)
     } catch (e) {
-      console.error('Failed to load tickets:', e)
+      toast.error('Falha ao carregar tickets')
     }
   }
 
@@ -253,7 +253,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
       setSentMessages(data.items)
       setSentTotal(data.total)
     } catch (e) {
-      console.error('Failed to load sent messages:', e)
+      toast.error('Falha ao carregar mensagens enviadas')
     } finally {
       setSentLoading(false)
     }
@@ -290,7 +290,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
       const { data } = await fetchSpamEmails()
       setSpamEmails(data.emails || [])
     } catch (e) {
-      console.error('Failed to load spam emails:', e)
+      toast.error('Falha ao carregar emails de spam')
     } finally {
       setSpamLoading(false)
     }
@@ -375,7 +375,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
       setSelected(new Set())
       loadTickets()
     } catch (e) {
-      console.error('Bulk action failed:', e)
+      toast.error('Falha na ação em lote')
     }
   }
 
@@ -386,7 +386,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
       loadTickets()
       toast.success(`${data.assigned} ticket(s) atribuído(s) automaticamente`)
     } catch (e) {
-      console.error('Auto-assign failed:', e)
+      toast.error('Falha na atribuição automática')
     } finally {
       setAutoAssigning(false)
     }
@@ -470,7 +470,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
     try {
       await updateTicket(ticketId, { tags: updated })
       setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, tags: updated } : t))
-    } catch (e) { console.error('Failed to add tag:', e) }
+    } catch (e) { toast.error('Falha ao adicionar tag') }
     setEditingCell(null)
   }
 
@@ -479,7 +479,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
     try {
       await updateTicket(ticketId, { tags: updated })
       setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, tags: updated } : t))
-    } catch (e) { console.error('Failed to remove tag:', e) }
+    } catch (e) { toast.error('Falha ao remover tag') }
   }
 
   const toggleSort = (field) => {
@@ -855,7 +855,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
                 try {
                   await fetchGmailEmails()
                   await loadTickets()
-                } catch (e) { console.error('Gmail refresh failed:', e) }
+                } catch (e) { toast.error('Falha ao buscar emails') }
                 finally { setRefreshing(false) }
               }}
               disabled={refreshing}

@@ -267,7 +267,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
   const aiDebounceRef = useRef(null)
 
   const loadTicket = async () => {
-    try { const { data } = await getTicket(ticketId); setTicket(data) } catch (e) { console.error('Failed to load ticket:', e) }
+    try { const { data } = await getTicket(ticketId); setTicket(data) } catch (e) { toast.error('Falha ao carregar ticket') }
   }
 
   const handleSend = async () => {
@@ -322,7 +322,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
       else if (action.type === 'assign_to') updates.assigned_to = action.value
     }
     if (Object.keys(updates).length > 0) {
-      try { await updateTicket(ticketId, updates) } catch (e) { console.error('Macro action error:', e) }
+      try { await updateTicket(ticketId, updates) } catch (e) { toast.error('Erro ao aplicar ação do macro') }
     }
   }
 
@@ -359,7 +359,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
       if (macro.actions?.length) await executeMacroActions(macro)
       setShowMacros(false); loadTicket()
     }
-    catch (e) { console.error('Macro execution failed:', e) } finally { setSending(false) }
+    catch (e) { toast.error('Falha ao executar macro') } finally { setSending(false) }
   }
 
   const handleStatusChange = async (status) => {
