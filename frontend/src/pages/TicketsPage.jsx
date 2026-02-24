@@ -113,7 +113,12 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(new Set())
   const [agents, setAgents] = useState([])
-  const [activeTab, setActiveTab] = useState('mine')
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const prefs = JSON.parse(localStorage.getItem('carbon_prefs') || '{}')
+      return prefs.default_tab || 'all'
+    } catch { return 'all' }
+  })
   const [counts, setCounts] = useState({ total_open: 0, mine: 0, team: 0, unassigned: 0, escalated: 0 })
   const [showFilters, setShowFilters] = useState(false)
   const [showAdvSearch, setShowAdvSearch] = useState(false)

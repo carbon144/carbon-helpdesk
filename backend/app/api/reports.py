@@ -329,9 +329,9 @@ async def tickets_by_source(
 ):
     since = datetime.now(timezone.utc) - timedelta(days=days)
     q = await db.execute(
-        select(func.coalesce(Ticket.source, "web"), func.count())
+        select(func.coalesce(Ticket.source, "web").label("source"), func.count().label("count"))
         .where(Ticket.created_at >= since)
-        .group_by(func.coalesce(Ticket.source, "web"))
+        .group_by(Ticket.source)
     )
     return {"period_days": days, "by_source": {row[0]: row[1] for row in q.all()}}
 

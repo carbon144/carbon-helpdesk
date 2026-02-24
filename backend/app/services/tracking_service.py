@@ -353,7 +353,18 @@ async def track_and_update_ticket(db, ticket) -> dict:
     if not ticket.tracking_code:
         return {"error": "Sem código de rastreio"}
 
-    result = await track_package(ticket.tracking_code)
+    # Handle multiple tracking codes separated by comma
+    codes = [c.strip() for c in ticket.tracking_code.split(",") if c.strip()]
+    if len(codes) > 1:
+        # Track each code and pick the one with most info
+        best = None
+        for code in codes:
+            r = await track_package(code)
+            if best is None or r.get("main_status", 0) > best.get("main_status", 0) or r.get("events"):
+                best = r
+        result = best or await track_package(codes[0])
+    else:
+        result = await track_package(ticket.tracking_code)
 
     ticket.tracking_status = result.get("status", "")
     ticket.tracking_data = result
