@@ -64,6 +64,8 @@ export const addMessage = (ticketId, data) => api.post(`/tickets/${ticketId}/mes
 
 // ── Ticket Merge ──
 export const mergeTickets = (data) => api.post('/tickets/merge', data)
+export const unmergeTicket = (ticketId) => api.post(`/tickets/${ticketId}/unmerge`)
+export const unmergeCustomer = (customerId) => api.post(`/customers/${customerId}/unmerge`)
 
 // ── Inboxes ──
 export const getInboxes = () => api.get('/inboxes')

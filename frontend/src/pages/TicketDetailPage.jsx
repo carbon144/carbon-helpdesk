@@ -9,6 +9,7 @@ import {
   getEcommerceOrders, getShopifyCustomer, refundShopifyOrder, cancelShopifyOrder,
   pauseTicketAI, resumeTicketAI, sendMetaReply, submitCsat,
   mergeTickets, mergeCustomers, searchCustomers, getCustomerFullHistory,
+  unmergeTicket, unmergeCustomer,
 } from '../services/api'
 import MetaBadge from '../components/MetaBadge'
 
@@ -480,6 +481,28 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
     }
   }
 
+  const handleUnmergeTicket = async () => {
+    if (!confirm('Tem certeza que deseja desfazer o merge deste ticket?')) return
+    try {
+      const { data } = await unmergeTicket(ticket.id)
+      toast.success(data.message || 'Merge desfeito!')
+      loadTicket()
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Erro ao desfazer merge')
+    }
+  }
+
+  const handleUnmergeCustomer = async (customerId) => {
+    if (!confirm('Tem certeza que deseja desfazer o merge deste cliente?')) return
+    try {
+      const { data } = await unmergeCustomer(customerId)
+      toast.success(data.message || 'Merge de cliente desfeito!')
+      loadTicket()
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Erro ao desfazer merge de cliente')
+    }
+  }
+
   const handleKeyDown = (e) => {
     // Slash command navigation
     if (slashOpen) {
@@ -564,8 +587,11 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                 <span className="text-[var(--text-primary)] font-semibold">#{ticket.number}</span>
                 <span className="text-[var(--text-primary)]">{ticket.subject}</span>
                 {ticket.status === 'merged' && (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>
-                    <i className="fas fa-code-branch mr-1" />Mesclado
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>
+                    <i className="fas fa-code-branch" />Mesclado
+                    <button onClick={handleUnmergeTicket} className="ml-1 hover:text-red-400 transition" title="Desfazer merge">
+                      <i className="fas fa-undo text-[10px]" />
+                    </button>
                   </span>
                 )}
               </div>
@@ -1460,11 +1486,31 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                 </div>
               )}
 
-              {/* Merge Customer */}
-              <button onClick={() => { setMergeCustomerSearch(''); setMergeCustomerResults([]); setShowMergeCustomerModal(true) }}
-                className="text-[var(--text-secondary)] hover:text-purple-400 text-xs mb-4 transition">
-                <i className="fas fa-users mr-1" />Mesclar Cliente
-              </button>
+              {/* Alternate emails from merges */}
+              {ticket.customer.alternate_emails?.length > 0 && (
+                <div className="mb-3 p-2.5 rounded-lg" style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)' }}>
+                  <p className="text-[10px] font-semibold mb-1.5" style={{ color: '#8b5cf6' }}>
+                    <i className="fas fa-link mr-1" />Emails vinculados (merge)
+                  </p>
+                  {ticket.customer.alternate_emails.map((alt, i) => (
+                    <div key={i} className="text-xs text-[var(--text-secondary)] truncate">{alt}</div>
+                  ))}
+                </div>
+              )}
+
+              {/* Merge / Unmerge Customer */}
+              <div className="flex items-center gap-3 mb-4">
+                <button onClick={() => { setMergeCustomerSearch(''); setMergeCustomerResults([]); setShowMergeCustomerModal(true) }}
+                  className="text-[var(--text-secondary)] hover:text-purple-400 text-xs transition">
+                  <i className="fas fa-users mr-1" />Mesclar Cliente
+                </button>
+                {ticket.customer.merged_into_id && (
+                  <button onClick={() => handleUnmergeCustomer(ticket.customer.id)}
+                    className="text-[var(--text-secondary)] hover:text-red-400 text-xs transition">
+                    <i className="fas fa-undo mr-1" />Desfazer merge
+                  </button>
+                )}
+              </div>
 
               {/* Blacklist */}
               {ticket.customer.is_blacklisted ? (

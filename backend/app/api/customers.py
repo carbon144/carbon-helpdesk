@@ -315,3 +315,102 @@ async def merge_customers(
         "tickets_transferred": transferred_count,
         "target_customer_id": target.id,
     }
+
+
+# ── Unmerge ──
+
+@router.post("/{customer_id}/unmerge")
+async def unmerge_customer(
+    customer_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Undo a customer merge: restore source customer and move tickets back.
+    Uses audit log to find transferred tickets."""
+    if user.role not in ("admin", "supervisor", "super_admin"):
+        raise HTTPException(status_code=403, detail="Apenas admins/supervisores podem desfazer merge")
+
+    # Find the merged customer (source)
+    result = await db.execute(select(Customer).where(Customer.id == customer_id))
+    source = result.scalar_one_or_none()
+    if not source:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+
+    if not source.merged_into_id:
+        raise HTTPException(status_code=400, detail="Este cliente não foi mesclado")
+
+    target_id = source.merged_into_id
+
+    # Find target customer
+    target_result = await db.execute(select(Customer).where(Customer.id == target_id))
+    target = target_result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="Cliente destino não encontrado")
+
+    # Find the merge audit log
+    audit_result = await db.execute(
+        select(AuditLog)
+        .where(
+            AuditLog.action == "customer_merge",
+            AuditLog.details["source_customer_id"].as_string() == customer_id,
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(1)
+    )
+    audit = audit_result.scalar_one_or_none()
+    tickets_transferred = audit.details.get("tickets_transferred", 0) if audit and audit.details else 0
+
+    # Move tickets back: tickets in target that originally belonged to source
+    # We find tickets updated around merge time that now belong to target
+    restored_count = 0
+    if audit and audit.created_at:
+        tickets_result = await db.execute(
+            select(Ticket).where(Ticket.customer_id == target_id)
+        )
+        all_target_tickets = tickets_result.scalars().all()
+
+        for ticket in all_target_tickets:
+            # Tickets that were updated at merge time (within 5 seconds) came from source
+            if ticket.updated_at and abs((ticket.updated_at - audit.created_at).total_seconds()) < 5:
+                ticket.customer_id = source.id
+                ticket.updated_at = datetime.now(timezone.utc)
+                restored_count += 1
+
+    # Restore source customer
+    source.merged_into_id = None
+
+    # Remove source's email from target's alternate_emails
+    if target.alternate_emails and source.email in target.alternate_emails:
+        alt = [e for e in target.alternate_emails if e != source.email]
+        target.alternate_emails = alt if alt else None
+
+    # Adjust counts back
+    target.total_tickets = max(0, target.total_tickets - tickets_transferred)
+
+    # Audit log
+    db.add(AuditLog(
+        user_id=user.id,
+        action="customer_unmerge",
+        details={
+            "source_customer_id": source.id,
+            "source_name": source.name,
+            "source_email": source.email,
+            "target_customer_id": target.id,
+            "target_name": target.name,
+            "tickets_restored": restored_count,
+        },
+    ))
+
+    await db.commit()
+
+    logger.info(
+        f"Customer unmerge: {source.email} from {target.email} "
+        f"({restored_count} tickets restored) by {user.name}"
+    )
+
+    return {
+        "ok": True,
+        "message": f"Merge desfeito. Cliente {source.name} restaurado.",
+        "tickets_restored": restored_count,
+        "source_customer_id": source.id,
+    }

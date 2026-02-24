@@ -72,6 +72,8 @@ class CustomerResponse(BaseModel):
     blacklist_reason: str | None = None
     chargeback_count: int = 0
     resend_count: int = 0
+    alternate_emails: list[str] | None = None
+    merged_into_id: str | None = None
 
     class Config:
         from_attributes = True
