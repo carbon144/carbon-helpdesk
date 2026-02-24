@@ -189,8 +189,10 @@ async def fetch_emails(
                 )
                 matched_ticket = ticket_result.scalar_one_or_none()
                 if matched_ticket:
-                    if matched_ticket.status == "resolved":
+                    was_resolved = matched_ticket.status == "resolved"
+                    if matched_ticket.status in ("resolved", "waiting", "waiting_supplier", "waiting_resend"):
                         matched_ticket.status = "open"
+                    if was_resolved:
                         matched_ticket.resolved_at = None
                     now = datetime.now(timezone.utc)
                     from app.core.sla_config import get_sla_for_ticket
@@ -244,10 +246,12 @@ async def fetch_emails(
             )
             db.add(msg)
 
-            # Reopen if resolved
+            # Reopen if resolved or move back from waiting (Respondidos → Novos)
             if existing_ticket.status == "resolved":
                 existing_ticket.status = "open"
                 existing_ticket.resolved_at = None
+            elif existing_ticket.status in ("waiting", "waiting_supplier", "waiting_resend"):
+                existing_ticket.status = "open"
 
             # Reset SLA on new inbound email — starts from now
             now = datetime.now(timezone.utc)

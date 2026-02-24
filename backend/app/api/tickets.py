@@ -984,6 +984,9 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
         ticket.first_response_at = datetime.now(timezone.utc)
     if body.type == "outbound":
         ticket.last_agent_response_at = datetime.now(timezone.utc)
+        # Auto-move to "Respondidos": when agent replies, set status to waiting
+        if ticket.status in ("open", "in_progress", "analyzing"):
+            ticket.status = "waiting"
     ticket.updated_at = datetime.now(timezone.utc)
     db.add(AuditLog(ticket_id=ticket.id, user_id=user.id, action=f"message_{body.type}"))
     await db.commit()

@@ -99,7 +99,8 @@ const SORT_OPTIONS = [
 const TABS = [
   { key: 'mine', label: 'Privado', icon: 'fa-lock' },
   { key: 'team', label: 'Equipe', icon: 'fa-users' },
-  { key: 'active', label: 'Aguardando', icon: 'fa-inbox' },
+  { key: 'active', label: 'Novos', icon: 'fa-inbox' },
+  { key: 'responded', label: 'Respondidos', icon: 'fa-reply' },
   { key: 'escalated', label: 'Prioridade', icon: 'fa-exclamation-triangle' },
   { key: 'resolved', label: 'Arquivado', icon: 'fa-archive' },
   { key: 'all', label: 'Todos', icon: 'fa-list' },
@@ -213,13 +214,18 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
 
       if (activeTab === 'mine') {
         params.assigned_to = 'me'
-        params.exclude_status = 'resolved,closed,archived,waiting,waiting_supplier,waiting_resend'
+        params.exclude_status = 'resolved,closed,archived,waiting,waiting_supplier,waiting_resend,merged'
         if (filterStatus) params.status = filterStatus
       } else if (activeTab === 'team') {
-        params.assigned = 'any'  // tickets atribuídos a qualquer agente (não só eu)
-        params.exclude_status = 'resolved,closed,archived,waiting,waiting_supplier,waiting_resend'
+        params.assigned = 'any'
+        params.exclude_status = 'resolved,closed,archived,waiting,waiting_supplier,waiting_resend,merged'
         if (filterStatus) params.status = filterStatus
       } else if (activeTab === 'active') {
+        // Novos: tickets que precisam de atenção (não inclui respondidos/aguardando)
+        params.exclude_status = 'resolved,closed,archived,waiting,waiting_supplier,waiting_resend,merged'
+        if (filterStatus) params.status = filterStatus
+      } else if (activeTab === 'responded') {
+        // Respondidos: tickets já respondidos, aguardando ação do cliente
         params.status = 'waiting,waiting_supplier,waiting_resend'
         if (filterStatus) params.status = filterStatus
       } else if (activeTab === 'resolved') {
