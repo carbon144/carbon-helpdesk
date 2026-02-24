@@ -501,6 +501,13 @@ async def create_ticket(body: TicketCreate, db: AsyncSession = Depends(get_db), 
     except Exception as e:
         logger.warning(f"Protocol assignment skipped: {e}")
 
+    # Auto-assign if not manually assigned
+    if not ticket.assigned_to:
+        try:
+            await _auto_assign_single(ticket, db, user)
+        except Exception as e:
+            logger.warning(f"Auto-assign skipped: {e}")
+
     await db.commit()
     await db.refresh(ticket)
 
@@ -608,6 +615,71 @@ async def bulk_update(body: TicketBulkUpdate, db: AsyncSession = Depends(get_db)
         db.add(AuditLog(ticket_id=ticket.id, user_id=user.id, action="bulk_update", details=changes))
     await db.commit()
     return {"updated": len(tickets)}
+
+
+async def _auto_assign_single(ticket: Ticket, db: AsyncSession, user: User):
+    """Auto-assign a single ticket using specialty routing + round-robin."""
+    agents_result = await db.execute(
+        select(User).where(User.is_active == True, User.role.in_(["agent", "supervisor", "admin"]))
+    )
+    agents = agents_result.scalars().all()
+    if not agents:
+        return
+
+    # Build load map
+    agent_loads = {}
+    agent_map = {}
+    for agent in agents:
+        count_result = await db.execute(
+            select(func.count()).select_from(Ticket).where(
+                Ticket.assigned_to == agent.id,
+                Ticket.status.in_(["open", "in_progress", "waiting", "analyzing", "waiting_supplier", "waiting_resend"])
+            )
+        )
+        agent_loads[agent.id] = count_result.scalar()
+        agent_map[agent.id] = agent
+
+    # Group by specialty
+    specialty_agents = {}
+    general_agents = []
+    for agent in agents:
+        spec = getattr(agent, 'specialty', None) or 'geral'
+        if spec != 'geral':
+            specialty_agents.setdefault(spec, []).append(agent.id)
+        general_agents.append(agent.id)
+
+    def pick_agent(candidates):
+        available = [
+            aid for aid in candidates
+            if agent_loads.get(aid, 0) < getattr(agent_map[aid], 'max_tickets', 20)
+        ]
+        if not available:
+            return None
+        return min(available, key=lambda aid: agent_loads.get(aid, 0))
+
+    # Try specialty routing
+    needed_specialty = CATEGORY_ROUTING.get(ticket.category)
+    chosen = None
+    if needed_specialty and needed_specialty in specialty_agents:
+        chosen = pick_agent(specialty_agents[needed_specialty])
+
+    # Fallback to general round-robin
+    if not chosen:
+        chosen = pick_agent(general_agents)
+
+    if not chosen:
+        return
+
+    ticket.assigned_to = chosen
+    db.add(AuditLog(ticket_id=ticket.id, user_id=user.id, action="auto_assign",
+                    details={"assigned_to": chosen, "specialty_match": needed_specialty}))
+
+    # Notify agent
+    try:
+        agent = agent_map[chosen]
+        await notify_assignment(ticket.id, ticket.number, agent.id, agent.name)
+    except Exception:
+        pass
 
 
 @router.post("/auto-assign")

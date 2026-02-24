@@ -1190,7 +1190,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                     <p className="text-[var(--text-tertiary)] text-xs">Pedidos</p>
                   </div>
                   <div className="bg-[var(--bg-secondary)] rounded-lg p-2.5 text-center">
-                    <p className="text-emerald-400 text-lg font-bold">R$ {(shopifyCustomer.total_spent || 0).toFixed(0)}</p>
+                    <p className="text-emerald-400 text-lg font-bold">R$ {(shopifyCustomer.total_spent || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                     <p className="text-[var(--text-tertiary)] text-xs">LTV</p>
                   </div>
                   <div className="bg-[var(--bg-secondary)] rounded-lg p-2.5 text-center">
@@ -1270,7 +1270,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                         onClick={() => { setSidebarTab('orders'); setExpandedOrder(`s-${idx}`) }}>
                         <div className="flex items-center justify-between">
                           <span className="text-[var(--text-primary)] text-xs font-bold">{order.order_number}</span>
-                          <span className="text-emerald-400 text-xs font-medium">R$ {parseFloat(order.total_price || 0).toFixed(0)}</span>
+                          <span className="text-emerald-400 text-xs font-medium">R$ {parseFloat(order.total_price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex items-center justify-between mt-1">
                           <span className={`text-xs ${order.delivery_status === 'delivered' ? 'text-emerald-400' : order.delivery_status === 'in_transit' ? 'text-blue-400' : 'text-[var(--text-tertiary)]'}`}>
@@ -1434,7 +1434,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                             {/* Resumo: valor + data + rastreio rápido */}
                             <div className="flex items-center justify-between mt-1.5">
                               <span className="text-[var(--text-secondary)] text-xs font-semibold">
-                                R$ {parseFloat(order.total_price || 0).toFixed(2)}
+                                R$ {parseFloat(order.total_price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                               </span>
                               <span className="text-[var(--text-tertiary)] text-xs">
                                 {order.created_at ? new Date(order.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
@@ -1481,7 +1481,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                                         {item.variant_title ? <span className="text-[var(--text-tertiary)]"> ({item.variant_title})</span> : ''}
                                         {item.sku ? <span className="text-[var(--text-tertiary)] ml-1 font-mono">SKU:{item.sku}</span> : ''}
                                       </span>
-                                      <span className="text-[var(--text-secondary)] ml-2 whitespace-nowrap">R$ {parseFloat(item.price || 0).toFixed(2)}</span>
+                                      <span className="text-[var(--text-secondary)] ml-2 whitespace-nowrap">R$ {parseFloat(item.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -1672,7 +1672,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                               </span>
                             </div>
                             <div className="flex items-center justify-between mt-1.5">
-                              <span className="text-[var(--text-secondary)] text-xs font-medium">R$ {parseFloat(order.total || 0).toFixed(2)}</span>
+                              <span className="text-[var(--text-secondary)] text-xs font-medium">R$ {parseFloat(order.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                             </div>
                             <p className="text-[var(--text-tertiary)] text-xs mt-1">
                               {order.created_at ? new Date(order.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
@@ -1684,7 +1684,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                               {order.items.map((item, i) => (
                                 <div key={i} className="flex justify-between text-xs py-0.5">
                                   <span className="text-[var(--text-primary)] truncate flex-1">{item.quantity || 1}x {item.name}</span>
-                                  <span className="text-[var(--text-secondary)] ml-2">R$ {parseFloat(item.price || 0).toFixed(2)}</span>
+                                  <span className="text-[var(--text-secondary)] ml-2">R$ {parseFloat(item.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                 </div>
                               ))}
                             </div>
@@ -1728,7 +1728,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                                   {order.payment_method}
                                 </span>
                               )}
-                              <span className="text-[var(--text-secondary)] text-xs font-medium">R$ {parseFloat(order.total || 0).toFixed(2)}</span>
+                              <span className="text-[var(--text-secondary)] text-xs font-medium">R$ {parseFloat(order.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                             </div>
                             <p className="text-[var(--text-tertiary)] text-xs mt-1">
                               {order.created_at ? new Date(order.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
@@ -1740,7 +1740,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                               {order.items.map((item, i) => (
                                 <div key={i} className="flex justify-between text-xs py-0.5">
                                   <span className="text-[var(--text-primary)] truncate flex-1">{item.quantity || 1}x {item.name}</span>
-                                  <span className="text-[var(--text-secondary)] ml-2">R$ {parseFloat(item.price || 0).toFixed(2)}</span>
+                                  <span className="text-[var(--text-secondary)] ml-2">R$ {parseFloat(item.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                 </div>
                               ))}
                             </div>
@@ -1973,7 +1973,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
               <div className="bg-[var(--bg-tertiary)] rounded-xl p-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--text-secondary)]">Valor:</span>
-                  <span className="text-[var(--text-primary)] font-bold">R$ {parseFloat(showRefundModal.total_price || 0).toFixed(2)}</span>
+                  <span className="text-[var(--text-primary)] font-bold">R$ {parseFloat(showRefundModal.total_price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--text-secondary)]">Tipo:</span>

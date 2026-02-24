@@ -280,6 +280,13 @@ async def fetch_emails(
             except Exception as e:
                 logger.warning(f"Protocol assignment skipped: {e}")
 
+            # Auto-assign to available agent
+            try:
+                from app.api.tickets import _auto_assign_single
+                await _auto_assign_single(ticket, db, user)
+            except Exception as e:
+                logger.warning(f"Auto-assign skipped for gmail ticket: {e}")
+
             created += 1
 
         # Mark as read in Gmail
