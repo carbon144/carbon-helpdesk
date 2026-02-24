@@ -135,7 +135,7 @@ export default function CanaisIAPage({ onOpenTicket, user }) {
                 <th className="text-left px-4 py-3 font-medium" style={{ color: '#8e8e93' }}>Status</th>
                 <th className="text-center px-4 py-3 font-medium" style={{ color: '#8e8e93' }}>IA</th>
                 <th className="text-left px-4 py-3 font-medium" style={{ color: '#8e8e93' }}>Data</th>
-                <th className="text-center px-4 py-3 font-medium" style={{ color: '#8e8e93' }}>Acao</th>
+                <th className="text-center px-4 py-3 font-medium" style={{ color: '#8e8e93' }}>Ação</th>
               </tr>
             </thead>
             <tbody>

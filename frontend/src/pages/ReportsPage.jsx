@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useToast } from '../components/Toast'
 import {
   getDashboardStats, getAgentPerformance, getCsatReport,
   getTicketsBySource, getSentimentBreakdown, getTopCustomers,
@@ -22,6 +23,7 @@ const STATUS_LABELS = {
 }
 
 export default function ReportsPage() {
+  const toast = useToast()
   const [days, setDays] = useState(30)
   const [tab, setTab] = useState('overview')
   const [loading, setLoading] = useState(true)
@@ -68,14 +70,14 @@ export default function ReportsPage() {
     setAgentAnalysis(null)
     setAnalysisLoading(true)
     try { const { data } = await getAgentAnalysis(agentId, days); setAgentAnalysis(data) }
-    catch (e) { alert('Erro ao carregar análise. Verifique ANTHROPIC_API_KEY.') }
+    catch (e) { toast.error('Erro ao carregar análise. Verifique ANTHROPIC_API_KEY.') }
     finally { setAnalysisLoading(false) }
   }
 
   const loadFullAnalysis = async () => {
     setFullAnalysisLoading(true); setFullAnalysis(null)
     try { const { data } = await getFullAIAnalysis(days); setFullAnalysis(data) }
-    catch (e) { alert('Erro ao gerar análise. Verifique ANTHROPIC_API_KEY.') }
+    catch (e) { toast.error('Erro ao gerar análise. Verifique ANTHROPIC_API_KEY.') }
     finally { setFullAnalysisLoading(false) }
   }
 
@@ -92,7 +94,7 @@ export default function ReportsPage() {
       document.body.appendChild(link)
       link.click()
       link.remove()
-    } catch (e) { alert('Erro ao exportar') }
+    } catch (e) { toast.error('Erro ao exportar') }
     finally { setExporting(false) }
   }
 

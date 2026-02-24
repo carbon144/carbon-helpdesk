@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { id: 'leaderboard', label: 'Performance', icon: 'fa-gamepad', roles: ['super_admin', 'admin', 'supervisor'] },
   { id: 'tracking', label: 'Rastreamento', icon: 'fa-truck-fast', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
   { id: 'canais-ia', label: 'Canais IA', icon: 'fa-comments', roles: ['super_admin', 'admin', 'supervisor'] },
-  { id: 'moderation', label: 'Moderacao Social', icon: 'fa-shield-alt', roles: ['super_admin', 'admin', 'supervisor'] },
+  { id: 'moderation', label: 'Moderação Social', icon: 'fa-shield-alt', roles: ['super_admin', 'admin', 'supervisor'] },
   { id: 'reports', label: 'Relatórios', icon: 'fa-chart-bar', roles: ['super_admin', 'admin', 'supervisor'] },
   { id: 'integrations', label: 'Integrações', icon: 'fa-plug', roles: ['super_admin'] },
   { id: 'settings', label: 'Configurações', icon: 'fa-cog', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },

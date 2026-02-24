@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useToast } from '../components/Toast'
 import { getTrackingList, getTrackingSummary, refreshAllTrackings, refreshSingleTracking, syncShopifyTracking } from '../services/api'
 
 const CARRIER_LABELS = {
@@ -17,6 +18,7 @@ const STATUS_LABELS = {
 }
 
 export default function TrackingPage({ onOpenTicket }) {
+  const toast = useToast()
   const [items, setItems] = useState([])
   const [summary, setSummary] = useState(null)
   const [statusFilter, setStatusFilter] = useState('all')
@@ -46,7 +48,7 @@ export default function TrackingPage({ onOpenTicket }) {
       setItems(data.items)
       setTotalPages(data.pages)
       setTotal(data.total)
-    } catch (e) { console.error('Failed to load tracking data:', e) }
+    } catch (e) { toast.error('Falha ao carregar rastreios') }
     setLoading(false)
   }
 
@@ -54,17 +56,17 @@ export default function TrackingPage({ onOpenTicket }) {
     try {
       const { data } = await getTrackingSummary(90)
       setSummary(data)
-    } catch (e) { console.error('Failed to load tracking summary:', e) }
+    } catch (e) { toast.error('Falha ao carregar resumo de rastreios') }
   }
 
   const handleRefreshAll = async () => {
     setRefreshing(true)
     try {
       const { data } = await refreshAllTrackings()
-      alert(`Atualizado: ${data.updated} | Erros: ${data.errors}`)
+      toast.success(`Atualizado: ${data.updated} | Erros: ${data.errors}`)
       loadData()
       loadSummary()
-    } catch (e) { alert('Erro ao atualizar rastreios') }
+    } catch (e) { toast.error('Erro ao atualizar rastreios') }
     setRefreshing(false)
   }
 
@@ -72,7 +74,7 @@ export default function TrackingPage({ onOpenTicket }) {
     try {
       await refreshSingleTracking(ticketId)
       loadData()
-    } catch (e) { console.error('Failed to refresh tracking:', e) }
+    } catch (e) { toast.error('Falha ao atualizar rastreio') }
   }
 
   const PROBLEM_KEYWORDS = ['barr', 'exce', 'devol', 'extrav', 'ausente', 'recusad', 'não encontr', 'tentativa', 'retorn', 'falh', 'sinistro', 'roub', 'avaria', 'cancel', 'bloqueado', 'fiscaliz', 'tribut', 'retido', 'apreend']
@@ -103,10 +105,10 @@ export default function TrackingPage({ onOpenTicket }) {
                   setSyncing(true)
                   try {
                     const { data } = await syncShopifyTracking(syncDays)
-                    alert(`Sincronizado: ${data.synced} | Sem rastreio: ${data.no_tracking} | Erros: ${data.errors}`)
+                    toast.success(`Sincronizado: ${data.synced} | Sem rastreio: ${data.no_tracking} | Erros: ${data.errors}`)
                     loadData()
                     loadSummary()
-                  } catch (e) { alert('Erro ao sincronizar com Shopify') }
+                  } catch (e) { toast.error('Erro ao sincronizar com Shopify') }
                   setSyncing(false)
                   setShowSyncOpts(false)
                 }}

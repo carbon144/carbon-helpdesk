@@ -191,7 +191,7 @@ export default function SettingsPage({ user }) {
       })
       const { data } = await api.get('/kb/macros')
       setMacros(data); setEditingMacro(null)
-    } catch (e) { alert('Erro ao salvar') }
+    } catch (e) { toast.error('Erro ao salvar') }
   }
 
   const deleteMacro = async (id) => {
@@ -199,7 +199,7 @@ export default function SettingsPage({ user }) {
     try {
       await api.delete(`/kb/macros/${id}`)
       setMacros(macros.filter(m => m.id !== id))
-    } catch (e) { alert('Erro ao excluir') }
+    } catch (e) { toast.error('Erro ao excluir') }
   }
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'

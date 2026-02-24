@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useToast } from '../components/Toast'
 import { getDashboardStats, getAgentDashboardStats } from '../services/api'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
 import { useTheme } from '../contexts/ThemeContext'
@@ -50,6 +51,7 @@ function useChartStyles() {
 }
 
 export default function DashboardPage({ user, onNavigate }) {
+  const toast = useToast()
   const [stats, setStats] = useState(null)
   const [agentStats, setAgentStats] = useState(null)
   const [days, setDays] = useState(30)
@@ -69,7 +71,7 @@ export default function DashboardPage({ user, onNavigate }) {
       ])
       setStats(s.data)
       setAgentStats(a.data)
-    } catch (e) { console.error('Failed to load dashboard stats:', e) }
+    } catch (e) { toast.error('Falha ao carregar estatísticas') }
   }
 
   const goToTickets = (filters = {}) => {

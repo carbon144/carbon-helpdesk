@@ -218,7 +218,7 @@ function CommentItem({ c, onReply, onHide, onReprocess, onAnalyze, onReview, act
       <div className="ml-10 mt-2 flex items-center gap-1.5 flex-wrap">
         <ActionBtn icon="fa-robot" label="Analisar" onClick={() => onAnalyze(c.id)}
           loading={isLoading === 'analyze'} color="#8b5cf6" small />
-        <ActionBtn icon="fa-magic" label="Acao IA" onClick={() => onReprocess(c.id)}
+        <ActionBtn icon="fa-magic" label="Ação IA" onClick={() => onReprocess(c.id)}
           loading={isLoading === 'reprocess'} color="#f59e0b" small />
         <ActionBtn icon="fa-reply" label="Responder" onClick={() => setReplying(!replying)}
           active={replying} color="#3b82f6" small />
@@ -492,7 +492,7 @@ export default function ModerationPage() {
       <div className="px-4 py-3 flex items-center justify-between shrink-0" style={{ borderBottom: '1px solid var(--border-primary)' }}>
         <div className="flex items-center gap-4">
           <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-            Moderacao Social
+            Moderação Social
           </h1>
 
           {/* Platform tabs */}
@@ -663,7 +663,7 @@ export default function ModerationPage() {
                       </span>
                       <ActionBtn icon="fa-robot" label={`Analisar todos (${pendingInPost})`}
                         onClick={handleAnalyzeAll} loading={batchLoading} color="#8b5cf6" small />
-                      <ActionBtn icon="fa-magic" label={`Acao IA todos (${pendingInPost})`}
+                      <ActionBtn icon="fa-magic" label={`Ação IA todos (${pendingInPost})`}
                         onClick={handleReprocessAll} loading={batchLoading} color="#f59e0b" small />
                     </div>
                   )}

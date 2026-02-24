@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useToast } from '../components/Toast'
 import { getMediaItems, createMediaItem, deleteMediaItem, uploadMedia } from '../services/api'
 
 const CATEGORIES = [
@@ -20,6 +21,7 @@ function detectUrlType(url) {
 }
 
 export default function MediaPage() {
+  const toast = useToast()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [category, setCategory] = useState('')
@@ -43,7 +45,7 @@ export default function MediaPage() {
       if (category) params.category = category
       const { data } = await getMediaItems(params)
       setItems(data || [])
-    } catch (e) { console.error('Failed to load media items:', e) }
+    } catch (e) { toast.error('Falha ao carregar biblioteca de mídia') }
     finally { setLoading(false) }
   }
 
@@ -64,7 +66,7 @@ export default function MediaPage() {
       setForm({ name: '', drive_url: '', description: '', category: 'video' })
       setShowAdd(false)
       loadItems()
-    } catch (e) { alert(e.response?.data?.detail || 'Erro ao adicionar') }
+    } catch (e) { toast.error(e.response?.data?.detail || 'Erro ao adicionar') }
     finally { setSaving(false) }
   }
 
@@ -86,7 +88,7 @@ export default function MediaPage() {
       setShowAdd(false)
       loadItems()
     } catch (e) {
-      alert(e.response?.data?.detail || 'Erro no upload')
+      toast.error(e.response?.data?.detail || 'Erro no upload')
     } finally {
       setUploading(false)
       setUploadProgress(0)
@@ -98,7 +100,7 @@ export default function MediaPage() {
     try {
       await deleteMediaItem(id)
       loadItems()
-    } catch (e) { console.error('Failed to delete media item:', e) }
+    } catch (e) { toast.error('Falha ao remover item') }
   }
 
   const sourceIcon = (sourceType) => {

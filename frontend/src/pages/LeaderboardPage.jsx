@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useToast } from '../components/Toast'
 import {
   getLeaderboard, getMyStats, getRewards, createReward, updateReward, deleteReward,
   claimReward, getRewardClaims, approveRewardClaim, rejectRewardClaim,
@@ -16,6 +17,7 @@ const REWARD_ICONS = [
 ]
 
 export default function LeaderboardPage({ user }) {
+  const toast = useToast()
   const [tab, setTab] = useState('performance')
   const [leaderboard, setLeaderboard] = useState([])
   const [myStats, setMyStats] = useState(null)
@@ -51,30 +53,30 @@ export default function LeaderboardPage({ user }) {
       const r = await getRewards(); setRewards(r.data || [])
       setNewReward({ name: '', description: '', icon: 'fa-gift', color: '#a855f7', points_required: 100, category: 'geral' })
       setShowAddReward(false)
-    } catch (e) { alert(e.response?.data?.detail || 'Erro') }
+    } catch (e) { toast.error(e.response?.data?.detail || 'Erro ao criar premiação') }
     finally { setSaving(false) }
   }
 
   const handleClaim = async (rewardId) => {
     try {
       const r = await claimReward(rewardId)
-      alert(r.data?.message || 'Solicitado!')
+      toast.success(r.data?.message || 'Solicitado!')
       const cl = await getRewardClaims(); setClaims(cl.data || [])
-    } catch (e) { alert(e.response?.data?.detail || 'Erro') }
+    } catch (e) { toast.error(e.response?.data?.detail || 'Erro ao solicitar') }
   }
 
   const handleApprove = async (claimId) => {
     try {
       await approveRewardClaim(claimId)
       const cl = await getRewardClaims(); setClaims(cl.data || [])
-    } catch (e) { alert(e.response?.data?.detail || 'Erro') }
+    } catch (e) { toast.error(e.response?.data?.detail || 'Erro ao aprovar') }
   }
 
   const handleReject = async (claimId) => {
     try {
       await rejectRewardClaim(claimId)
       const cl = await getRewardClaims(); setClaims(cl.data || [])
-    } catch (e) { alert(e.response?.data?.detail || 'Erro') }
+    } catch (e) { toast.error(e.response?.data?.detail || 'Erro ao rejeitar') }
   }
 
   const handleDeleteReward = async (rewardId) => {
@@ -82,7 +84,7 @@ export default function LeaderboardPage({ user }) {
     try {
       await deleteReward(rewardId)
       const r = await getRewards(); setRewards(r.data || [])
-    } catch (e) { alert(e.response?.data?.detail || 'Erro') }
+    } catch (e) { toast.error(e.response?.data?.detail || 'Erro ao remover') }
   }
 
   if (loading) return <div className="p-6 text-center"><i className="fas fa-spinner animate-spin text-purple-400 text-2xl" /></div>
