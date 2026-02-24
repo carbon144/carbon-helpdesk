@@ -1,11 +1,11 @@
 from __future__ import annotations
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from datetime import datetime
 
 
 class TicketCreate(BaseModel):
     subject: str
-    customer_email: str
+    customer_email: EmailStr
     customer_name: str
     body: str
     priority: str = "medium"

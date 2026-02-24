@@ -12,6 +12,7 @@ from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, rep
 from app.services.seed import seed_database
 from app.models.csat import CSATRating  # noqa: ensure table created
 from app.models.social_comment import SocialComment  # noqa: ensure table created
+from app.models.reward import Reward, RewardClaim  # noqa: ensure table created
 
 escalation_logger = logging.getLogger("escalation")
 

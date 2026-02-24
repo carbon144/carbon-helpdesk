@@ -60,10 +60,12 @@ export default function DashboardPage({ user, onNavigate }) {
     if (user?.role === 'supervisor') return 'gestao'
     return 'admin'
   })
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => { loadStats() }, [days])
 
   const loadStats = async () => {
+    setLoading(true)
     try {
       const [s, a] = await Promise.all([
         getDashboardStats(days),
@@ -72,6 +74,7 @@ export default function DashboardPage({ user, onNavigate }) {
       setStats(s.data)
       setAgentStats(a.data)
     } catch (e) { toast.error('Falha ao carregar estatísticas') }
+    finally { setLoading(false) }
   }
 
   const goToTickets = (filters = {}) => {
@@ -88,7 +91,10 @@ export default function DashboardPage({ user, onNavigate }) {
     <div className="p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Dashboard</h1>
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+          Dashboard
+          {loading && <i className="fas fa-spinner fa-spin text-sm ml-2" style={{ color: 'var(--text-tertiary)' }} />}
+        </h1>
         <select
           value={days}
           onChange={(e) => setDays(Number(e.target.value))}

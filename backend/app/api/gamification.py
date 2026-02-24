@@ -26,59 +26,60 @@ async def get_leaderboard(
     # Get all agents
     agents_result = await db.execute(select(User).where(User.is_active == True))
     agents = agents_result.scalars().all()
+    agent_map = {a.id: a for a in agents}
+    agent_ids = list(agent_map.keys())
+
+    if not agent_ids:
+        return []
+
+    # Single aggregated query for resolved, total, sla_ok counts
+    stats_query = (
+        select(
+            Ticket.assigned_to,
+            func.count(case((and_(
+                Ticket.status.in_(["resolved", "closed"]),
+                Ticket.updated_at >= since,
+            ), Ticket.id))).label("resolved"),
+            func.count(case((
+                Ticket.created_at >= since,
+                Ticket.id,
+            ))).label("total"),
+            func.count(case((and_(
+                Ticket.status.in_(["resolved", "closed"]),
+                Ticket.updated_at >= since,
+                Ticket.sla_breached == False,
+            ), Ticket.id))).label("sla_ok"),
+            func.count(case((
+                Ticket.status.in_(["open", "in_progress", "waiting", "analyzing"]),
+                Ticket.id,
+            ))).label("pending"),
+        )
+        .where(Ticket.assigned_to.in_(agent_ids))
+        .group_by(Ticket.assigned_to)
+    )
+    result = await db.execute(stats_query)
+    stats_map = {}
+    for row in result.all():
+        stats_map[row[0]] = {
+            "resolved": row[1] or 0,
+            "total": row[2] or 0,
+            "sla_ok": row[3] or 0,
+            "pending": row[4] or 0,
+        }
 
     leaderboard = []
-    for agent in agents:
-        # Count resolved tickets
-        resolved = await db.execute(
-            select(func.count(Ticket.id)).where(
-                Ticket.assigned_to == agent.id,
-                Ticket.status.in_(["resolved", "closed"]),
-                Ticket.updated_at >= since,
-            )
-        )
-        resolved_count = resolved.scalar() or 0
-
-        # Count total assigned
-        total = await db.execute(
-            select(func.count(Ticket.id)).where(
-                Ticket.assigned_to == agent.id,
-                Ticket.created_at >= since,
-            )
-        )
-        total_count = total.scalar() or 0
-
-        # SLA compliance (not breached)
-        sla_ok = await db.execute(
-            select(func.count(Ticket.id)).where(
-                Ticket.assigned_to == agent.id,
-                Ticket.sla_breached == False,
-                Ticket.updated_at >= since,
-                Ticket.status.in_(["resolved", "closed"]),
-            )
-        )
-        sla_ok_count = sla_ok.scalar() or 0
-        sla_rate = round((sla_ok_count / resolved_count * 100) if resolved_count > 0 else 100)
-
-        # Pending (open) tickets
-        pending = await db.execute(
-            select(func.count(Ticket.id)).where(
-                Ticket.assigned_to == agent.id,
-                Ticket.status.in_(["open", "in_progress", "waiting", "analyzing"]),
-            )
-        )
-        pending_count = pending.scalar() or 0
-
-        # Score = resolved * 10 + sla_rate bonus
-        score = resolved_count * 10 + (sla_rate // 10)
+    for aid, agent in agent_map.items():
+        s = stats_map.get(aid, {"resolved": 0, "total": 0, "sla_ok": 0, "pending": 0})
+        sla_rate = round((s["sla_ok"] / s["resolved"] * 100) if s["resolved"] > 0 else 100)
+        score = s["resolved"] * 10 + (sla_rate // 10)
 
         leaderboard.append({
-            "agent_id": agent.id,
+            "agent_id": aid,
             "agent_name": agent.name,
             "role": agent.role,
-            "resolved": resolved_count,
-            "total": total_count,
-            "pending": pending_count,
+            "resolved": s["resolved"],
+            "total": s["total"],
+            "pending": s["pending"],
             "sla_rate": sla_rate,
             "score": score,
         })

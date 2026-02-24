@@ -15,7 +15,7 @@ from app.core.security import get_current_user
 from app.core.config import settings
 from app.core.sla_config import get_sla_for_ticket, BLACKLIST_RULES, CATEGORY_ROUTING
 from app.models.user import User
-from app.models.ticket import Ticket, VALID_STATUSES, STATUS_LABELS
+from app.models.ticket import Ticket, VALID_STATUSES, VALID_PRIORITIES, STATUS_LABELS
 from app.models.message import Message
 from app.models.customer import Customer
 from app.models.audit_log import AuditLog
@@ -530,6 +530,12 @@ async def update_ticket(ticket_id: str, body: TicketUpdate, db: AsyncSession = D
     changes = {}
     update_data = body.model_dump(exclude_unset=True)
 
+    # Validate status and priority values
+    if body.status and body.status not in VALID_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Status inválido: {body.status}")
+    if body.priority and body.priority not in VALID_PRIORITIES:
+        raise HTTPException(status_code=400, detail=f"Prioridade inválida: {body.priority}")
+
     for field, value in update_data.items():
         old = getattr(ticket, field, None)
         setattr(ticket, field, value)
@@ -589,6 +595,10 @@ async def bulk_assign(body: TicketBulkAssign, db: AsyncSession = Depends(get_db)
 
 @router.post("/bulk-update")
 async def bulk_update(body: TicketBulkUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if body.status and body.status not in VALID_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Status inválido: {body.status}")
+    if body.priority and body.priority not in VALID_PRIORITIES:
+        raise HTTPException(status_code=400, detail=f"Prioridade inválida: {body.priority}")
     result = await db.execute(select(Ticket).where(Ticket.id.in_(body.ticket_ids)))
     tickets = result.scalars().all()
     for ticket in tickets:

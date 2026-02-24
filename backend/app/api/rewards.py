@@ -1,17 +1,17 @@
 """Rewards/prizes system — admin-configurable."""
-import uuid
 import logging
-from datetime import datetime, timezone
 from typing import Optional
+from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+from sqlalchemy import select, func
 
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
+from app.models.reward import Reward, RewardClaim
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/rewards", tags=["rewards"])
@@ -47,11 +47,18 @@ async def list_rewards(
     user: User = Depends(get_current_user),
 ):
     """List all rewards."""
-    result = await db.execute(text(
-        "SELECT * FROM rewards ORDER BY points_required ASC"
-    ))
-    rows = result.mappings().all()
-    return [dict(r) for r in rows]
+    result = await db.execute(select(Reward).order_by(Reward.points_required.asc()))
+    rewards = result.scalars().all()
+    return [
+        {
+            "id": r.id, "name": r.name, "description": r.description,
+            "icon": r.icon, "color": r.color, "points_required": r.points_required,
+            "category": r.category, "is_active": r.is_active,
+            "max_claims": r.max_claims, "created_by": r.created_by,
+            "created_at": r.created_at,
+        }
+        for r in rewards
+    ]
 
 
 @router.post("/create")
@@ -61,21 +68,19 @@ async def create_reward(
     user: User = Depends(get_current_user),
 ):
     """Create a reward (admin only)."""
-    if user.role not in ("admin", "supervisor"):
+    if user.role not in ("admin", "supervisor", "super_admin"):
         raise HTTPException(403, "Apenas admins podem criar premiações")
 
-    reward_id = str(uuid.uuid4())
-    await db.execute(text("""
-        INSERT INTO rewards (id, name, description, icon, color, points_required, category, is_active, max_claims, created_by)
-        VALUES (:id, :name, :description, :icon, :color, :points_required, :category, :is_active, :max_claims, :created_by)
-    """), {
-        "id": reward_id, "name": data.name, "description": data.description,
-        "icon": data.icon, "color": data.color, "points_required": data.points_required,
-        "category": data.category, "is_active": data.is_active,
-        "max_claims": data.max_claims, "created_by": user.id,
-    })
+    reward = Reward(
+        name=data.name, description=data.description, icon=data.icon,
+        color=data.color, points_required=data.points_required,
+        category=data.category, is_active=data.is_active,
+        max_claims=data.max_claims, created_by=user.id,
+    )
+    db.add(reward)
     await db.commit()
-    return {"id": reward_id, "message": "Premiação criada"}
+    await db.refresh(reward)
+    return {"id": reward.id, "message": "Premiação criada"}
 
 
 @router.put("/{reward_id}")
@@ -86,16 +91,21 @@ async def update_reward(
     user: User = Depends(get_current_user),
 ):
     """Update reward (admin only)."""
-    if user.role not in ("admin", "supervisor"):
+    if user.role not in ("admin", "supervisor", "super_admin"):
         raise HTTPException(403, "Apenas admins")
 
-    updates = {k: v for k, v in data.dict().items() if v is not None}
+    result = await db.execute(select(Reward).where(Reward.id == reward_id))
+    reward = result.scalar_one_or_none()
+    if not reward:
+        raise HTTPException(404, "Premiação não encontrada")
+
+    updates = data.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(400, "Nenhum campo para atualizar")
 
-    set_clause = ", ".join(f"{k} = :{k}" for k in updates)
-    updates["id"] = reward_id
-    await db.execute(text(f"UPDATE rewards SET {set_clause} WHERE id = :id"), updates)
+    for field, value in updates.items():
+        setattr(reward, field, value)
+
     await db.commit()
     return {"message": "Atualizado"}
 
@@ -107,10 +117,15 @@ async def delete_reward(
     user: User = Depends(get_current_user),
 ):
     """Delete reward (admin only)."""
-    if user.role not in ("admin", "supervisor"):
+    if user.role not in ("admin", "supervisor", "super_admin"):
         raise HTTPException(403, "Apenas admins")
 
-    await db.execute(text("DELETE FROM rewards WHERE id = :id"), {"id": reward_id})
+    result = await db.execute(select(Reward).where(Reward.id == reward_id))
+    reward = result.scalar_one_or_none()
+    if not reward:
+        raise HTTPException(404, "Premiação não encontrada")
+
+    await db.delete(reward)
     await db.commit()
     return {"message": "Removido"}
 
@@ -124,38 +139,34 @@ async def claim_reward(
     user: User = Depends(get_current_user),
 ):
     """Agent claims a reward with their points."""
-    # Get reward
-    result = await db.execute(text("SELECT * FROM rewards WHERE id = :id"), {"id": reward_id})
-    reward = result.mappings().first()
+    result = await db.execute(select(Reward).where(Reward.id == reward_id))
+    reward = result.scalar_one_or_none()
     if not reward:
         raise HTTPException(404, "Premiação não encontrada")
-    if not reward["is_active"]:
+    if not reward.is_active:
         raise HTTPException(400, "Premiação inativa")
 
     # Check max claims
-    if reward["max_claims"] > 0:
-        claims_count = await db.execute(text(
-            "SELECT COUNT(*) FROM reward_claims WHERE reward_id = :rid"
-        ), {"rid": reward_id})
-        if claims_count.scalar() >= reward["max_claims"]:
+    if reward.max_claims > 0:
+        claims_count = await db.execute(
+            select(func.count(RewardClaim.id)).where(RewardClaim.reward_id == reward_id)
+        )
+        if claims_count.scalar() >= reward.max_claims:
             raise HTTPException(400, "Limite de resgates atingido")
 
     # Check agent score (points)
     from app.api.gamification import _calc_agent_score
     score = await _calc_agent_score(db, user.id)
-    if score < reward["points_required"]:
-        raise HTTPException(400, f"Pontos insuficientes ({score}/{reward['points_required']})")
+    if score < reward.points_required:
+        raise HTTPException(400, f"Pontos insuficientes ({score}/{reward.points_required})")
 
-    claim_id = str(uuid.uuid4())
-    await db.execute(text("""
-        INSERT INTO reward_claims (id, reward_id, agent_id, agent_name, points_spent, status)
-        VALUES (:id, :reward_id, :agent_id, :agent_name, :points_spent, 'pending')
-    """), {
-        "id": claim_id, "reward_id": reward_id, "agent_id": user.id,
-        "agent_name": user.name, "points_spent": reward["points_required"],
-    })
+    claim = RewardClaim(
+        reward_id=reward_id, agent_id=user.id,
+        agent_name=user.name, points_spent=reward.points_required,
+    )
+    db.add(claim)
     await db.commit()
-    return {"id": claim_id, "message": "Resgate solicitado! Aguardando aprovação do admin."}
+    return {"id": claim.id, "message": "Resgate solicitado! Aguardando aprovação do admin."}
 
 
 @router.get("/claims")
@@ -165,23 +176,36 @@ async def list_claims(
     user: User = Depends(get_current_user),
 ):
     """List reward claims. Admins see all, agents see their own."""
-    if user.role in ("admin", "supervisor"):
-        q = "SELECT rc.*, r.name as reward_name, r.icon, r.color FROM reward_claims rc JOIN rewards r ON r.id = rc.reward_id"
-        params = {}
-        if status:
-            q += " WHERE rc.status = :status"
-            params["status"] = status
-        q += " ORDER BY rc.created_at DESC"
-    else:
-        q = "SELECT rc.*, r.name as reward_name, r.icon, r.color FROM reward_claims rc JOIN rewards r ON r.id = rc.reward_id WHERE rc.agent_id = :agent_id"
-        params = {"agent_id": user.id}
-        if status:
-            q += " AND rc.status = :status"
-            params["status"] = status
-        q += " ORDER BY rc.created_at DESC"
+    query = select(RewardClaim)
+    if user.role not in ("admin", "supervisor", "super_admin"):
+        query = query.where(RewardClaim.agent_id == user.id)
+    if status:
+        query = query.where(RewardClaim.status == status)
+    query = query.order_by(RewardClaim.created_at.desc())
 
-    result = await db.execute(text(q), params)
-    return [dict(r) for r in result.mappings().all()]
+    result = await db.execute(query)
+    claims = result.scalars().all()
+
+    # Fetch reward names for display
+    reward_ids = list({c.reward_id for c in claims})
+    rewards_map = {}
+    if reward_ids:
+        rewards_result = await db.execute(select(Reward).where(Reward.id.in_(reward_ids)))
+        for r in rewards_result.scalars().all():
+            rewards_map[r.id] = r
+
+    return [
+        {
+            "id": c.id, "reward_id": c.reward_id, "agent_id": c.agent_id,
+            "agent_name": c.agent_name, "points_spent": c.points_spent,
+            "status": c.status, "approved_by": c.approved_by,
+            "approved_at": c.approved_at, "created_at": c.created_at,
+            "reward_name": rewards_map.get(c.reward_id, Reward()).name if c.reward_id in rewards_map else "",
+            "icon": rewards_map[c.reward_id].icon if c.reward_id in rewards_map else "fa-gift",
+            "color": rewards_map[c.reward_id].color if c.reward_id in rewards_map else "#a855f7",
+        }
+        for c in claims
+    ]
 
 
 @router.put("/claims/{claim_id}/approve")
@@ -191,11 +215,17 @@ async def approve_claim(
     user: User = Depends(get_current_user),
 ):
     """Admin approves a claim."""
-    if user.role not in ("admin", "supervisor"):
+    if user.role not in ("admin", "supervisor", "super_admin"):
         raise HTTPException(403, "Apenas admins")
-    await db.execute(text(
-        "UPDATE reward_claims SET status = 'approved', approved_by = :by, approved_at = NOW() WHERE id = :id"
-    ), {"id": claim_id, "by": user.id})
+
+    result = await db.execute(select(RewardClaim).where(RewardClaim.id == claim_id))
+    claim = result.scalar_one_or_none()
+    if not claim:
+        raise HTTPException(404, "Solicitação não encontrada")
+
+    claim.status = "approved"
+    claim.approved_by = user.id
+    claim.approved_at = datetime.now(timezone.utc)
     await db.commit()
     return {"message": "Aprovado"}
 
@@ -207,10 +237,16 @@ async def reject_claim(
     user: User = Depends(get_current_user),
 ):
     """Admin rejects a claim."""
-    if user.role not in ("admin", "supervisor"):
+    if user.role not in ("admin", "supervisor", "super_admin"):
         raise HTTPException(403, "Apenas admins")
-    await db.execute(text(
-        "UPDATE reward_claims SET status = 'rejected', approved_by = :by, approved_at = NOW() WHERE id = :id"
-    ), {"id": claim_id, "by": user.id})
+
+    result = await db.execute(select(RewardClaim).where(RewardClaim.id == claim_id))
+    claim = result.scalar_one_or_none()
+    if not claim:
+        raise HTTPException(404, "Solicitação não encontrada")
+
+    claim.status = "rejected"
+    claim.approved_by = user.id
+    claim.approved_at = datetime.now(timezone.utc)
     await db.commit()
     return {"message": "Rejeitado"}
