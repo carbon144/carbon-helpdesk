@@ -182,31 +182,6 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
     }
   }, [filters])
 
-  useEffect(() => {
-    loadTickets()
-  }, [page, filters, activeTab, filterStatus, filterPriority, filterCategory, filterTag, filterSource, filterResponse, sort, dateFrom, dateTo, customerName])
-
-  useEffect(() => {
-    getUsers().then(r => setAgents(r.data)).catch(() => {})
-  }, [])
-
-  // Counts only refresh on tab change, not every filter
-  useEffect(() => {
-    getTicketCounts().then(r => setCounts(r.data)).catch(() => {})
-  }, [activeTab])
-
-  // Auto-refresh: stable interval that doesn't recreate on filter changes
-  const loadTicketsRef = useRef(loadTickets)
-  loadTicketsRef.current = loadTickets
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        loadTicketsRef.current()
-      }
-    }, AUTO_REFRESH_MS)
-    return () => clearInterval(interval)
-  }, [])
-
   const loadTickets = async () => {
     try {
       const params = {
@@ -275,6 +250,31 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
       setSentLoading(false)
     }
   }
+
+  useEffect(() => {
+    loadTickets()
+  }, [page, filters, activeTab, filterStatus, filterPriority, filterCategory, filterTag, filterSource, filterResponse, sort, dateFrom, dateTo, customerName])
+
+  useEffect(() => {
+    getUsers().then(r => setAgents(r.data)).catch(() => {})
+  }, [])
+
+  // Counts only refresh on tab change, not every filter
+  useEffect(() => {
+    getTicketCounts().then(r => setCounts(r.data)).catch(() => {})
+  }, [activeTab])
+
+  // Auto-refresh: stable interval that doesn't recreate on filter changes
+  const loadTicketsRef = useRef(null)
+  loadTicketsRef.current = loadTickets
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadTicketsRef.current()
+      }
+    }, AUTO_REFRESH_MS)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     if (topView === 'sent') loadSentMessages()

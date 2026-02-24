@@ -7,7 +7,7 @@ import {
   updateInternalNotes, sendProtocolEmail, backfillProtocols,
   getMediaItems, createMediaItem, suggestMedia, uploadMedia, getCopilotInsights,
   getEcommerceOrders, getShopifyCustomer, refundShopifyOrder, cancelShopifyOrder,
-  pauseTicketAI, resumeTicketAI, sendMetaReply,
+  pauseTicketAI, resumeTicketAI, sendMetaReply, submitCsat,
 } from '../services/api'
 import MetaBadge from '../components/MetaBadge'
 
@@ -1944,7 +1944,6 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                 if (!csatScore) return
                 setCsatSubmitting(true)
                 try {
-                  const { submitCsat } = await import('../services/api')
                   await submitCsat(ticket.id, { score: csatScore, comment: csatComment || null })
                   setCsatSubmitted(true)
                   setShowCsatForm(false)

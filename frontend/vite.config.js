@@ -15,13 +15,6 @@ export default defineConfig({
   },
   build: {
     target: 'es2020',
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'recharts': ['recharts'],
-        },
-      },
-    },
+    chunkSizeWarningLimit: 800,
   },
 })
