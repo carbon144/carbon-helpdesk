@@ -8,7 +8,7 @@ PASS='OdysseY144.-a'
 REMOTE_DIR="/opt/carbon-helpdesk"
 
 echo "=== Syncing files to server ==="
-sshpass -p "$PASS" rsync -avz --exclude 'node_modules' --exclude '.git' --exclude '__pycache__' --exclude '.env' --exclude 'venv' --exclude 'dist' \
+sshpass -p "$PASS" rsync -avz --exclude 'node_modules' --exclude '.git' --exclude '__pycache__' --exclude '.env' --exclude 'venv' --exclude '.venv' --exclude 'dist' \
   ~/Desktop/carbon-helpdesk/ ${USER}@${SERVER}:${REMOTE_DIR}/
 
 echo "=== Rebuilding and restarting containers ==="
