@@ -8,7 +8,7 @@ import {
   getMediaItems, createMediaItem, suggestMedia, uploadMedia, getCopilotInsights,
   getEcommerceOrders, getShopifyCustomer, refundShopifyOrder, cancelShopifyOrder,
   pauseTicketAI, resumeTicketAI, sendMetaReply, submitCsat,
-  mergeTickets, mergeCustomers, searchCustomers,
+  mergeTickets, mergeCustomers, searchCustomers, getCustomerFullHistory,
 } from '../services/api'
 import MetaBadge from '../components/MetaBadge'
 
@@ -141,11 +141,17 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
   const [mergeCustomerSearch, setMergeCustomerSearch] = useState('')
   const [mergeCustomerResults, setMergeCustomerResults] = useState([])
   const textareaRef = useRef(null)
+  // Chat history toggle
+  const [historyMode, setHistoryMode] = useState('ticket') // 'ticket' or 'full'
+  const [fullHistory, setFullHistory] = useState(null)
+  const [loadingHistory, setLoadingHistory] = useState(false)
 
   const isMetaChannel = ticket && ['whatsapp', 'instagram', 'facebook'].includes(ticket.source)
 
   useEffect(() => {
     loadTicket()
+    setHistoryMode('ticket')
+    setFullHistory(null)
     getMacros().then(r => setMacros(r.data)).catch(() => {})
     getUsers().then(r => setAgents(r.data)).catch(() => {})
 
@@ -229,6 +235,24 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
     setCopilotLoading(true)
     getCopilotInsights(ticket.id).then(r => setCopilotData(r.data)).catch(() => {}).finally(() => setCopilotLoading(false))
   }, [ticket?.id])
+
+  // Load full customer history when toggle is switched
+  const loadFullHistory = async () => {
+    if (!ticket?.customer?.id) return
+    setLoadingHistory(true)
+    try {
+      const { data } = await getCustomerFullHistory(ticket.customer.id)
+      setFullHistory(data)
+    } catch (e) {
+      toast.error('Erro ao carregar histórico completo')
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  useEffect(() => {
+    if (historyMode === 'full' && !fullHistory) loadFullHistory()
+  }, [historyMode])
 
   useEffect(() => {
     if (!ticket?.sla_deadline) return
@@ -741,31 +765,114 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                   </button>
                 </div>
               )}
+              {/* History mode toggle */}
+              <div className="flex items-center gap-1 px-4 py-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                <button
+                  onClick={() => setHistoryMode('ticket')}
+                  className="px-3 py-1 rounded-lg text-xs font-medium transition"
+                  style={{
+                    background: historyMode === 'ticket' ? 'var(--accent)' : 'transparent',
+                    color: historyMode === 'ticket' ? 'var(--accent-text)' : 'var(--text-secondary)',
+                  }}
+                >
+                  Este ticket
+                </button>
+                <button
+                  onClick={() => setHistoryMode('full')}
+                  className="px-3 py-1 rounded-lg text-xs font-medium transition"
+                  style={{
+                    background: historyMode === 'full' ? 'var(--accent)' : 'transparent',
+                    color: historyMode === 'full' ? 'var(--accent-text)' : 'var(--text-secondary)',
+                  }}
+                >
+                  <i className="fas fa-history mr-1" />Histórico completo
+                </button>
+              </div>
               {/* Messages */}
               <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-                {(ticket.messages || []).map(msg => (
-                  <div key={msg.id} className={`max-w-[85%] ${msg.type === 'inbound' ? 'mr-auto' : 'ml-auto'}`}>
-                    <div className={`rounded-2xl px-4 py-3 ${
-                      msg.type === 'inbound' ? 'bg-[var(--bg-secondary)] rounded-tl-md' :
-                      msg.type === 'internal_note' ? 'bg-yellow-500/10 border border-yellow-500/20 rounded-tr-md' :
-                      'bg-indigo-600/15 border border-indigo-500/20 rounded-tr-md'
-                    }`}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-medium text-[var(--text-primary)]">
-                          {msg.type === 'inbound' ? msg.sender_name || msg.sender_email :
-                           msg.type === 'internal_note' ? `${msg.sender_name} (nota)` : msg.sender_name}
-                          {msg.sender_name === 'Carbon IA' && (
-                            <span className="ml-2 text-[10px] bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded">
-                              <i className="fas fa-robot mr-0.5" />IA
-                            </span>
-                          )}
-                        </span>
-                        <span className="text-[var(--text-tertiary)] text-xs ml-4">{new Date(msg.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                      <p className="text-[var(--text-primary)] text-sm whitespace-pre-wrap leading-relaxed">{msg.body_text}</p>
+                {historyMode === 'full' && fullHistory ? (
+                  loadingHistory ? (
+                    <div className="flex items-center justify-center py-8">
+                      <i className="fas fa-spinner fa-spin text-xl" style={{ color: 'var(--accent)' }} />
                     </div>
-                  </div>
-                ))}
+                  ) : (
+                    (() => {
+                      let lastTicketId = null
+                      return fullHistory.messages.map((msg, idx) => {
+                        const showSeparator = msg.ticket_id !== lastTicketId
+                        lastTicketId = msg.ticket_id
+                        const isCurrentTicket = msg.ticket_id === ticket.id
+                        return (
+                          <React.Fragment key={msg.id}>
+                            {showSeparator && (
+                              <div className="flex items-center gap-2 px-4 py-2 my-2">
+                                <div className="flex-1 h-px" style={{ background: 'var(--border-color)' }} />
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
+                                  style={{
+                                    background: isCurrentTicket ? 'rgba(253,210,0,0.15)' : 'var(--bg-tertiary)',
+                                    color: isCurrentTicket ? 'var(--accent)' : 'var(--text-tertiary)',
+                                  }}>
+                                  #{msg.ticket_number} · {msg.ticket_subject}
+                                </span>
+                                <div className="flex-1 h-px" style={{ background: 'var(--border-color)' }} />
+                              </div>
+                            )}
+                            <div className={`flex ${msg.type === 'outbound' ? 'justify-end' : 'justify-start'} px-4 py-1`}>
+                              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${msg.type === 'internal_note' ? 'border-l-4' : ''}`}
+                                style={{
+                                  background: msg.type === 'outbound' ? 'var(--accent)' :
+                                    msg.type === 'internal_note' ? 'rgba(234,179,8,0.08)' : 'var(--bg-tertiary)',
+                                  color: msg.type === 'outbound' ? 'var(--accent-text)' : 'var(--text-primary)',
+                                  borderColor: msg.type === 'internal_note' ? '#ca8a04' : undefined,
+                                  opacity: isCurrentTicket ? 1 : 0.7,
+                                }}>
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <span className="text-[11px] font-semibold" style={{
+                                    color: msg.type === 'outbound' ? 'var(--accent-text)' :
+                                      msg.type === 'internal_note' ? '#ca8a04' : 'var(--text-secondary)',
+                                  }}>
+                                    {msg.type === 'internal_note' && <i className="fas fa-sticky-note mr-1" />}
+                                    {msg.sender_name || msg.sender_email || 'Sistema'}
+                                  </span>
+                                  <span className="text-[10px]" style={{
+                                    color: msg.type === 'outbound' ? 'rgba(255,255,255,0.6)' : 'var(--text-tertiary)',
+                                  }}>
+                                    {new Date(msg.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                                <div className="text-sm whitespace-pre-wrap break-words">{msg.body_text}</div>
+                              </div>
+                            </div>
+                          </React.Fragment>
+                        )
+                      })
+                    })()
+                  )
+                ) : (
+                  (ticket.messages || []).map(msg => (
+                    <div key={msg.id} className={`max-w-[85%] ${msg.type === 'inbound' ? 'mr-auto' : 'ml-auto'}`}>
+                      <div className={`rounded-2xl px-4 py-3 ${
+                        msg.type === 'inbound' ? 'bg-[var(--bg-secondary)] rounded-tl-md' :
+                        msg.type === 'internal_note' ? 'bg-yellow-500/10 border border-yellow-500/20 rounded-tr-md' :
+                        'bg-indigo-600/15 border border-indigo-500/20 rounded-tr-md'
+                      }`}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-medium text-[var(--text-primary)]">
+                            {msg.type === 'inbound' ? msg.sender_name || msg.sender_email :
+                             msg.type === 'internal_note' ? `${msg.sender_name} (nota)` : msg.sender_name}
+                            {msg.sender_name === 'Carbon IA' && (
+                              <span className="ml-2 text-[10px] bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded">
+                                <i className="fas fa-robot mr-0.5" />IA
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-[var(--text-tertiary)] text-xs ml-4">{new Date(msg.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <p className="text-[var(--text-primary)] text-sm whitespace-pre-wrap leading-relaxed">{msg.body_text}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               {/* AI Panel */}

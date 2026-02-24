@@ -12,7 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.customer import Customer
-from app.models.ticket import Ticket
+from app.models.ticket import Ticket, STATUS_LABELS
+from app.models.message import Message
 from app.models.user import User
 from app.models.audit_log import AuditLog
 
@@ -121,6 +122,74 @@ async def get_customer(
                 "created_at": t.created_at.isoformat() if t.created_at else None,
             }
             for t in tickets
+        ],
+    }
+
+
+# ── Full History ──
+
+@router.get("/{customer_id}/history")
+async def get_customer_full_history(
+    customer_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Get ALL messages from ALL tickets of a customer, ordered chronologically.
+    Returns messages grouped with ticket metadata for timeline view."""
+    # Verify customer exists
+    cust_result = await db.execute(select(Customer).where(Customer.id == customer_id))
+    customer = cust_result.scalar_one_or_none()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+
+    # Get all tickets for this customer
+    tickets_result = await db.execute(
+        select(Ticket)
+        .where(Ticket.customer_id == customer_id)
+        .order_by(Ticket.created_at.asc())
+    )
+    tickets = tickets_result.scalars().all()
+    ticket_map = {t.id: t for t in tickets}
+
+    if not tickets:
+        return {"customer_name": customer.name, "tickets": [], "messages": []}
+
+    # Get ALL messages from all tickets, ordered by created_at
+    ticket_ids = [t.id for t in tickets]
+    msgs_result = await db.execute(
+        select(Message)
+        .where(Message.ticket_id.in_(ticket_ids))
+        .order_by(Message.created_at.asc())
+    )
+    messages = msgs_result.scalars().all()
+
+    return {
+        "customer_name": customer.name,
+        "tickets": [
+            {
+                "id": t.id,
+                "number": t.number,
+                "subject": t.subject,
+                "status": t.status,
+                "status_label": STATUS_LABELS.get(t.status, t.status),
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+            }
+            for t in tickets
+        ],
+        "messages": [
+            {
+                "id": m.id,
+                "ticket_id": m.ticket_id,
+                "ticket_number": ticket_map[m.ticket_id].number if m.ticket_id in ticket_map else None,
+                "ticket_subject": ticket_map[m.ticket_id].subject if m.ticket_id in ticket_map else None,
+                "type": m.type,
+                "sender_name": m.sender_name,
+                "sender_email": m.sender_email,
+                "body_text": m.body_text,
+                "body_html": m.body_html,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in messages
         ],
     }
 

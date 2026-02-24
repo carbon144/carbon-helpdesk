@@ -44,6 +44,7 @@ export const changePassword = (currentPassword, newPassword) => api.post('/auth/
 // ── Customers ──
 export const searchCustomers = (q) => api.get('/customers/search', { params: { q } })
 export const getCustomer = (id) => api.get(`/customers/${id}`)
+export const getCustomerFullHistory = (id) => api.get(`/customers/${id}/history`)
 export const mergeCustomers = (data) => api.post('/customers/merge', data)
 
 // ── Tickets ──
