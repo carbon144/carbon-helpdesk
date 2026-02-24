@@ -920,7 +920,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
           <button onClick={() => handleTabChange('active')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-4 text-left transition hover:border-orange-500/30 ${activeTab === 'active' ? 'border-orange-500/40 ring-1 ring-orange-500/20' : ''}`}>
             <div className="flex items-center gap-2 mb-1">
               <i className="fas fa-inbox text-orange-400 text-sm" />
-              <span className="text-[var(--text-tertiary)] text-xs">Aguardando</span>
+              <span className="text-[var(--text-tertiary)] text-xs">Novos Tickets</span>
             </div>
             <p className="text-2xl font-bold text-orange-400">{counts.unassigned}</p>
           </button>
