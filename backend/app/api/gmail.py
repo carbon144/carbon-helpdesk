@@ -20,6 +20,8 @@ from app.models.message import Message
 from app.models.customer import Customer
 from app.services.gmail_service import (
     fetch_new_emails,
+    fetch_spam_emails,
+    move_from_spam,
     send_email,
     mark_as_read,
     test_gmail_connection,
@@ -584,6 +586,133 @@ async def compose_email(
     await db.commit()
 
     return {"ok": True, "ticket_id": ticket.id, "ticket_number": ticket.number}
+
+
+# ---- Spam ----
+
+@router.get("/spam")
+async def get_spam_emails(user: User = Depends(get_current_user)):
+    """Fetch emails from Gmail SPAM folder."""
+    emails = fetch_spam_emails(max_results=50)
+    return {"emails": emails, "total": len(emails)}
+
+
+@router.post("/spam/rescue/{message_id}")
+async def rescue_from_spam(
+    message_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Move an email from SPAM to INBOX and optionally create a ticket."""
+    success = move_from_spam(message_id)
+    if not success:
+        raise HTTPException(500, "Falha ao mover email do spam")
+
+    return {"ok": True, "message": "Email movido para a caixa de entrada"}
+
+
+@router.post("/spam/rescue-and-create/{message_id}")
+async def rescue_and_create_ticket(
+    message_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Move email from SPAM to INBOX and create a ticket from it."""
+    # Move from spam first
+    success = move_from_spam(message_id)
+    if not success:
+        raise HTTPException(500, "Falha ao mover email do spam")
+
+    # Get the email data from request body
+    data = await request.json()
+    from_email = data.get("from_email", "")
+    from_name = data.get("from_name", "")
+    subject = data.get("subject", "(Sem assunto)")
+    body_text = data.get("body_text", "")
+    gmail_thread_id = data.get("thread_id")
+
+    if not from_email:
+        raise HTTPException(400, "from_email é obrigatório")
+
+    # Check if message already processed
+    existing_msg = await db.execute(
+        select(Message).where(Message.gmail_message_id == message_id)
+    )
+    if existing_msg.scalars().first():
+        return {"ok": True, "message": "Email já processado anteriormente"}
+
+    # Create customer + ticket
+    customer = await _find_or_create_customer(db, from_email, from_name)
+
+    max_num = await db.execute(select(func.max(Ticket.number)))
+    next_num = (max_num.scalar() or 1000) + 1
+
+    sla_deadline = datetime.now(timezone.utc) + timedelta(hours=settings.SLA_MEDIUM_HOURS)
+
+    ticket = Ticket(
+        number=next_num,
+        subject=subject[:500],
+        status="open",
+        priority="medium",
+        customer_id=customer.id,
+        source="gmail",
+        sla_deadline=sla_deadline,
+        tags=["RESGATADO_SPAM"],
+    )
+    db.add(ticket)
+    await db.flush()
+
+    msg = Message(
+        ticket_id=ticket.id,
+        type="inbound",
+        sender_name=from_name,
+        sender_email=from_email,
+        body_text=body_text,
+        gmail_message_id=message_id,
+        gmail_thread_id=gmail_thread_id,
+    )
+    db.add(msg)
+
+    # AI Triage
+    try:
+        from app.services.ai_service import triage_ticket as ai_triage
+        triage = ai_triage(
+            subject=subject,
+            body=body_text[:2000],
+            customer_name=from_name,
+            is_repeat=customer.is_repeat,
+        )
+        if triage:
+            if triage.get("category"):
+                ticket.ai_category = triage["category"]
+                ticket.category = triage["category"]
+            if triage.get("priority"):
+                ticket.priority = triage["priority"]
+            if triage.get("sentiment"):
+                ticket.sentiment = triage["sentiment"]
+            if triage.get("tags"):
+                ticket.tags = list(ticket.tags or []) + triage["tags"]
+    except Exception as e:
+        logger.warning(f"AI triage skipped for spam-rescued ticket: {e}")
+
+    # Generate protocol
+    try:
+        await assign_protocol(ticket, db)
+    except Exception:
+        pass
+
+    # Mark as read
+    mark_as_read(message_id)
+
+    await db.commit()
+
+    return {
+        "ok": True,
+        "ticket_id": ticket.id,
+        "ticket_number": ticket.number,
+        "message": f"Ticket #{ticket.number} criado a partir do email resgatado",
+    }
 
 
 async def _find_or_create_customer(db: AsyncSession, email: str, name: str) -> Customer:

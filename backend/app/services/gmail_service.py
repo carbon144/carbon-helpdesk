@@ -123,6 +123,93 @@ def fetch_new_emails(after_timestamp: int | None = None, max_results: int = 20, 
         return []
 
 
+def fetch_spam_emails(max_results: int = 50) -> list[dict]:
+    """Fetch emails from Gmail SPAM folder."""
+    service = get_gmail_service()
+    if not service:
+        return []
+
+    try:
+        query = "in:spam"
+
+        results = service.users().messages().list(
+            userId="me", q=query, maxResults=max_results
+        ).execute()
+
+        messages = results.get("messages", [])
+        emails = []
+
+        for msg_ref in messages:
+            msg = service.users().messages().get(
+                userId="me", id=msg_ref["id"], format="full"
+            ).execute()
+
+            headers = {h["name"].lower(): h["value"] for h in msg["payload"]["headers"]}
+
+            # Extract body
+            body_text = ""
+            body_html = ""
+            payload = msg["payload"]
+
+            if "parts" in payload:
+                for part in payload["parts"]:
+                    mime = part.get("mimeType", "")
+                    data = part.get("body", {}).get("data", "")
+                    if data:
+                        decoded = base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
+                        if mime == "text/plain":
+                            body_text = decoded
+                        elif mime == "text/html":
+                            body_html = decoded
+            else:
+                data = payload.get("body", {}).get("data", "")
+                if data:
+                    decoded = base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
+                    if payload.get("mimeType") == "text/html":
+                        body_html = decoded
+                    else:
+                        body_text = decoded
+
+            # Clean body text from HTML if no plain text
+            if not body_text and body_html:
+                body_text = re.sub(r"<[^>]+>", "", body_html)[:2000]
+
+            emails.append({
+                "gmail_id": msg["id"],
+                "thread_id": msg.get("threadId"),
+                "subject": headers.get("subject", "(Sem assunto)"),
+                "from_email": _extract_email(headers.get("from", "")),
+                "from_name": _extract_name(headers.get("from", "")),
+                "to": headers.get("to", ""),
+                "date": headers.get("date", ""),
+                "body_text": body_text[:5000],
+                "body_html": body_html[:10000] if body_html else None,
+                "snippet": msg.get("snippet", ""),
+            })
+
+        return emails
+    except Exception as e:
+        logger.error(f"Failed to fetch spam emails: {e}")
+        return []
+
+
+def move_from_spam(message_id: str) -> bool:
+    """Move an email from SPAM to INBOX (mark as not spam)."""
+    service = get_gmail_service()
+    if not service:
+        return False
+
+    try:
+        service.users().messages().modify(
+            userId="me", id=message_id,
+            body={"removeLabelIds": ["SPAM"], "addLabelIds": ["INBOX"]}
+        ).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to move email from spam: {e}")
+        return False
+
+
 def send_email(to: str, subject: str, body_text: str, thread_id: str | None = None, in_reply_to: str | None = None) -> dict | None:
     """Send an email via Gmail API."""
     service = get_gmail_service()

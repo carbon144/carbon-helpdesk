@@ -55,7 +55,7 @@ export default function CatalogPage() {
                 <div className="p-4">
                   <div className="flex items-center justify-between">
                     <p className="text-white font-semibold text-sm">{p.name}</p>
-                    <span className="text-cyan-400 font-bold text-sm">R$ {p.price.toFixed(2)}</span>
+                    <span className="text-cyan-400 font-bold text-sm">R$ {p.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex items-center gap-2 mt-2">
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
@@ -80,7 +80,7 @@ export default function CatalogPage() {
                 </button>
               </div>
 
-              <div className="text-cyan-400 text-2xl font-bold mb-6">R$ {selected.price.toFixed(2)}</div>
+              <div className="text-cyan-400 text-2xl font-bold mb-6">R$ {selected.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
 
               {/* Specs */}
               <div className="mb-6">
@@ -115,7 +115,7 @@ export default function CatalogPage() {
 
               {/* Copy product info */}
               <button onClick={() => {
-                const info = `${selected.name} - R$ ${selected.price.toFixed(2)}\n${Object.entries(selected.specs || {}).map(([k,v]) => `${k}: ${v}`).join('\n')}`
+                const info = `${selected.name} - R$ ${selected.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n${Object.entries(selected.specs || {}).map(([k,v]) => `${k}: ${v}`).join('\n')}`
                 navigator.clipboard.writeText(info)
               }}
                 className="mt-6 w-full bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600/40 py-2.5 rounded-xl text-sm transition">

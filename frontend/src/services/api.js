@@ -103,6 +103,9 @@ export const fetchGmailEmails = () => api.post('/gmail/fetch')
 export const fetchGmailHistory = (days = 30) => api.post('/gmail/fetch-history', { days }, { timeout: LONG_OPERATION_TIMEOUT_MS })
 export const sendGmailReply = (data) => api.post('/gmail/send-reply', data)
 export const composeEmail = (data) => api.post('/gmail/compose', data)
+export const fetchSpamEmails = () => api.get('/gmail/spam')
+export const rescueFromSpam = (messageId) => api.post(`/gmail/spam/rescue/${messageId}`)
+export const rescueAndCreateTicket = (messageId, data) => api.post(`/gmail/spam/rescue-and-create/${messageId}`, data)
 
 // ── AI ──
 export const getAIStatus = () => api.get('/ai/status')

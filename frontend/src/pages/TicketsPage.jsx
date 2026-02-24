@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useToast } from '../components/Toast'
-import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, fetchGmailHistory, updateTicket, composeEmail, getSentMessages } from '../services/api'
+import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, fetchGmailHistory, updateTicket, composeEmail, getSentMessages, fetchSpamEmails, rescueFromSpam, rescueAndCreateTicket } from '../services/api'
 import MetaBadge from '../components/MetaBadge'
 
 const AUTO_REFRESH_MS = 30_000
@@ -148,11 +148,14 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   const [composeBody, setComposeBody] = useState('')
   const [composeSending, setComposeSending] = useState(false)
   const [editingCell, setEditingCell] = useState(null) // { ticketId, field }
-  const [topView, setTopView] = useState('inbox') // 'inbox' | 'sent'
+  const [topView, setTopView] = useState('inbox') // 'inbox' | 'sent' | 'spam'
   const [sentMessages, setSentMessages] = useState([])
   const [sentTotal, setSentTotal] = useState(0)
   const [sentPage, setSentPage] = useState(1)
   const [sentLoading, setSentLoading] = useState(false)
+  const [spamEmails, setSpamEmails] = useState([])
+  const [spamLoading, setSpamLoading] = useState(false)
+  const [spamRescuing, setSpamRescuing] = useState(null) // gmail_id being rescued
   const searchTimerRef = useRef(null)
 
   // Debounced search: triggers loadTickets after 400ms of inactivity
@@ -281,8 +284,53 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
     return () => clearInterval(interval)
   }, [])
 
+  const loadSpamEmails = async () => {
+    setSpamLoading(true)
+    try {
+      const { data } = await fetchSpamEmails()
+      setSpamEmails(data.emails || [])
+    } catch (e) {
+      console.error('Failed to load spam emails:', e)
+    } finally {
+      setSpamLoading(false)
+    }
+  }
+
+  const handleRescueSpam = async (email) => {
+    setSpamRescuing(email.gmail_id)
+    try {
+      await rescueFromSpam(email.gmail_id)
+      setSpamEmails(prev => prev.filter(e => e.gmail_id !== email.gmail_id))
+      toast.success('Email movido para a caixa de entrada')
+    } catch (e) {
+      toast.error('Falha ao resgatar email')
+    } finally {
+      setSpamRescuing(null)
+    }
+  }
+
+  const handleRescueAndCreate = async (email) => {
+    setSpamRescuing(email.gmail_id)
+    try {
+      const { data } = await rescueAndCreateTicket(email.gmail_id, {
+        from_email: email.from_email,
+        from_name: email.from_name,
+        subject: email.subject,
+        body_text: email.body_text,
+        thread_id: email.thread_id,
+      })
+      setSpamEmails(prev => prev.filter(e => e.gmail_id !== email.gmail_id))
+      toast.success(data.message || 'Ticket criado com sucesso')
+    } catch (e) {
+      toast.error('Falha ao criar ticket do spam')
+    } finally {
+      setSpamRescuing(null)
+    }
+  }
+
   useEffect(() => {
     if (topView === 'sent') loadSentMessages()
+    if (topView === 'spam') loadSpamEmails()
   }, [topView, sentPage])
 
   const handleSearch = (e) => {
@@ -525,10 +573,94 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
         >
           <i className="fas fa-paper-plane mr-2" />Enviados
         </button>
+        <button
+          onClick={() => setTopView('spam')}
+          className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            topView === 'spam'
+              ? 'bg-red-600 text-white'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+          }`}
+        >
+          <i className="fas fa-shield-alt mr-2" />Spam
+          {spamEmails.length > 0 && (
+            <span className="ml-2 bg-red-500/20 text-red-300 text-xs px-1.5 py-0.5 rounded-full">{spamEmails.length}</span>
+          )}
+        </button>
       </div>
 
-      {/* Sent Messages View */}
-      {topView === 'sent' ? (
+      {/* Spam View */}
+      {topView === 'spam' ? (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                <i className="fas fa-shield-alt mr-2 text-red-400" />Emails no Spam do Gmail
+              </h2>
+              <p className="text-sm text-[var(--text-tertiary)] mt-1">
+                Emails que caíram no spam. Resgate os que forem de clientes reais.
+              </p>
+            </div>
+            <button onClick={loadSpamEmails} disabled={spamLoading}
+              className="px-4 py-2 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-tertiary)] transition text-sm disabled:opacity-50">
+              <i className={`fas fa-sync-alt mr-2 ${spamLoading ? 'animate-spin' : ''}`} />Atualizar
+            </button>
+          </div>
+
+          <div className="bg-[var(--bg-secondary)] rounded-xl overflow-hidden border border-[var(--border-color)]">
+            {spamLoading ? (
+              <div className="p-12 text-center text-[var(--text-secondary)]">Carregando spam...</div>
+            ) : spamEmails.length === 0 ? (
+              <div className="p-12 text-center text-[var(--text-secondary)]">
+                <i className="fas fa-check-circle text-4xl mb-3 text-emerald-400 opacity-50" />
+                <p>Nenhum email no spam</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--border-color)]">
+                {spamEmails.map(email => (
+                  <div key={email.gmail_id} className="p-4 hover:bg-[var(--bg-tertiary)] transition-colors">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[var(--text-primary)] font-medium text-sm truncate">{email.from_name}</span>
+                          <span className="text-[var(--text-tertiary)] text-xs">&lt;{email.from_email}&gt;</span>
+                        </div>
+                        <p className="text-[var(--text-primary)] text-sm font-medium truncate">{email.subject}</p>
+                        <p className="text-[var(--text-tertiary)] text-xs mt-1 line-clamp-2">{email.snippet || email.body_text?.substring(0, 150)}</p>
+                        {email.date && (
+                          <p className="text-[var(--text-tertiary)] text-xs mt-2">
+                            <i className="far fa-clock mr-1" />
+                            {new Date(email.date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => handleRescueSpam(email)}
+                          disabled={spamRescuing === email.gmail_id}
+                          className="px-3 py-1.5 bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded-lg text-xs font-medium transition disabled:opacity-50"
+                          title="Mover para caixa de entrada"
+                        >
+                          <i className={`fas ${spamRescuing === email.gmail_id ? 'fa-spinner animate-spin' : 'fa-inbox'} mr-1`} />
+                          Resgatar
+                        </button>
+                        <button
+                          onClick={() => handleRescueAndCreate(email)}
+                          disabled={spamRescuing === email.gmail_id}
+                          className="px-3 py-1.5 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40 rounded-lg text-xs font-medium transition disabled:opacity-50"
+                          title="Resgatar e criar ticket"
+                        >
+                          <i className={`fas ${spamRescuing === email.gmail_id ? 'fa-spinner animate-spin' : 'fa-plus'} mr-1`} />
+                          Criar Ticket
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : topView === 'sent' ? (
         <div>
           <div className="bg-[var(--bg-secondary)] rounded-xl overflow-hidden border border-[var(--border-color)]">
             {sentLoading ? (

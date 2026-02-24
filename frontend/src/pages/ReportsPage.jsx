@@ -15,8 +15,10 @@ const SENTIMENT_LABELS = { positive: 'Positivo', neutral: 'Neutro', negative: 'N
 const SOURCE_LABELS = { web: 'Web', slack: 'Slack', gmail: 'Gmail' }
 const PRIORITY_LABELS = { urgent: 'Urgente', high: 'Alta', medium: 'Média', low: 'Baixa' }
 const STATUS_LABELS = {
-  open: 'Aberto', in_progress: 'Em Andamento', waiting: 'Aguardando',
-  resolved: 'Resolvido', closed: 'Fechado', escalated: 'Escalado',
+  open: 'Aberto', in_progress: 'EmAndamento', waiting: 'Aguardando',
+  waiting_supplier: 'Ag. Fornecedor', waiting_resend: 'Ag. Reenvio',
+  analyzing: 'Em Análise', resolved: 'Resolvido', closed: 'Fechado',
+  escalated: 'Escalado', archived: 'Arquivado',
 }
 
 export default function ReportsPage() {
