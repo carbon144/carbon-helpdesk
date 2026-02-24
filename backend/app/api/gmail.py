@@ -699,12 +699,6 @@ async def send_gmail_reply(
     if user.email_signature:
         full_message += f"\n\n--\n{user.email_signature}"
 
-    # Append attachment links to email body
-    if attachments:
-        full_message += "\n\n\U0001f4ce Anexos:\n"
-        for att in attachments:
-            full_message += f"- {att['name']}: {att['drive_url']}\n"
-
     response = send_email(
         to=customer.email,
         subject=subject,
@@ -713,6 +707,7 @@ async def send_gmail_reply(
         in_reply_to=in_reply_to,
         cc=cc or None,
         bcc=bcc or None,
+        attachments=attachments if attachments else None,
     )
 
     if not response:
@@ -765,12 +760,6 @@ async def compose_email(
     if user.email_signature:
         full_message += f"\n\n--\n{user.email_signature}"
 
-    # Append attachment links to email body
-    if attachments:
-        full_message += "\n\n\U0001f4ce Anexos:\n"
-        for att in attachments:
-            full_message += f"- {att['name']}: {att['drive_url']}\n"
-
     response = None
     if not is_scheduled:
         # Send the email immediately
@@ -780,6 +769,7 @@ async def compose_email(
             body_text=full_message,
             cc=cc or None,
             bcc=bcc or None,
+            attachments=attachments if attachments else None,
         )
 
         if not response:
