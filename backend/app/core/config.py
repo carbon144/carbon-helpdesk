@@ -66,3 +66,23 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def validate_settings():
+    """Log warnings for missing critical settings on startup."""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    if not settings.DATABASE_URL:
+        logger.critical("DATABASE_URL is not set! Application will not work.")
+    if not settings.JWT_SECRET:
+        logger.critical("JWT_SECRET is not set! Authentication will not work.")
+    if settings.JWT_SECRET and len(settings.JWT_SECRET) < 32:
+        logger.warning("JWT_SECRET is short. Use at least 32 characters for security.")
+    if not settings.ANTHROPIC_API_KEY:
+        logger.warning("ANTHROPIC_API_KEY not set. AI features will be disabled.")
+    if not settings.GMAIL_REFRESH_TOKEN:
+        logger.warning("GMAIL_REFRESH_TOKEN not set. Email integration disabled.")
+
+
+validate_settings()

@@ -75,7 +75,8 @@ class ConnectionManager:
         for ws in self.active.get(user_id, []):
             try:
                 await ws.send_json(data)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"WS send failed for user={user_id}: {e}")
                 dead.append(ws)
         # Clean up dead connections
         for ws in dead:
@@ -89,7 +90,8 @@ class ConnectionManager:
             for ws in connections:
                 try:
                     await ws.send_json(data)
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"WS broadcast failed for user={uid}: {e}")
                     dead_pairs.append((ws, uid))
         for ws, uid in dead_pairs:
             self.disconnect(ws, uid)

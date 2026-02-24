@@ -41,6 +41,11 @@ export const updateMyProfile = (data) => api.patch('/auth/me', data)
 export const getUsers = () => api.get('/auth/users')
 export const changePassword = (currentPassword, newPassword) => api.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword })
 
+// ── Customers ──
+export const searchCustomers = (q) => api.get('/customers/search', { params: { q } })
+export const getCustomer = (id) => api.get(`/customers/${id}`)
+export const mergeCustomers = (data) => api.post('/customers/merge', data)
+
 // ── Tickets ──
 export const getTickets = (params) => api.get('/tickets', { params })
 export const getTicketCounts = () => api.get('/tickets/counts')
@@ -55,6 +60,9 @@ export const getCustomerHistory = (customerId) => api.get(`/tickets/customer/${c
 export const getTicketPreview = (ticketId) => api.get(`/tickets/${ticketId}/preview`)
 export const getSentMessages = (params) => api.get('/tickets/sent-messages', { params })
 export const addMessage = (ticketId, data) => api.post(`/tickets/${ticketId}/messages`, data)
+
+// ── Ticket Merge ──
+export const mergeTickets = (data) => api.post('/tickets/merge', data)
 
 // ── Inboxes ──
 export const getInboxes = () => api.get('/inboxes')

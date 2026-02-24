@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.database import engine, Base, async_session
-from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta
+from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta, customers
 from app.services.seed import seed_database
 from app.models.csat import CSATRating  # noqa: ensure table created
 from app.models.social_comment import SocialComment  # noqa: ensure table created
@@ -153,7 +153,8 @@ async def _run_email_fetch_loop():
                             # AI Triage
                             try:
                                 from app.services.ai_service import triage_ticket as ai_triage
-                                triage = ai_triage(
+                                triage = await asyncio.to_thread(
+                                    ai_triage,
                                     subject=email_data["subject"],
                                     body=email_data["body_text"][:2000],
                                     customer_name=email_data["from_name"],
@@ -180,8 +181,8 @@ async def _run_email_fetch_loop():
 
                             try:
                                 await assign_protocol(ticket, db)
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.warning(f"Migration warning: {e}")
 
                             created += 1
 
@@ -356,6 +357,16 @@ async def lifespan(app: FastAPI):
                 ('auto_reply', 'true'),
                 ('auto_hide', 'true')
             ON CONFLICT (key) DO NOTHING""",
+            # Merge support migrations
+            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS merged_into_id UUID",
+            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS alternate_emails VARCHAR[]",
+            "ALTER TABLE tickets ADD COLUMN IF NOT EXISTS merged_into_id UUID",
+            "ALTER TABLE tickets ADD COLUMN IF NOT EXISTS email_message_id VARCHAR(255)",
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS email_message_id VARCHAR(255)",
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS email_references TEXT",
+            "CREATE INDEX IF NOT EXISTS ix_customers_merged_into_id ON customers(merged_into_id)",
+            "CREATE INDEX IF NOT EXISTS ix_tickets_merged_into_id ON tickets(merged_into_id)",
+            "CREATE INDEX IF NOT EXISTS ix_tickets_email_message_id ON tickets(email_message_id)",
         ]
         migration_logger = logging.getLogger("migrations")
         for sql in migration_sqls:
@@ -423,6 +434,7 @@ app.include_router(catalog.router, prefix="/api")
 app.include_router(gamification.router, prefix="/api")
 app.include_router(rewards.router, prefix="/api")
 app.include_router(meta.router, prefix="/api")
+app.include_router(customers.router, prefix="/api")
 app.include_router(ws.router)
 
 # Public CSAT rating page (no auth required - customer clicks email link)

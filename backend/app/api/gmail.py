@@ -27,6 +27,8 @@ from app.services.gmail_service import (
     test_gmail_connection,
 )
 from app.services.protocol_service import assign_protocol
+from app.services.data_extractor import extract_customer_data
+from app.services.customer_matcher import find_matching_customer
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/gmail", tags=["gmail"])
@@ -146,6 +148,11 @@ async def fetch_emails(
         gmail_thread_id = email_data.get("thread_id")
         gmail_message_id = email_data.get("gmail_id")
 
+        # Extract email thread headers
+        email_message_id = email_data.get("message_id")  # Message-ID header
+        in_reply_to = email_data.get("in_reply_to")  # In-Reply-To header
+        email_references = email_data.get("references")  # References header
+
         # Check if this message was already processed
         existing_msg = await db.execute(
             select(Message).where(Message.gmail_message_id == gmail_message_id)
@@ -153,8 +160,52 @@ async def fetch_emails(
         if existing_msg.scalars().first():
             continue
 
-        # Check if there's an existing ticket for this Gmail thread
+        # Check email thread matching via In-Reply-To header
         existing_ticket = None
+        if in_reply_to:
+            ref_msg_result = await db.execute(
+                select(Message).where(Message.email_message_id == in_reply_to)
+            )
+            ref_msg = ref_msg_result.scalar_one_or_none()
+            if ref_msg:
+                # Add as reply to existing ticket instead of creating new one
+                msg = Message(
+                    ticket_id=ref_msg.ticket_id,
+                    type="inbound",
+                    sender_name=email_data["from_name"],
+                    sender_email=email_data["from_email"],
+                    body_text=email_data["body_text"],
+                    body_html=email_data.get("body_html"),
+                    gmail_message_id=gmail_message_id,
+                    gmail_thread_id=gmail_thread_id,
+                    email_message_id=email_message_id,
+                    email_references=email_references,
+                )
+                db.add(msg)
+
+                # Update the ticket
+                ticket_result = await db.execute(
+                    select(Ticket).where(Ticket.id == ref_msg.ticket_id)
+                )
+                matched_ticket = ticket_result.scalar_one_or_none()
+                if matched_ticket:
+                    if matched_ticket.status == "resolved":
+                        matched_ticket.status = "open"
+                        matched_ticket.resolved_at = None
+                    now = datetime.now(timezone.utc)
+                    from app.core.sla_config import get_sla_for_ticket
+                    sla = get_sla_for_ticket(matched_ticket.category, matched_ticket.priority)
+                    matched_ticket.sla_deadline = now + timedelta(hours=sla["resolution_hours"])
+                    matched_ticket.sla_response_deadline = now + timedelta(hours=sla["response_hours"])
+                    matched_ticket.sla_breached = False
+                    matched_ticket.first_response_at = None
+                    matched_ticket.updated_at = now
+
+                mark_as_read(gmail_message_id)
+                updated += 1
+                continue
+
+        # Check if there's an existing ticket for this Gmail thread
         if gmail_thread_id:
             result = await db.execute(
                 select(Ticket).join(Message).where(Message.gmail_thread_id == gmail_thread_id)
@@ -188,6 +239,8 @@ async def fetch_emails(
                 body_html=email_data.get("body_html"),
                 gmail_message_id=gmail_message_id,
                 gmail_thread_id=gmail_thread_id,
+                email_message_id=email_message_id,
+                email_references=email_references,
             )
             db.add(msg)
 
@@ -208,10 +261,41 @@ async def fetch_emails(
             existing_ticket.updated_at = now
             updated += 1
         else:
-            # Create new ticket
-            customer = await _find_or_create_customer(
-                db, email_data["from_email"], email_data["from_name"]
-            )
+            # Extract customer data from email body for matching
+            body_text = email_data.get("body_text", "")
+            extracted_data = extract_customer_data(body_text)
+
+            # Try to find matching customer by extracted data (CPF, phone, email)
+            matched_customer = None
+            if any(extracted_data.get(k) for k in ("cpf", "phone", "email")):
+                try:
+                    matched_customer = await find_matching_customer(
+                        db,
+                        cpf=extracted_data.get("cpf"),
+                        phone=extracted_data.get("phone"),
+                        email=extracted_data.get("email"),
+                        shopify_order_id=extracted_data.get("shopify_order_id"),
+                    )
+                except Exception as e:
+                    logger.warning(f"Customer matching failed: {e}")
+
+            if matched_customer:
+                customer = matched_customer
+                # Update customer data if we found new info
+                if extracted_data.get("cpf") and not customer.cpf:
+                    customer.cpf = extracted_data["cpf"]
+                if extracted_data.get("phone") and not customer.phone:
+                    customer.phone = extracted_data["phone"]
+            else:
+                # Create new ticket
+                customer = await _find_or_create_customer(
+                    db, email_data["from_email"], email_data["from_name"]
+                )
+                # Enrich new customer with extracted data
+                if extracted_data.get("cpf") and not customer.cpf:
+                    customer.cpf = extracted_data["cpf"]
+                if extracted_data.get("phone") and not customer.phone:
+                    customer.phone = extracted_data["phone"]
 
             max_num = await db.execute(select(func.max(Ticket.number)))
             next_num = (max_num.scalar() or 1000) + 1
@@ -242,6 +326,8 @@ async def fetch_emails(
                 body_html=email_data.get("body_html"),
                 gmail_message_id=gmail_message_id,
                 gmail_thread_id=gmail_thread_id,
+                email_message_id=email_message_id,
+                email_references=email_references,
             )
             db.add(msg)
 
@@ -271,6 +357,15 @@ async def fetch_emails(
                         ticket.tags = triage["tags"]
                     if triage.get("confidence"):
                         ticket.ai_confidence = triage["confidence"]
+                    # Use AI-extracted customer data to enrich customer record
+                    ai_customer_data = triage.get("customer_data")
+                    if ai_customer_data and isinstance(ai_customer_data, dict):
+                        if ai_customer_data.get("cpf") and not customer.cpf:
+                            customer.cpf = ai_customer_data["cpf"]
+                        if ai_customer_data.get("phone") and not customer.phone:
+                            customer.phone = ai_customer_data["phone"]
+                        if ai_customer_data.get("full_name") and customer.name == customer.email:
+                            customer.name = ai_customer_data["full_name"]
             except Exception as e:
                 logger.warning(f"AI triage skipped for gmail ticket: {e}")
 
@@ -332,6 +427,11 @@ async def fetch_email_history(
         gmail_thread_id = email_data.get("thread_id")
         gmail_message_id = email_data.get("gmail_id")
 
+        # Extract email thread headers
+        email_message_id = email_data.get("message_id")
+        in_reply_to = email_data.get("in_reply_to")
+        email_references = email_data.get("references")
+
         # Check if already processed
         existing_msg = await db.execute(
             select(Message).where(Message.gmail_message_id == gmail_message_id)
@@ -340,8 +440,44 @@ async def fetch_email_history(
             skipped += 1
             continue
 
-        # Check existing ticket for this thread
+        # Check email thread matching via In-Reply-To header
         existing_ticket = None
+        if in_reply_to:
+            ref_msg_result = await db.execute(
+                select(Message).where(Message.email_message_id == in_reply_to)
+            )
+            ref_msg = ref_msg_result.scalar_one_or_none()
+            if ref_msg:
+                msg = Message(
+                    ticket_id=ref_msg.ticket_id,
+                    type="inbound",
+                    sender_name=email_data["from_name"],
+                    sender_email=email_data["from_email"],
+                    body_text=email_data["body_text"],
+                    body_html=email_data.get("body_html"),
+                    gmail_message_id=gmail_message_id,
+                    gmail_thread_id=gmail_thread_id,
+                    email_message_id=email_message_id,
+                    email_references=email_references,
+                )
+                db.add(msg)
+                # Update the ticket SLA
+                ticket_result = await db.execute(
+                    select(Ticket).where(Ticket.id == ref_msg.ticket_id)
+                )
+                matched_ticket = ticket_result.scalar_one_or_none()
+                if matched_ticket:
+                    now = datetime.now(timezone.utc)
+                    from app.core.sla_config import get_sla_for_ticket
+                    sla = get_sla_for_ticket(matched_ticket.category, matched_ticket.priority)
+                    matched_ticket.sla_deadline = now + timedelta(hours=sla["resolution_hours"])
+                    matched_ticket.sla_response_deadline = now + timedelta(hours=sla["response_hours"])
+                    matched_ticket.sla_breached = False
+                    matched_ticket.updated_at = now
+                updated += 1
+                continue
+
+        # Check existing ticket for this thread
         if gmail_thread_id:
             result = await db.execute(
                 select(Ticket).join(Message).where(Message.gmail_thread_id == gmail_thread_id)
@@ -374,6 +510,8 @@ async def fetch_email_history(
                 body_html=email_data.get("body_html"),
                 gmail_message_id=gmail_message_id,
                 gmail_thread_id=gmail_thread_id,
+                email_message_id=email_message_id,
+                email_references=email_references,
             )
             db.add(msg)
             # Reset SLA on new inbound email
@@ -386,9 +524,39 @@ async def fetch_email_history(
             existing_ticket.updated_at = now
             updated += 1
         else:
-            customer = await _find_or_create_customer(
-                db, email_data["from_email"], email_data["from_name"]
-            )
+            # Extract customer data from email body for matching
+            body_text = email_data.get("body_text", "")
+            extracted_data = extract_customer_data(body_text)
+
+            # Try to find matching customer by extracted data
+            matched_customer = None
+            if any(extracted_data.get(k) for k in ("cpf", "phone", "email")):
+                try:
+                    matched_customer = await find_matching_customer(
+                        db,
+                        cpf=extracted_data.get("cpf"),
+                        phone=extracted_data.get("phone"),
+                        email=extracted_data.get("email"),
+                        shopify_order_id=extracted_data.get("shopify_order_id"),
+                    )
+                except Exception as e:
+                    logger.warning(f"Customer matching failed: {e}")
+
+            if matched_customer:
+                customer = matched_customer
+                if extracted_data.get("cpf") and not customer.cpf:
+                    customer.cpf = extracted_data["cpf"]
+                if extracted_data.get("phone") and not customer.phone:
+                    customer.phone = extracted_data["phone"]
+            else:
+                customer = await _find_or_create_customer(
+                    db, email_data["from_email"], email_data["from_name"]
+                )
+                if extracted_data.get("cpf") and not customer.cpf:
+                    customer.cpf = extracted_data["cpf"]
+                if extracted_data.get("phone") and not customer.phone:
+                    customer.phone = extracted_data["phone"]
+
             max_num = await db.execute(select(func.max(Ticket.number)))
             next_num = (max_num.scalar() or 1000) + 1
             sla_deadline = datetime.now(timezone.utc) + timedelta(hours=settings.SLA_MEDIUM_HOURS)
@@ -416,6 +584,8 @@ async def fetch_email_history(
                 body_html=email_data.get("body_html"),
                 gmail_message_id=gmail_message_id,
                 gmail_thread_id=gmail_thread_id,
+                email_message_id=email_message_id,
+                email_references=email_references,
             )
             db.add(msg)
 
@@ -445,6 +615,15 @@ async def fetch_email_history(
                         ticket.tags = triage["tags"]
                     if triage.get("confidence"):
                         ticket.ai_confidence = triage["confidence"]
+                    # Use AI-extracted customer data to enrich customer record
+                    ai_customer_data = triage.get("customer_data")
+                    if ai_customer_data and isinstance(ai_customer_data, dict):
+                        if ai_customer_data.get("cpf") and not customer.cpf:
+                            customer.cpf = ai_customer_data["cpf"]
+                        if ai_customer_data.get("phone") and not customer.phone:
+                            customer.phone = ai_customer_data["phone"]
+                        if ai_customer_data.get("full_name") and customer.name == customer.email:
+                            customer.name = ai_customer_data["full_name"]
             except Exception as e:
                 logger.warning(f"AI triage skipped for history ticket: {e}")
 

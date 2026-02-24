@@ -138,7 +138,7 @@ async def my_stats(
         select(func.count(Ticket.id)).where(
             Ticket.assigned_to == user.id,
             Ticket.status.notin_(["resolved", "closed"]),
-            Ticket.sla_deadline != None,
+            Ticket.sla_deadline.isnot(None),
             Ticket.sla_deadline <= now + timedelta(hours=1),
             Ticket.sla_breached == False,
         )

@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useToast } from '../components/Toast'
 import {
-  getTicket, updateTicket, addMessage, getMacros, getUsers, getCustomerHistory,
+  getTicket, getTickets, updateTicket, addMessage, getMacros, getUsers, getCustomerHistory,
   triageTicket, suggestReply, updateSupplierNotes, updateTracking, refreshTracking,
   blacklistCustomer, unblacklistCustomer, generateSummary, getNextTicket,
   updateInternalNotes, sendProtocolEmail, backfillProtocols,
   getMediaItems, createMediaItem, suggestMedia, uploadMedia, getCopilotInsights,
   getEcommerceOrders, getShopifyCustomer, refundShopifyOrder, cancelShopifyOrder,
   pauseTicketAI, resumeTicketAI, sendMetaReply, submitCsat,
+  mergeTickets, mergeCustomers, searchCustomers,
 } from '../services/api'
 import MetaBadge from '../components/MetaBadge'
 
@@ -132,6 +133,13 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
   const [sidebarTab, setSidebarTab] = useState('copilot')
   // Meta AI controls
   const [aiPausing, setAiPausing] = useState(false)
+  // Merge
+  const [showMergeModal, setShowMergeModal] = useState(false)
+  const [mergeSearch, setMergeSearch] = useState('')
+  const [mergeResults, setMergeResults] = useState([])
+  const [showMergeCustomerModal, setShowMergeCustomerModal] = useState(false)
+  const [mergeCustomerSearch, setMergeCustomerSearch] = useState('')
+  const [mergeCustomerResults, setMergeCustomerResults] = useState([])
   const textareaRef = useRef(null)
 
   const isMetaChannel = ticket && ['whatsapp', 'instagram', 'facebook'].includes(ticket.source)
@@ -402,6 +410,52 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
     try { await unblacklistCustomer(ticket.customer.id); loadTicket() } catch (e) { toast.error(e.response?.data?.detail || 'Erro') }
   }
 
+  // Merge ticket search (debounced)
+  useEffect(() => {
+    if (!mergeSearch || mergeSearch.length < 2) { setMergeResults([]); return }
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await getTickets({ search: mergeSearch, limit: 10 })
+        setMergeResults(data.tickets || [])
+      } catch (e) { console.warn('Merge search failed', e) }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [mergeSearch])
+
+  // Merge customer search (debounced)
+  useEffect(() => {
+    if (!mergeCustomerSearch || mergeCustomerSearch.length < 2) { setMergeCustomerResults([]); return }
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await searchCustomers(mergeCustomerSearch)
+        setMergeCustomerResults(data || [])
+      } catch (e) { console.warn('Customer search failed', e) }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [mergeCustomerSearch])
+
+  const handleMergeTicket = async (targetId) => {
+    try {
+      await mergeTickets({ source_ticket_id: ticket.id, target_ticket_id: targetId })
+      toast.success('Tickets mesclados com sucesso!')
+      setShowMergeModal(false)
+      onOpenTicket(targetId)
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Erro ao mesclar tickets')
+    }
+  }
+
+  const handleMergeCustomer = async (targetId) => {
+    try {
+      await mergeCustomers({ source_customer_id: ticket.customer.id, target_customer_id: targetId })
+      toast.success('Clientes mesclados com sucesso!')
+      setShowMergeCustomerModal(false)
+      loadTicket()
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Erro ao mesclar clientes')
+    }
+  }
+
   const handleKeyDown = (e) => {
     // Slash command navigation
     if (slashOpen) {
@@ -485,6 +539,11 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
               <div className="flex items-center gap-2">
                 <span className="text-[var(--text-primary)] font-semibold">#{ticket.number}</span>
                 <span className="text-[var(--text-primary)]">{ticket.subject}</span>
+                {ticket.status === 'merged' && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>
+                    <i className="fas fa-code-branch mr-1" />Mesclado
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-3 mt-0.5">
                 <span className="text-[var(--text-secondary)] text-xs">{ticket.customer?.name}</span>
@@ -520,6 +579,10 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                 <span>Devolver</span>
               </button>
             )}
+            <button onClick={() => { setMergeSearch(''); setMergeResults([]); setShowMergeModal(true) }}
+              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1.5 rounded transition" title="Mesclar ticket">
+              <i className="fas fa-code-branch" />
+            </button>
             <button onClick={async () => {
               try { const { data } = await getNextTicket(); if (data.ticket_id && data.ticket_id !== ticketId) onOpenTicket?.(data.ticket_id); else toast.info('Nenhum ticket pendente na fila') } catch {}
             }} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1.5 rounded transition" title="Próximo ticket (Alt+N)">
@@ -1290,6 +1353,12 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                 </div>
               )}
 
+              {/* Merge Customer */}
+              <button onClick={() => { setMergeCustomerSearch(''); setMergeCustomerResults([]); setShowMergeCustomerModal(true) }}
+                className="text-[var(--text-secondary)] hover:text-purple-400 text-xs mb-4 transition">
+                <i className="fas fa-users mr-1" />Mesclar Cliente
+              </button>
+
               {/* Blacklist */}
               {ticket.customer.is_blacklisted ? (
                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4">
@@ -2028,6 +2097,92 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
               }}
                 className="bg-red-600 hover:bg-red-500 text-white px-5 py-2 rounded-xl text-sm font-medium transition">
                 <i className="fas fa-ban mr-1" />Confirmar Cancelamento
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MERGE TICKET MODAL ═══ */}
+      {showMergeModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setShowMergeModal(false)}>
+          <div className="rounded-2xl p-6 w-full max-w-md" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+              <i className="fas fa-code-branch mr-2" />Mesclar Ticket
+            </h3>
+            <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>
+              Todas as mensagens deste ticket serao movidas para o ticket destino.
+            </p>
+            <input
+              type="text"
+              placeholder="Buscar por numero, assunto ou cliente..."
+              value={mergeSearch}
+              onChange={e => setMergeSearch(e.target.value)}
+              className="w-full rounded-lg px-4 py-2 text-sm mb-3"
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+            />
+            {mergeResults.length > 0 && (
+              <div className="max-h-60 overflow-auto space-y-2 mb-4">
+                {mergeResults.filter(t => t.id !== ticket.id).map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => handleMergeTicket(t.id)}
+                    className="w-full text-left p-3 rounded-lg transition"
+                    style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}
+                  >
+                    <span className="font-mono text-xs" style={{ color: 'var(--accent)' }}>#{t.number}</span>
+                    <span className="text-sm ml-2" style={{ color: 'var(--text-primary)' }}>{t.subject}</span>
+                    <span className="text-xs block mt-1" style={{ color: 'var(--text-tertiary)' }}>{t.customer?.name || 'Sem cliente'}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowMergeModal(false)} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Merge Customer Modal */}
+      {showMergeCustomerModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setShowMergeCustomerModal(false)}>
+          <div className="rounded-2xl p-6 w-full max-w-md" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+              <i className="fas fa-users mr-2" />Mesclar Cliente
+            </h3>
+            <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>
+              Todos os tickets do cliente serao transferidos para o cliente destino.
+            </p>
+            <input
+              type="text"
+              placeholder="Buscar por nome, email, CPF..."
+              value={mergeCustomerSearch}
+              onChange={e => setMergeCustomerSearch(e.target.value)}
+              className="w-full rounded-lg px-4 py-2 text-sm mb-3"
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+            />
+            {mergeCustomerResults.length > 0 && (
+              <div className="max-h-60 overflow-auto space-y-2 mb-4">
+                {mergeCustomerResults.filter(c => c.id !== ticket.customer?.id).map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => handleMergeCustomer(c.id)}
+                    className="w-full text-left p-3 rounded-lg transition"
+                    style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}
+                  >
+                    <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{c.name}</span>
+                    <span className="text-xs block" style={{ color: 'var(--text-secondary)' }}>{c.email}</span>
+                    {c.cpf && <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}> · CPF: {c.cpf}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowMergeCustomerModal(false)} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Cancelar
               </button>
             </div>
           </div>

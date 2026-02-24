@@ -113,6 +113,7 @@ def fetch_new_emails(after_timestamp: int | None = None, max_results: int = 20, 
                 "date": headers.get("date", ""),
                 "body_text": body_text[:5000],
                 "body_html": body_html[:10000] if body_html else None,
+                "message_id": headers.get("message-id"),
                 "in_reply_to": headers.get("in-reply-to"),
                 "references": headers.get("references"),
             })

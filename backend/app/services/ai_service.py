@@ -41,8 +41,16 @@ Analise a mensagem do cliente e retorne APENAS um JSON válido (sem markdown, se
   "legal_risk": true ou false (se menciona PROCON, processo, advogado, Reclame Aqui, chargeback, danos morais),
   "tags": ["lista de tags relevantes entre: garantia, troca, carregador, mau_uso, procon, chargeback, duvida, reclamacao, juridico, suporte_tecnico"],
   "confidence": 0.0 a 1.0,
-  "summary": "resumo em 1 frase do problema"
+  "summary": "resumo em 1 frase do problema",
+  "customer_data": {
+    "cpf": "CPF se encontrado na mensagem (apenas dígitos, 11 caracteres)",
+    "phone": "telefone se encontrado (apenas dígitos)",
+    "order_number": "número do pedido Shopify se encontrado (apenas dígitos)",
+    "full_name": "nome completo do cliente se identificado"
+  }
 }
+
+Se não encontrar dados do cliente na mensagem, retorne customer_data como null ou omita o campo.
 
 Regras de prioridade:
 - urgent: risco jurídico, PROCON, chargeback, cliente muito irritado
@@ -92,6 +100,16 @@ def triage_ticket(subject: str, body: str, customer_name: str = "", is_repeat: b
         # Try to parse JSON
         result = _clean_json(text)
         logger.info(f"AI triage result: category={result.get('category')}, priority={result.get('priority')}")
+
+        # Extract customer_data if present (backward compatible)
+        customer_data = result.get("customer_data")
+        if customer_data and isinstance(customer_data, dict):
+            # Clean up empty/null values
+            customer_data = {k: v for k, v in customer_data.items() if v}
+            result["customer_data"] = customer_data if customer_data else None
+        else:
+            result["customer_data"] = None
+
         return result
     except json.JSONDecodeError as e:
         logger.error(f"AI returned invalid JSON: {e}")

@@ -28,6 +28,11 @@ class Message(Base):
     slack_ts: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     meta_message_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     meta_platform: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    # Email thread tracking
+    email_message_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    email_references: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     ticket = relationship("Ticket", back_populates="messages")

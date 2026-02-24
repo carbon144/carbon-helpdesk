@@ -11,7 +11,7 @@ from app.core.database import Base
 # Valid statuses (checked in API, not DB enum for flexibility)
 VALID_STATUSES = [
     "open", "in_progress", "waiting", "waiting_supplier", "waiting_resend",
-    "analyzing", "resolved", "closed", "escalated", "archived",
+    "analyzing", "resolved", "closed", "escalated", "archived", "merged",
 ]
 
 VALID_PRIORITIES = ["low", "medium", "high", "urgent"]
@@ -27,6 +27,7 @@ STATUS_LABELS = {
     "closed": "Fechado",
     "escalated": "Escalado",
     "archived": "Arquivado",
+    "merged": "Mesclado",
 }
 
 
@@ -77,6 +78,10 @@ class Ticket(Base):
 
     # Internal notes (sticky, separate from messages)
     internal_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Merge support
+    merged_into_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), nullable=True, index=True)
+    email_message_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
 
     # Supplier communication
     supplier_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

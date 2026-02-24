@@ -611,16 +611,15 @@ async def bulk_update(body: TicketBulkUpdate, db: AsyncSession = Depends(get_db)
         if body.priority:
             changes["priority"] = {"from": ticket.priority, "to": body.priority}
             ticket.priority = body.priority
+            sla_info = _calc_sla(ticket.category, body.priority)
+            ticket.sla_deadline = sla_info["sla_deadline"]
+            ticket.sla_response_deadline = sla_info["sla_response_deadline"]
         if body.assigned_to:
             changes["assigned_to"] = {"from": ticket.assigned_to, "to": body.assigned_to}
             ticket.assigned_to = body.assigned_to
         if body.inbox_id:
             changes["inbox_id"] = {"from": ticket.inbox_id, "to": body.inbox_id}
             ticket.inbox_id = body.inbox_id
-        if body.priority:
-            sla_info = _calc_sla(ticket.category, body.priority)
-            ticket.sla_deadline = sla_info["sla_deadline"]
-            ticket.sla_response_deadline = sla_info["sla_response_deadline"]
         ticket.updated_at = datetime.now(timezone.utc)
         db.add(AuditLog(ticket_id=ticket.id, user_id=user.id, action="bulk_update", details=changes))
     await db.commit()
@@ -1148,3 +1147,94 @@ async def unblacklist_customer(customer_id: str, db: AsyncSession = Depends(get_
     customer.blacklisted_at = None
     await db.commit()
     return {"ok": True}
+
+
+# ── Ticket Merge ──
+
+class TicketMergeRequest(BaseModel):
+    source_ticket_id: str
+    target_ticket_id: str
+
+
+@router.post("/merge")
+async def merge_tickets(
+    body: TicketMergeRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Merge two tickets: move messages from source to target, mark source as merged."""
+    if body.source_ticket_id == body.target_ticket_id:
+        raise HTTPException(status_code=400, detail="Não é possível mesclar um ticket com ele mesmo")
+
+    # Fetch both tickets
+    source_result = await db.execute(
+        select(Ticket).where(Ticket.id == body.source_ticket_id)
+    )
+    source = source_result.scalar_one_or_none()
+    if not source:
+        raise HTTPException(status_code=404, detail="Ticket de origem não encontrado")
+
+    target_result = await db.execute(
+        select(Ticket).where(Ticket.id == body.target_ticket_id)
+    )
+    target = target_result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="Ticket de destino não encontrado")
+
+    # Prevent merging already-merged tickets
+    if source.status == "merged":
+        raise HTTPException(status_code=400, detail="Ticket de origem já foi mesclado anteriormente")
+    if target.status == "merged":
+        raise HTTPException(status_code=400, detail="Ticket de destino já foi mesclado anteriormente")
+
+    # 1. Move all messages from source to target
+    messages_result = await db.execute(
+        select(Message).where(Message.ticket_id == source.id)
+    )
+    source_messages = messages_result.scalars().all()
+    moved_count = 0
+    for msg in source_messages:
+        msg.ticket_id = target.id
+        moved_count += 1
+
+    # 2. Copy internal notes from source to target (append)
+    if source.internal_notes:
+        separator = f"\n\n--- Notas do ticket #{source.number} (mesclado) ---\n"
+        if target.internal_notes:
+            target.internal_notes = target.internal_notes + separator + source.internal_notes
+        else:
+            target.internal_notes = separator.strip() + "\n" + source.internal_notes
+
+    # 3. Mark source as merged
+    source.status = "merged"
+    source.merged_into_id = target.id
+    source.updated_at = datetime.now(timezone.utc)
+
+    # 4. Update target
+    target.updated_at = datetime.now(timezone.utc)
+
+    # 5. Audit log
+    db.add(AuditLog(
+        ticket_id=target.id,
+        user_id=user.id,
+        action="ticket_merge",
+        details={
+            "source_ticket_id": source.id,
+            "source_ticket_number": source.number,
+            "target_ticket_id": target.id,
+            "target_ticket_number": target.number,
+            "messages_moved": moved_count,
+        },
+    ))
+
+    await db.commit()
+
+    # Refresh target to get updated data
+    await db.refresh(target)
+
+    logger.info(
+        f"Ticket merge: #{source.number} -> #{target.number} "
+        f"({moved_count} messages moved) by {user.name}"
+    )
+
+    return _ticket_to_response(target)

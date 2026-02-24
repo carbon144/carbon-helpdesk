@@ -38,3 +38,7 @@ class Customer(Base):
 
     # Meta integration
     meta_user_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+
+    # Merge support
+    merged_into_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), nullable=True, index=True)
+    alternate_emails: Mapped[Optional[list]] = mapped_column(ARRAY(String), nullable=True)

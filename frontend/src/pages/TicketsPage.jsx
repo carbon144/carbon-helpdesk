@@ -158,14 +158,14 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   const [spamRescuing, setSpamRescuing] = useState(null) // gmail_id being rescued
   const searchTimerRef = useRef(null)
 
-  // Debounced search: triggers loadTickets after 400ms of inactivity
+  // Debounced search: triggers loadTickets after 300ms of inactivity
   const handleSearchInput = useCallback((value) => {
     setSearch(value)
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
     searchTimerRef.current = setTimeout(() => {
       setPage(1)
       loadTickets()
-    }, 400)
+    }, 300)
   }, [])
 
   useEffect(() => {
