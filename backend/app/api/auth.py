@@ -109,6 +109,22 @@ async def update_user(user_id: str, body: UserUpdate, db: AsyncSession = Depends
     return UserResponse.model_validate(user)
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+async def change_password(body: ChangePasswordRequest, db: AsyncSession = Depends(get_db), current: User = Depends(get_current_user)):
+    if not verify_password(body.current_password, current.password_hash):
+        raise HTTPException(status_code=400, detail="Senha atual incorreta")
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Nova senha deve ter pelo menos 6 caracteres")
+    current.password_hash = hash_password(body.new_password)
+    await db.commit()
+    return {"message": "Senha alterada com sucesso"}
+
+
 @router.delete("/users/{user_id}", status_code=204)
 async def delete_user(user_id: str, db: AsyncSession = Depends(get_db), current: User = Depends(get_current_user)):
     if current.role != "super_admin":

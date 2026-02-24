@@ -39,6 +39,7 @@ export const login = (email, password) => api.post('/auth/login', { email, passw
 export const getMe = () => api.get('/auth/me')
 export const updateMyProfile = (data) => api.patch('/auth/me', data)
 export const getUsers = () => api.get('/auth/users')
+export const changePassword = (currentPassword, newPassword) => api.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword })
 
 // ── Tickets ──
 export const getTickets = (params) => api.get('/tickets', { params })

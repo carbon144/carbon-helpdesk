@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useToast } from '../components/Toast'
-import { getUsers, getMe } from '../services/api'
+import { getUsers, getMe, changePassword } from '../services/api'
 import api from '../services/api'
 const SECTIONS = [
   { id: 'profile', label: 'Meu Perfil', icon: 'fa-user' },
@@ -60,6 +60,10 @@ export default function SettingsPage({ user }) {
   const [showAddMember, setShowAddMember] = useState(false)
   const [newMember, setNewMember] = useState({ name: '', email: '', password: '', role: 'agent', specialty: 'geral' })
   const [addingMember, setAddingMember] = useState(false)
+  const [pwCurrent, setPwCurrent] = useState('')
+  const [pwNew, setPwNew] = useState('')
+  const [pwConfirm, setPwConfirm] = useState('')
+  const [changingPw, setChangingPw] = useState(false)
 
   const DEFAULT_BH = {
     timezone: 'America/Sao_Paulo',
@@ -200,6 +204,20 @@ export default function SettingsPage({ user }) {
       await api.delete(`/kb/macros/${id}`)
       setMacros(macros.filter(m => m.id !== id))
     } catch (e) { toast.error('Erro ao excluir') }
+  }
+
+  const handleChangePassword = async () => {
+    if (!pwCurrent || !pwNew) return toast.error('Preencha todos os campos')
+    if (pwNew !== pwConfirm) return toast.error('As senhas não coincidem')
+    if (pwNew.length < 6) return toast.error('Nova senha deve ter pelo menos 6 caracteres')
+    setChangingPw(true)
+    try {
+      await changePassword(pwCurrent, pwNew)
+      toast.success('Senha alterada com sucesso')
+      setPwCurrent(''); setPwNew(''); setPwConfirm('')
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Erro ao alterar senha')
+    } finally { setChangingPw(false) }
   }
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
@@ -697,17 +715,22 @@ export default function SettingsPage({ user }) {
         {section === 'security' && (
           <SettingsSection title="Segurança" icon="fa-shield-alt">
             <Field label="Alterar Senha">
-              <input type="password" placeholder="Senha atual" className="settings-input mb-2" />
-              <input type="password" placeholder="Nova senha" className="settings-input mb-2" />
-              <input type="password" placeholder="Confirmar nova senha" className="settings-input" />
+              <input type="password" placeholder="Senha atual" value={pwCurrent} onChange={e => setPwCurrent(e.target.value)} className="settings-input mb-2" />
+              <input type="password" placeholder="Nova senha" value={pwNew} onChange={e => setPwNew(e.target.value)} className="settings-input mb-2" />
+              <input type="password" placeholder="Confirmar nova senha" value={pwConfirm} onChange={e => setPwConfirm(e.target.value)} className="settings-input" />
             </Field>
-            <button className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm mt-3">
-              Alterar Senha
+            <button onClick={handleChangePassword} disabled={changingPw}
+              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm mt-3">
+              {changingPw ? 'Alterando...' : 'Alterar Senha'}
             </button>
             {isSuperAdmin && (
               <div className="border-t border-carbon-700 pt-4 mt-6">
                 <p className="text-red-400 text-sm font-semibold mb-2"><i className="fas fa-exclamation-triangle mr-1" />Zona de Perigo</p>
-                <button className="bg-red-600/20 text-red-400 hover:bg-red-600/40 px-4 py-2 rounded-lg text-sm">
+                <button onClick={() => {
+                  if (!confirm('ATENÇÃO: Isso apagará todos os dados do sistema. Deseja continuar?')) return
+                  if (!confirm('Tem CERTEZA ABSOLUTA? Esta ação é IRREVERSÍVEL.')) return
+                  toast.error('Funcionalidade desabilitada por segurança. Contate o administrador do servidor.')
+                }} className="bg-red-600/20 text-red-400 hover:bg-red-600/40 px-4 py-2 rounded-lg text-sm">
                   Resetar Banco de Dados
                 </button>
               </div>
