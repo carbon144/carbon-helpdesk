@@ -29,6 +29,7 @@ export default function LeaderboardPage({ user }) {
   const [showAddReward, setShowAddReward] = useState(false)
   const [newReward, setNewReward] = useState({ name: '', description: '', icon: 'fa-gift', color: '#a855f7', points_required: 100, category: 'geral' })
   const [saving, setSaving] = useState(false)
+  const [actionId, setActionId] = useState(null)
   const [claimsFilter, setClaimsFilter] = useState('')
 
   const isAdmin = user?.role === 'admin' || user?.role === 'supervisor'
@@ -58,33 +59,41 @@ export default function LeaderboardPage({ user }) {
   }
 
   const handleClaim = async (rewardId) => {
+    setActionId(rewardId)
     try {
       const r = await claimReward(rewardId)
       toast.success(r.data?.message || 'Solicitado!')
       const cl = await getRewardClaims(); setClaims(cl.data || [])
     } catch (e) { toast.error(e.response?.data?.detail || 'Erro ao solicitar') }
+    finally { setActionId(null) }
   }
 
   const handleApprove = async (claimId) => {
+    setActionId(claimId)
     try {
       await approveRewardClaim(claimId)
       const cl = await getRewardClaims(); setClaims(cl.data || [])
     } catch (e) { toast.error(e.response?.data?.detail || 'Erro ao aprovar') }
+    finally { setActionId(null) }
   }
 
   const handleReject = async (claimId) => {
+    setActionId(claimId)
     try {
       await rejectRewardClaim(claimId)
       const cl = await getRewardClaims(); setClaims(cl.data || [])
     } catch (e) { toast.error(e.response?.data?.detail || 'Erro ao rejeitar') }
+    finally { setActionId(null) }
   }
 
   const handleDeleteReward = async (rewardId) => {
     if (!confirm('Remover esta premiação?')) return
+    setActionId(rewardId)
     try {
       await deleteReward(rewardId)
       const r = await getRewards(); setRewards(r.data || [])
     } catch (e) { toast.error(e.response?.data?.detail || 'Erro ao remover') }
+    finally { setActionId(null) }
   }
 
   if (loading) return <div className="p-6 text-center"><i className="fas fa-spinner animate-spin text-purple-400 text-2xl" /></div>
@@ -281,7 +290,7 @@ export default function LeaderboardPage({ user }) {
                     <div className="flex items-center justify-between mb-1">
                       <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{r.name}</p>
                       {isAdmin && (
-                        <button onClick={() => handleDeleteReward(r.id)} className="text-xs hover:text-red-400 transition" style={{ color: 'var(--text-tertiary)' }}>
+                        <button onClick={() => handleDeleteReward(r.id)} disabled={actionId === r.id} className="text-xs hover:text-red-400 transition disabled:opacity-30" style={{ color: 'var(--text-tertiary)' }}>
                           <i className="fas fa-trash" />
                         </button>
                       )}
@@ -289,7 +298,7 @@ export default function LeaderboardPage({ user }) {
                     {r.description && <p className="text-xs mb-3" style={{ color: 'var(--text-tertiary)' }}>{r.description}</p>}
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-bold" style={{ color: r.color }}>{r.points_required} pts</span>
-                      <button onClick={() => handleClaim(r.id)} disabled={!canClaim}
+                      <button onClick={() => handleClaim(r.id)} disabled={!canClaim || actionId === r.id}
                         className="px-3 py-1 rounded-lg text-xs font-medium transition disabled:opacity-30"
                         style={{ background: `${r.color}20`, color: r.color }}>
                         {canClaim ? <><i className="fas fa-hand-holding mr-1" />Resgatar</> : <><i className="fas fa-lock mr-1" />{r.points_required - myScore} pts faltam</>}
@@ -357,12 +366,12 @@ export default function LeaderboardPage({ user }) {
                 <ClaimBadge status={c.status} />
                 {c.status === 'pending' && (
                   <div className="flex gap-1.5">
-                    <button onClick={() => handleApprove(c.id)}
-                      className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/30 flex items-center justify-center transition">
+                    <button onClick={() => handleApprove(c.id)} disabled={!!actionId}
+                      className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/30 flex items-center justify-center transition disabled:opacity-30">
                       <i className="fas fa-check text-xs" />
                     </button>
-                    <button onClick={() => handleReject(c.id)}
-                      className="w-8 h-8 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/30 flex items-center justify-center transition">
+                    <button onClick={() => handleReject(c.id)} disabled={!!actionId}
+                      className="w-8 h-8 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/30 flex items-center justify-center transition disabled:opacity-30">
                       <i className="fas fa-times text-xs" />
                     </button>
                   </div>

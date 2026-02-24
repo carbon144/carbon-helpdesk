@@ -1,7 +1,9 @@
 from __future__ import annotations
+import time
+from collections import defaultdict
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -13,9 +15,27 @@ from app.schemas.auth import LoginRequest, TokenResponse, UserResponse, UserCrea
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+# Simple in-memory rate limiting for login
+_login_attempts: dict[str, list[float]] = defaultdict(list)
+_RATE_LIMIT_MAX = 10  # max attempts
+_RATE_LIMIT_WINDOW = 900  # 15 minutes
+
+
+def _check_rate_limit(key: str):
+    now = time.time()
+    attempts = _login_attempts[key]
+    # Remove expired attempts
+    _login_attempts[key] = [t for t in attempts if now - t < _RATE_LIMIT_WINDOW]
+    if len(_login_attempts[key]) >= _RATE_LIMIT_MAX:
+        raise HTTPException(status_code=429, detail="Muitas tentativas. Tente novamente em 15 minutos.")
+    _login_attempts[key].append(now)
+
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(body: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    client_ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(client_ip)
+
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
 
