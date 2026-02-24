@@ -30,6 +30,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: carbon-backend
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "warning"]
     environment:
       DATABASE_URL: postgresql+asyncpg://carbon:carbon_secret_2026@postgres:5432/carbon_helpdesk
       REDIS_URL: redis://redis:6379/0
