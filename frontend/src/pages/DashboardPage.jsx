@@ -6,7 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useTheme } from '../contexts/ThemeContext'
 import { SkeletonDashboard } from '../components/Skeleton'
 
-const COLORS = ['#fdd200', '#e6c000', '#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#ef4444', '#14b8a6', '#f97316']
+const COLORS = ['#E5A800', '#e6c000', '#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#ef4444', '#14b8a6', '#f97316']
 
 const CATEGORY_LABELS = {
   garantia: 'Garantia', troca: 'Troca', mau_uso: 'Mau Uso', carregador: 'Carregador',
@@ -206,7 +206,7 @@ function AdminDashboard({ stats, goToTickets }) {
               <XAxis dataKey="date" tick={{ fill: cs.axisTick, fontSize: 10 }} />
               <YAxis tick={{ fill: cs.axisTick, fontSize: 11 }} />
               <Tooltip contentStyle={cs.tooltip} />
-              <Bar dataKey="count" name="Tickets" fill="#fdd200" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="count" name="Tickets" fill="#E5A800" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -240,7 +240,7 @@ function AdminDashboard({ stats, goToTickets }) {
                   <XAxis type="number" tick={{ fill: cs.axisTick, fontSize: 11 }} />
                   <YAxis type="category" dataKey="name" tick={{ fill: cs.axisLabel, fontSize: 11 }} width={110} />
                   <Tooltip contentStyle={cs.tooltip} />
-                  <Bar dataKey="value" name="Qtd" fill="#fdd200" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="value" name="Qtd" fill="#E5A800" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
@@ -272,7 +272,7 @@ function AdminDashboard({ stats, goToTickets }) {
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
                   <Pie data={sentimentData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={{ fill: cs.pieLabel, fontSize: 11 }}>
-                    {sentimentData.map((_, i) => <Cell key={i} fill={['#10b981', '#fdd200', '#f59e0b', '#ef4444'][i] || COLORS[i]} />)}
+                    {sentimentData.map((_, i) => <Cell key={i} fill={['#10b981', '#E5A800', '#f59e0b', '#ef4444'][i] || COLORS[i]} />)}
                   </Pie>
                   <Tooltip contentStyle={cs.tooltip} />
                 </PieChart>
@@ -332,7 +332,7 @@ function GestaoDashboard({ stats, goToTickets }) {
               <XAxis dataKey="date" tick={{ fill: cs.axisTick, fontSize: 10 }} />
               <YAxis tick={{ fill: cs.axisTick, fontSize: 11 }} />
               <Tooltip contentStyle={cs.tooltip} />
-              <Line type="monotone" dataKey="count" stroke="#fdd200" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="count" stroke="#E5A800" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -341,7 +341,7 @@ function GestaoDashboard({ stats, goToTickets }) {
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie data={sentimentData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={{ fill: cs.pieLabel, fontSize: 11 }}>
-                {sentimentData.map((_, i) => <Cell key={i} fill={['#10b981', '#fdd200', '#f59e0b', '#ef4444'][i] || COLORS[i]} />)}
+                {sentimentData.map((_, i) => <Cell key={i} fill={['#10b981', '#E5A800', '#f59e0b', '#ef4444'][i] || COLORS[i]} />)}
               </Pie>
               <Tooltip contentStyle={cs.tooltip} />
             </PieChart>
@@ -390,7 +390,7 @@ function AgenteDashboard({ stats, agentStats, goToTickets }) {
               <XAxis type="number" tick={{ fill: cs.axisTick, fontSize: 11 }} />
               <YAxis type="category" dataKey="name" tick={{ fill: cs.axisLabel, fontSize: 11 }} width={110} />
               <Tooltip contentStyle={cs.tooltip} />
-              <Bar dataKey="value" name="Qtd" fill="#fdd200" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="value" name="Qtd" fill="#E5A800" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -575,7 +575,7 @@ function ReclamacoesDashboard({ stats, goToTickets }) {
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie data={sentimentData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={{ fill: cs.pieLabel, fontSize: 11 }}>
-                {sentimentData.map((_, i) => <Cell key={i} fill={['#10b981', '#fdd200', '#f59e0b', '#ef4444'][i] || COLORS[i]} />)}
+                {sentimentData.map((_, i) => <Cell key={i} fill={['#10b981', '#E5A800', '#f59e0b', '#ef4444'][i] || COLORS[i]} />)}
               </Pie>
               <Tooltip contentStyle={cs.tooltip} />
             </PieChart>

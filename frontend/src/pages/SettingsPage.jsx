@@ -749,7 +749,7 @@ export default function SettingsPage({ user }) {
           color: white;
           font-size: 0.875rem;
         }
-        .settings-input:focus { outline: none; border-color: #fdd200; }
+        .settings-input:focus { outline: none; border-color: #E5A800; }
         .settings-input-sm {
           background: var(--bg-tertiary, #1e293b);
           border: 1px solid var(--border-color, #334155);
@@ -758,7 +758,7 @@ export default function SettingsPage({ user }) {
           color: white;
           font-size: 0.75rem;
         }
-        .settings-input-sm:focus { outline: none; border-color: #fdd200; }
+        .settings-input-sm:focus { outline: none; border-color: #E5A800; }
       `}</style>
     </div>
   )

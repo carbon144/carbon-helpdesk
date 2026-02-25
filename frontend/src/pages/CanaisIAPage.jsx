@@ -83,7 +83,7 @@ export default function CanaisIAPage({ user }) {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         {[
-          { label: 'Total', value: stats.total, color: '#fdd200' },
+          { label: 'Total', value: stats.total, color: '#E5A800' },
           { label: 'WhatsApp', value: stats.whatsapp, color: '#25D366' },
           { label: 'Instagram', value: stats.instagram, color: '#E1306C' },
           { label: 'Facebook', value: stats.facebook, color: '#1877F2' },

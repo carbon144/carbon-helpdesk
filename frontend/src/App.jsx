@@ -23,18 +23,18 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary, #f2f2f7)' }}>
+        <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary, #FFFFFF)' }}>
           <div className="text-center p-8 rounded-2xl" style={{ background: 'var(--bg-secondary, #fff)', maxWidth: 400 }}>
             <div className="w-14 h-14 rounded-xl flex items-center justify-center font-black text-xl mx-auto mb-4"
-              style={{ background: '#fdd200', color: '#1d1d1f' }}>!</div>
-            <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary, #1d1d1f)' }}>Algo deu errado</h2>
+              style={{ background: '#E5A800', color: '#FFFFFF' }}>!</div>
+            <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary, #1a1a2e)' }}>Algo deu errado</h2>
             <p className="text-sm mb-4" style={{ color: 'var(--text-secondary, #636366)' }}>
               Ocorreu um erro inesperado. Tente recarregar a pagina.
             </p>
             <button
               onClick={() => window.location.reload()}
               className="px-6 py-2 rounded-lg font-semibold text-sm"
-              style={{ background: '#fdd200', color: '#1d1d1f' }}>
+              style={{ background: '#E5A800', color: '#FFFFFF' }}>
               Recarregar
             </button>
           </div>
@@ -85,10 +85,10 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary, #f2f2f7)' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary, #FFFFFF)' }}>
         <div className="text-center">
           <div className="w-14 h-14 rounded-xl flex items-center justify-center font-black text-xl mx-auto mb-4 animate-pulse"
-            style={{ background: '#fdd200', color: '#1d1d1f' }}>C</div>
+            style={{ background: '#E5A800', color: '#FFFFFF' }}>C</div>
           <p className="text-sm" style={{ color: 'var(--text-tertiary, #8e8e93)' }}>Carregando...</p>
         </div>
       </div>

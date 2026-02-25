@@ -43,7 +43,7 @@ function ActionBtn({ icon, label, onClick, loading, color, active, disabled, sma
       disabled={loading || disabled}
       className={`inline-flex items-center gap-1.5 ${small ? 'px-2 py-1 text-[11px]' : 'px-2.5 py-1.5 text-xs'} rounded-lg font-medium transition-all disabled:opacity-40`}
       style={{
-        background: active ? color || '#fdd200' : 'var(--bg-tertiary)',
+        background: active ? color || '#E5A800' : 'var(--bg-tertiary)',
         color: active ? '#fff' : 'var(--text-secondary)',
         border: `1px solid ${active ? 'transparent' : 'var(--border-primary)'}`,
       }}
@@ -256,7 +256,7 @@ function CommentItem({ c, onReply, onHide, onReprocess, onAnalyze, onReview, act
             <div className="flex flex-col gap-1">
               <button onClick={handleSendReply} disabled={replyLoading || !replyText.trim()}
                 className="px-3 py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-40"
-                style={{ background: '#fdd200', color: '#1d1d1f' }}>
+                style={{ background: '#E5A800', color: '#FFFFFF' }}>
                 {replyLoading ? <i className="fas fa-spinner fa-spin" /> : <i className="fas fa-paper-plane" />}
               </button>
               <button onClick={() => { setReplying(false); setReplyText('') }}
@@ -549,7 +549,7 @@ export default function ModerationPage() {
           </div>
           <button onClick={handleSync} disabled={syncing}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-            style={{ background: syncing ? 'var(--bg-tertiary)' : '#fdd200', color: '#1d1d1f', opacity: syncing ? 0.7 : 1 }}>
+            style={{ background: syncing ? 'var(--bg-tertiary)' : '#E5A800', color: '#FFFFFF', opacity: syncing ? 0.7 : 1 }}>
             <i className={`fas fa-sync-alt ${syncing ? 'fa-spin' : ''}`} />
             {syncing ? 'Sincronizando...' : 'Sincronizar'}
           </button>

@@ -90,8 +90,6 @@ function ToastItem({ toast, onRemove }) {
       style={{
         background: colors.bg,
         borderLeft: `3px solid ${colors.border}`,
-        backdropFilter: 'blur(16px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(16px) saturate(180%)',
         transform: visible && !exiting ? 'translateX(0)' : 'translateX(120%)',
         opacity: visible && !exiting ? 1 : 0,
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
