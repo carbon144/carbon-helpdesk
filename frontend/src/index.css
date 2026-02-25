@@ -8,52 +8,52 @@
    ═══════════════════════════════════════════════ */
 
 :root {
-  /* Backgrounds — soft warm whites */
-  --bg-primary: #f2f2f7;
-  --bg-secondary: rgba(255,255,255,0.72);
-  --bg-tertiary: rgba(245,245,250,0.8);
-  --bg-elevated: rgba(255,255,255,0.85);
-  --bg-hover: rgba(0,0,0,0.03);
-  --bg-active: rgba(253,210,0,0.06);
-  --bg-input: rgba(255,255,255,0.9);
-  --bg-glass: rgba(255,255,255,0.60);
+  /* Backgrounds — clean whites */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #F9FAFB;
+  --bg-elevated: #FFFFFF;
+  --bg-hover: #F3F4F6;
+  --bg-active: rgba(229,168,0,0.06);
+  --bg-input: #F9FAFB;
+  --bg-glass: #FFFFFF;
 
-  /* Text */
-  --text-primary: #1d1d1f;
-  --text-secondary: #636366;
-  --text-tertiary: #8e8e93;
-  --text-inverse: #ffffff;
-  --text-on-accent: #1d1d1f;
+  /* Text — defined grays */
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --text-tertiary: #9CA3AF;
+  --text-inverse: #FFFFFF;
+  --text-on-accent: #FFFFFF;
 
-  /* Borders — subtle */
-  --border-color: rgba(0,0,0,0.06);
-  --border-hover: rgba(0,0,0,0.10);
-  --border-focus: #fdd200;
+  /* Borders — solid, visible */
+  --border-color: #E5E7EB;
+  --border-hover: #D1D5DB;
+  --border-focus: #E5A800;
 
-  /* Accent (Carbon Yellow) */
-  --accent: #fdd200;
-  --accent-hover: #e6c000;
-  --accent-muted: #c9a600;
-  --accent-soft: rgba(253,210,0,0.10);
-  --accent-text: #1d1d1f;
+  /* Accent — rich gold */
+  --accent: #E5A800;
+  --accent-hover: #CC9600;
+  --accent-muted: #B8860B;
+  --accent-soft: rgba(229,168,0,0.08);
+  --accent-text: #FFFFFF;
 
-  /* Sidebar — sleek dark */
-  --sidebar-bg: #1d1d1f;
-  --sidebar-text: #f5f5f7;
-  --sidebar-text-secondary: #8e8e93;
+  /* Sidebar */
+  --sidebar-bg: #18181B;
+  --sidebar-text: #E4E4E7;
+  --sidebar-text-secondary: #71717A;
   --sidebar-hover: rgba(255,255,255,0.06);
-  --sidebar-active: rgba(253,210,0,0.12);
+  --sidebar-active: rgba(229,168,0,0.10);
   --sidebar-border: rgba(255,255,255,0.08);
 
   /* Scrollbar */
   --scrollbar-track: transparent;
-  --scrollbar-thumb: rgba(0,0,0,0.12);
+  --scrollbar-thumb: #D1D5DB;
 
-  /* Shadows — diffuse Apple style */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.02);
-  --shadow-lg: 0 12px 40px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.03);
-  --shadow-glass: 0 2px 20px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.6);
+  /* Shadows — Stripe style */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,0.08), 0 4px 10px rgba(0,0,0,0.04);
+  --shadow-glass: 0 1px 2px rgba(0,0,0,0.05);
 
   color-scheme: light;
 }
@@ -66,8 +66,8 @@
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.20); }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
 body {
   background: var(--bg-primary);
@@ -79,25 +79,21 @@ body {
 
 /* ═══ Glass/Blur Utilities ═══ */
 .glass {
-  background: var(--bg-glass);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255,255,255,0.4);
-  box-shadow: var(--shadow-glass);
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .glass-card {
-  background: rgba(255,255,255,0.72);
-  backdrop-filter: blur(12px) saturate(150%);
-  -webkit-backdrop-filter: blur(12px) saturate(150%);
-  border: 1px solid rgba(255,255,255,0.5);
-  border-radius: 16px;
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.2s ease, transform 0.15s ease;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .glass-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+  border-color: #D1D5DB;
 }
 
 /* ═══ Carbon Brand — Indigo → Yellow Override ═══ */
@@ -132,7 +128,7 @@ body {
   background: var(--bg-input) !important;
   border: 1px solid var(--border-color) !important;
   color: var(--text-primary) !important;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 .settings-input:focus, .settings-input-sm:focus { border-color: var(--accent) !important; }
 .settings-input:disabled { background: rgba(0,0,0,0.03) !important; color: var(--text-secondary) !important; }
@@ -202,11 +198,10 @@ body {
 
 /* ═══ Utility ═══ */
 .card {
-  background: rgba(255,255,255,0.72);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(0,0,0,0.04);
-  border-radius: 16px;
-  box-shadow: var(--shadow-sm);
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 .card-hover:hover {
   box-shadow: var(--shadow-md);
@@ -224,12 +219,12 @@ select {
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
-  border-radius: 10px;
+  border-radius: 8px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 input:focus, textarea:focus, select:focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px rgba(253,210,0,0.15);
+  box-shadow: 0 0 0 3px rgba(229,168,0,0.15);
   outline: none;
 }
 
@@ -255,7 +250,7 @@ button, a {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, var(--bg-tertiary) 25%, rgba(255,255,255,0.15) 50%, var(--bg-tertiary) 75%);
+  background: linear-gradient(90deg, #F3F4F6 25%, #FFFFFF 50%, #F3F4F6 75%);
   background-size: 800px 100%;
   animation: shimmer 1.5s ease-in-out infinite;
   border-radius: 8px;
@@ -263,16 +258,16 @@ button, a {
 
 /* ═══ Sidebar Nav Items ═══ */
 .sidebar-nav-item {
-  color: #8e8e93;
+  color: #71717A;
   transition: background 0.15s ease, color 0.15s ease;
 }
 .sidebar-nav-item:not(.sidebar-nav-active):hover {
   background: rgba(255,255,255,0.06);
-  color: #f5f5f7;
+  color: #E4E4E7;
 }
 .sidebar-nav-active {
-  background: rgba(253,210,0,0.12);
-  color: #fdd200;
+  background: rgba(229,168,0,0.10);
+  color: #E5A800;
 }
 
 /* ═══ Sticky Table Headers ═══ */
@@ -280,6 +275,6 @@ button, a {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--bg-secondary);
-  box-shadow: 0 1px 0 var(--border-color);
+  background: #F9FAFB;
+  box-shadow: 0 1px 0 #E5E7EB;
 }
