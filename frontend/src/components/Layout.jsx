@@ -20,6 +20,7 @@ const LeaderboardPage = lazy(() => import('../pages/LeaderboardPage'))
 const ModerationPage = lazy(() => import('../pages/ModerationPage'))
 const CanaisIAPage = lazy(() => import('../pages/CanaisIAPage'))
 const DashboardPage = lazy(() => import('../pages/DashboardPage'))
+const AgentAnalysisPage = lazy(() => import('../pages/AgentAnalysisPage'))
 
 const AUTO_REFRESH_MS = 30_000
 
@@ -96,6 +97,7 @@ export default function Layout({ user, onLogout }) {
             <Route path="/tracking" element={<TrackingPage />} />
             <Route path="/canais-ia" element={<CanaisIAPage user={user} />} />
             <Route path="/moderation" element={<ModerationPage />} />
+            <Route path="/agent-analysis" element={<AgentAnalysisPage user={user} />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/integrations" element={<IntegrationsPage />} />
             <Route path="/settings" element={<SettingsPage user={user} />} />

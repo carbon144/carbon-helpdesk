@@ -188,14 +188,15 @@ export default function TicketsPage({ user }) {
   const [loading, setLoading] = useState(true)
   const sentSearchTimerRef = useRef(null)
   const searchTimerRef = useRef(null)
+  const abortRef = useRef(null)
+  const requestIdRef = useRef(0)
 
-  // Debounced search: triggers loadTickets after 300ms of inactivity
+  // Debounced search: only sets page to 1 (useEffect handles the reload)
   const handleSearchInput = useCallback((value) => {
     setSearch(value)
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
     searchTimerRef.current = setTimeout(() => {
       setPage(1)
-      loadTickets()
     }, 300)
   }, [])
 
@@ -274,6 +275,12 @@ export default function TicketsPage({ user }) {
   }
 
   const loadTickets = async () => {
+    // Cancel previous in-flight request
+    if (abortRef.current) abortRef.current.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const thisRequest = ++requestIdRef.current
+
     setLoading(true)
     try {
       const params = {
@@ -304,7 +311,8 @@ export default function TicketsPage({ user }) {
         params.exclude_status = 'resolved,closed,archived,waiting,waiting_supplier,waiting_resend,merged'
         if (filterStatus) params.status = filterStatus
       } else if (activeTab === 'active') {
-        // Novos: tickets que precisam de atenção (não inclui respondidos/aguardando)
+        // Novos: tickets não atribuídos que precisam de atenção
+        params.assigned = 'none'
         params.exclude_status = 'resolved,closed,archived,waiting,waiting_supplier,waiting_resend,merged'
         if (filterStatus) params.status = filterStatus
       } else if (activeTab === 'responded') {
@@ -321,7 +329,9 @@ export default function TicketsPage({ user }) {
         if (filterStatus) params.status = filterStatus
       }
 
-      const { data } = await getTickets(params)
+      const { data } = await getTickets(params, { signal: controller.signal })
+      // Ignore stale responses
+      if (thisRequest !== requestIdRef.current) return
       let filtered = data.tickets
       if (filterResponse === 'awaiting') {
         filtered = filtered.filter(t => !t.first_response_at && !['resolved', 'closed', 'archived'].includes(t.status))
@@ -331,9 +341,12 @@ export default function TicketsPage({ user }) {
       setTickets(filtered)
       setTotal(data.total)
     } catch (e) {
+      // Ignore aborted requests
+      if (e.name === 'AbortError' || e.code === 'ERR_CANCELED') return
+      if (thisRequest !== requestIdRef.current) return
       toast.error('Falha ao carregar tickets')
     } finally {
-      setLoading(false)
+      if (thisRequest === requestIdRef.current) setLoading(false)
     }
   }
 
@@ -362,7 +375,8 @@ export default function TicketsPage({ user }) {
 
   useEffect(() => {
     loadTickets()
-  }, [page, filters, activeTab, filterStatus, filterPriority, filterCategory, filterTag, filterSource, filterResponse, sort, dateFrom, dateTo, customerName])
+    return () => { if (abortRef.current) abortRef.current.abort() }
+  }, [page, search, filters, activeTab, filterStatus, filterPriority, filterCategory, filterTag, filterSource, filterResponse, sort, dateFrom, dateTo, customerName])
 
   useEffect(() => {
     getUsers().then(r => setAgents(r.data)).catch(() => {})
@@ -1007,6 +1021,7 @@ export default function TicketsPage({ user }) {
             </div>
             <p className="text-2xl font-bold text-[var(--text-primary)]">{counts.team}</p>
           </button>
+          {user?.role !== 'agent' && (
           <button onClick={() => handleTabChange('active')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-4 text-left transition hover:border-orange-500/30 ${activeTab === 'active' ? 'border-orange-500/40 ring-1 ring-orange-500/20' : ''}`}>
             <div className="flex items-center gap-2 mb-1">
               <i className="fas fa-inbox text-orange-400 text-sm" />
@@ -1014,6 +1029,7 @@ export default function TicketsPage({ user }) {
             </div>
             <p className="text-2xl font-bold text-orange-400">{counts.unassigned}</p>
           </button>
+          )}
           <button onClick={() => handleTabChange('escalated')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-4 text-left transition hover:border-red-500/30 ${activeTab === 'escalated' ? 'border-red-500/40 ring-1 ring-red-500/20' : ''}`}>
             <div className="flex items-center gap-2 mb-1">
               <i className="fas fa-exclamation-triangle text-red-400 text-sm" />

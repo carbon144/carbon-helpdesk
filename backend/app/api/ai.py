@@ -13,7 +13,7 @@ from app.models.user import User
 from app.models.ticket import Ticket
 from app.models.message import Message
 from app.models.kb_article import KBArticle
-from app.services.ai_service import triage_ticket, suggest_reply, test_ai_connection
+from app.services.ai_service import triage_ticket, suggest_reply, test_ai_connection, is_credits_exhausted, CreditExhaustedError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -24,12 +24,22 @@ async def ai_status(user: User = Depends(get_current_user)):
     """Check AI integration status."""
     from app.core.config import settings
     if not settings.ANTHROPIC_API_KEY:
-        return {"configured": False, "connected": False}
+        return {"configured": False, "connected": False, "credits_exhausted": False}
+
+    credits_out = is_credits_exhausted()
+    if credits_out:
+        return {
+            "configured": True,
+            "connected": False,
+            "credits_exhausted": True,
+            "error": "Creditos IA esgotados. Recarregue em console.anthropic.com",
+        }
 
     result = test_ai_connection()
     return {
         "configured": True,
         "connected": result["ok"],
+        "credits_exhausted": result.get("credits_exhausted", False),
         "model": result.get("model"),
         "error": result.get("error"),
     }
@@ -42,6 +52,9 @@ async def triage_single_ticket(
     user: User = Depends(get_current_user),
 ):
     """Run AI triage on a single ticket."""
+    if is_credits_exhausted():
+        raise HTTPException(402, detail={"error": "credits_exhausted", "message": "Creditos IA esgotados. Recarregue em console.anthropic.com"})
+
     result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
     ticket = result.scalar_one_or_none()
     if not ticket:
@@ -60,12 +73,15 @@ async def triage_single_ticket(
     is_repeat = ticket.customer.is_repeat if ticket.customer else False
     customer_name = ticket.customer.name if ticket.customer else ""
 
-    triage = triage_ticket(
-        subject=ticket.subject,
-        body=body,
-        customer_name=customer_name,
-        is_repeat=is_repeat,
-    )
+    try:
+        triage = await triage_ticket(
+            subject=ticket.subject,
+            body=body,
+            customer_name=customer_name,
+            is_repeat=is_repeat,
+        )
+    except CreditExhaustedError:
+        raise HTTPException(402, detail={"error": "credits_exhausted", "message": "Creditos IA esgotados. Recarregue em console.anthropic.com"})
 
     if not triage:
         raise HTTPException(500, "Falha na triagem IA")
@@ -113,6 +129,9 @@ async def suggest_ticket_reply(
     user: User = Depends(get_current_user),
 ):
     """Generate AI suggested reply for a ticket."""
+    if is_credits_exhausted():
+        raise HTTPException(402, detail={"error": "credits_exhausted", "message": "Creditos IA esgotados. Recarregue em console.anthropic.com"})
+
     result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
     ticket = result.scalar_one_or_none()
     if not ticket:
@@ -146,14 +165,17 @@ async def suggest_ticket_reply(
 
     partial_text = body_in.partial_text if body_in and body_in.partial_text else ""
 
-    suggestion = suggest_reply(
-        subject=ticket.subject,
-        body=body,
-        customer_name=customer_name,
-        category=ticket.category or ticket.ai_category or "",
-        kb_context=kb_context,
-        partial_text=partial_text,
-    )
+    try:
+        suggestion = await suggest_reply(
+            subject=ticket.subject,
+            body=body,
+            customer_name=customer_name,
+            category=ticket.category or ticket.ai_category or "",
+            kb_context=kb_context,
+            partial_text=partial_text,
+        )
+    except CreditExhaustedError:
+        raise HTTPException(402, detail={"error": "credits_exhausted", "message": "Creditos IA esgotados. Recarregue em console.anthropic.com"})
 
     if not suggestion:
         raise HTTPException(500, "Falha ao gerar sugestão")
@@ -180,6 +202,8 @@ async def copilot_analysis(
     from app.core.config import settings as cfg
     if not cfg.ANTHROPIC_API_KEY:
         return {"tips": [], "kb_articles": [], "actions": [], "warning": "IA não configurada"}
+    if is_credits_exhausted():
+        return {"tips": [], "kb_articles": [], "actions": [], "warning": "credits_exhausted", "credits_exhausted": True}
 
     result = await db.execute(select(Ticket).where(Ticket.id == body.ticket_id))
     ticket = result.scalar_one_or_none()
@@ -333,6 +357,8 @@ async def assistant_chat(
     from app.core.config import settings as cfg
     if not cfg.ANTHROPIC_API_KEY:
         raise HTTPException(500, "IA não configurada")
+    if is_credits_exhausted():
+        raise HTTPException(402, detail={"error": "credits_exhausted", "message": "Creditos IA esgotados. Recarregue em console.anthropic.com"})
 
     try:
         # Fetch KB articles for context

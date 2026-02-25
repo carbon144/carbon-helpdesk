@@ -29,6 +29,7 @@ const NAV_GROUPS = [
     label: 'Gestão',
     items: [
       { to: '/leaderboard', label: 'Performance', icon: 'fa-gamepad', roles: ['super_admin', 'admin', 'supervisor'] },
+      { to: '/agent-analysis', label: 'Analise de Equipe', icon: 'fa-microscope', roles: ['super_admin'] },
       { to: '/reports', label: 'Relatórios', icon: 'fa-chart-bar', roles: ['super_admin', 'admin', 'supervisor'] },
       { to: '/integrations', label: 'Integrações', icon: 'fa-plug', roles: ['super_admin'] },
       { to: '/settings', label: 'Configurações', icon: 'fa-cog', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },

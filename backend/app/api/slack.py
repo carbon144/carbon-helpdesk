@@ -121,8 +121,8 @@ async def handle_new_slack_ticket(db: AsyncSession, event: dict, channel: str):
     subject = text.split("\n")[0][:100] if text else "Mensagem via Slack"
 
     # Get next ticket number
-    max_num = await db.execute(select(func.max(Ticket.number)))
-    next_num = (max_num.scalar() or 0) + 1
+    from app.services.ticket_number import get_next_ticket_number
+    next_num = await get_next_ticket_number(db)
 
     # Calculate SLA
     sla_hours = settings.SLA_MEDIUM_HOURS

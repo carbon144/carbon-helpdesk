@@ -117,7 +117,7 @@ async def _process_inbound_message(db: AsyncSession, msg_data: dict):
     # 5. AI triage on first message
     if is_new_ticket:
         try:
-            triage = ai_triage(
+            triage = await ai_triage(
                 subject=ticket.subject,
                 body=text[:2000],
                 customer_name=customer.name,
@@ -212,8 +212,8 @@ async def _find_or_create_ticket(
         return ticket, False
 
     # Create new ticket
-    max_num = await db.execute(select(func.max(Ticket.number)))
-    next_num = (max_num.scalar() or 1000) + 1
+    from app.services.ticket_number import get_next_ticket_number
+    next_num = await get_next_ticket_number(db)
 
     subject = text.split("\n")[0][:100] if text else f"Mensagem via {platform.capitalize()}"
     sla_deadline = datetime.now(timezone.utc) + timedelta(hours=settings.SLA_MEDIUM_HOURS)
@@ -260,7 +260,7 @@ async def _send_ai_reply(
     # Gather KB context
     kb_context = await _get_kb_context(db, ticket.category)
 
-    result = ai_auto_reply(
+    result = await ai_auto_reply(
         ticket_subject=ticket.subject,
         conversation_history=conversation_history,
         customer_name=customer.name,
@@ -362,7 +362,7 @@ async def _process_comment(db: AsyncSession, comment_data: dict):
     was_hidden = False
 
     if ai_enabled:
-        result = moderate_comment(
+        result = await moderate_comment(
             comment_text=comment_text,
             author_name=author_name,
             post_caption=comment_data.get("post_caption", ""),
@@ -989,7 +989,7 @@ async def reprocess_comment(
         raise HTTPException(404, "Comentário não encontrado")
 
     # Re-run AI moderation
-    ai_result = moderate_comment(
+    ai_result = await moderate_comment(
         comment_text=comment.text,
         author_name=comment.author_name or "",
         post_caption=comment.post_caption or "",

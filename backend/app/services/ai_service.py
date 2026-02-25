@@ -1,14 +1,88 @@
 """AI Triage Service using Claude API."""
 from __future__ import annotations
+import asyncio as _asyncio
 import json
 import logging
+import random as _random
+import time
 from anthropic import Anthropic
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+
+async def _call_with_retry(func, max_retries=3):
+    """Call a sync anthropic function with retry on 429/529."""
+    for attempt in range(max_retries + 1):
+        try:
+            return await _asyncio.to_thread(func)
+        except Exception as e:
+            err_str = str(e)
+            is_retryable = any(code in err_str for code in ["429", "500", "529", "overloaded", "rate_limit", "api_error", "Internal server error"])
+            if not is_retryable or attempt == max_retries:
+                raise
+            delay = (2 ** attempt) + _random.uniform(0, 1)
+            logger.warning(f"Anthropic retry {attempt+1}/{max_retries} after {delay:.1f}s: {err_str[:80]}")
+            await _asyncio.sleep(delay)
+
 client = None
+
+# Credit exhaustion tracking
+_credits_exhausted = False
+_credits_exhausted_at: float = 0.0
+_CREDITS_RETRY_INTERVAL = 300  # Retry every 5 minutes
+
+
+def is_credits_exhausted() -> bool:
+    """Check if AI credits are currently exhausted."""
+    global _credits_exhausted, _credits_exhausted_at
+    if not _credits_exhausted:
+        return False
+    # Auto-retry after interval
+    if time.time() - _credits_exhausted_at > _CREDITS_RETRY_INTERVAL:
+        _credits_exhausted = False
+        return False
+    return True
+
+
+def _handle_credit_error(error: Exception) -> bool:
+    """Check if error is credit-related. Returns True if it is."""
+    global _credits_exhausted, _credits_exhausted_at
+    error_str = str(error).lower()
+    credit_keywords = ["credit", "balance", "billing", "insufficient", "exceeded", "quota", "rate_limit"]
+    if any(kw in error_str for kw in credit_keywords):
+        if not _credits_exhausted:
+            _credits_exhausted = True
+            _credits_exhausted_at = time.time()
+            logger.error(f"AI CREDITS EXHAUSTED: {error}")
+            # Send Slack alert asynchronously
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(_send_credit_alert(str(error)))
+            except Exception:
+                pass
+        return True
+    return False
+
+
+async def _send_credit_alert(error_msg: str):
+    """Send Slack alert about credit exhaustion."""
+    try:
+        from app.services.slack_service import send_slack_message
+        channel = settings.SLACK_SUPPORT_CHANNEL
+        if channel:
+            await send_slack_message(
+                channel,
+                f":rotating_light: *ALERTA: Creditos IA esgotados!*\n"
+                f"Todas as funcoes de IA (triagem, sugestao, copilot, assistente) estao desativadas.\n"
+                f"Erro: `{error_msg[:200]}`\n"
+                f"Acao necessaria: recarregar creditos em console.anthropic.com"
+            )
+    except Exception as e:
+        logger.error(f"Failed to send credit alert to Slack: {e}")
 
 
 def get_client() -> Anthropic:
@@ -77,8 +151,11 @@ Regras:
 Retorne APENAS o texto da resposta sugerida, sem JSON, sem explicações."""
 
 
-def triage_ticket(subject: str, body: str, customer_name: str = "", is_repeat: bool = False) -> dict | None:
+async def triage_ticket(subject: str, body: str, customer_name: str = "", is_repeat: bool = False) -> dict | None:
     """Classify a ticket using Claude AI."""
+    if is_credits_exhausted():
+        logger.warning("AI triage skipped: credits exhausted")
+        return None
     try:
         ai = get_client()
 
@@ -89,11 +166,13 @@ def triage_ticket(subject: str, body: str, customer_name: str = "", is_repeat: b
             user_msg += " [CLIENTE REINCIDENTE]"
         user_msg += f":\n{body[:2000]}"
 
-        response = ai.messages.create(
-            model=settings.ANTHROPIC_MODEL,
-            max_tokens=500,
-            system=TRIAGE_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_msg}],
+        response = await _call_with_retry(
+            lambda: ai.messages.create(
+                model=settings.ANTHROPIC_MODEL,
+                max_tokens=500,
+                system=TRIAGE_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_msg}],
+            )
         )
 
         text = response.content[0].text.strip()
@@ -115,12 +194,15 @@ def triage_ticket(subject: str, body: str, customer_name: str = "", is_repeat: b
         logger.error(f"AI returned invalid JSON: {e}")
         return None
     except Exception as e:
+        _handle_credit_error(e)
         logger.error(f"AI triage failed: {e}")
         return None
 
 
-def suggest_reply(subject: str, body: str, customer_name: str = "", category: str = "", kb_context: str = "", partial_text: str = "") -> str | None:
+async def suggest_reply(subject: str, body: str, customer_name: str = "", category: str = "", kb_context: str = "", partial_text: str = "") -> str | None:
     """Generate a suggested reply using Claude AI. If partial_text is provided, complete it."""
+    if is_credits_exhausted():
+        raise CreditExhaustedError("Creditos IA esgotados")
     try:
         ai = get_client()
 
@@ -134,15 +216,19 @@ def suggest_reply(subject: str, body: str, customer_name: str = "", category: st
             user_msg += f"\n\n--- O agente já começou a escrever ---\n{partial_text}"
             system_prompt += "\n\nIMPORTANTE: O agente já começou a escrever uma resposta. Complete a resposta dele de forma natural, continuando de onde ele parou. Retorne APENAS a continuação, não repita o que ele já escreveu."
 
-        response = ai.messages.create(
-            model=settings.ANTHROPIC_MODEL,
-            max_tokens=400 if partial_text else 800,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_msg}],
+        response = await _call_with_retry(
+            lambda: ai.messages.create(
+                model=settings.ANTHROPIC_MODEL,
+                max_tokens=400 if partial_text else 800,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_msg}],
+            )
         )
 
         return response.content[0].text.strip()
     except Exception as e:
+        if _handle_credit_error(e):
+            raise CreditExhaustedError("Creditos IA esgotados")
         logger.error(f"AI suggest reply failed: {e}")
         return None
 
@@ -158,8 +244,10 @@ O resumo deve ter no máximo 3 frases e incluir:
 Retorne APENAS o texto do resumo, sem JSON, sem markdown."""
 
 
-def summarize_ticket(subject: str, messages: list[dict], category: str = "", customer_name: str = "") -> str | None:
+async def summarize_ticket(subject: str, messages: list[dict], category: str = "", customer_name: str = "") -> str | None:
     """RF-019: Generate AI summary from ticket conversation history."""
+    if is_credits_exhausted():
+        raise CreditExhaustedError("Creditos IA esgotados")
     try:
         ai = get_client()
 
@@ -173,15 +261,19 @@ def summarize_ticket(subject: str, messages: list[dict], category: str = "", cus
             body = (msg.get("body_text", "") or "")[:500]
             conversation += f"[{prefix} - {sender}]: {body}\n\n"
 
-        response = ai.messages.create(
-            model=settings.ANTHROPIC_MODEL,
-            max_tokens=300,
-            system=SUMMARY_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": conversation[:4000]}],
+        response = await _call_with_retry(
+            lambda: ai.messages.create(
+                model=settings.ANTHROPIC_MODEL,
+                max_tokens=300,
+                system=SUMMARY_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": conversation[:4000]}],
+            )
         )
 
         return response.content[0].text.strip()
     except Exception as e:
+        if _handle_credit_error(e):
+            raise CreditExhaustedError("Creditos IA esgotados")
         logger.error(f"AI summary failed: {e}")
         return None
 
@@ -218,7 +310,7 @@ Retorne APENAS um JSON válido (sem markdown):
 }"""
 
 
-def ai_auto_reply(
+async def ai_auto_reply(
     ticket_subject: str,
     conversation_history: list[dict],
     customer_name: str = "",
@@ -227,6 +319,9 @@ def ai_auto_reply(
     platform: str = "whatsapp",
 ) -> dict | None:
     """Generate an automatic AI reply for Meta channels (WhatsApp/Instagram/Facebook)."""
+    if is_credits_exhausted():
+        logger.warning("AI auto-reply skipped: credits exhausted")
+        return None
     try:
         ai = get_client()
 
@@ -241,11 +336,13 @@ def ai_auto_reply(
             role_label = "CLIENTE" if msg["role"] == "customer" else "CARBON IA"
             user_msg += f"[{role_label}]: {msg['content']}\n\n"
 
-        response = ai.messages.create(
-            model=settings.ANTHROPIC_MODEL,
-            max_tokens=600,
-            system=AUTO_REPLY_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_msg[:6000]}],
+        response = await _call_with_retry(
+            lambda: ai.messages.create(
+                model=settings.ANTHROPIC_MODEL,
+                max_tokens=600,
+                system=AUTO_REPLY_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_msg[:6000]}],
+            )
         )
 
         text = response.content[0].text.strip()
@@ -253,9 +350,10 @@ def ai_auto_reply(
         logger.info(f"AI auto-reply: escalate={result.get('should_escalate', False)}")
         return result
     except json.JSONDecodeError as e:
-        logger.error(f"AI auto-reply returned invalid JSON: {e} — raw: {text[:200]}")
+        logger.error(f"AI auto-reply returned invalid JSON: {e}")
         return None
     except Exception as e:
+        _handle_credit_error(e)
         logger.error(f"AI auto-reply failed: {e}")
         return None
 
@@ -292,7 +390,7 @@ Regras de RESPOSTA:
 Contexto: Carbon Smartwatch — smartwatches, carregadores magnéticos, pulseiras. Garantia 1 ano."""
 
 
-def moderate_comment(
+async def moderate_comment(
     comment_text: str,
     author_name: str = "",
     post_caption: str = "",
@@ -302,6 +400,9 @@ def moderate_comment(
 
     Returns: {"action": str, "reply": str, "sentiment": str, "category": str, "confidence": float}
     """
+    if is_credits_exhausted():
+        logger.warning("Comment moderation skipped: credits exhausted")
+        return None
     try:
         ai = get_client()
 
@@ -312,11 +413,13 @@ def moderate_comment(
             user_msg += f"Legenda do post: {post_caption[:300]}\n"
         user_msg += f"\nComentário:\n{comment_text}"
 
-        response = ai.messages.create(
-            model=settings.ANTHROPIC_MODEL,
-            max_tokens=400,
-            system=MODERATE_COMMENT_PROMPT,
-            messages=[{"role": "user", "content": user_msg[:3000]}],
+        response = await _call_with_retry(
+            lambda: ai.messages.create(
+                model=settings.ANTHROPIC_MODEL,
+                max_tokens=400,
+                system=MODERATE_COMMENT_PROMPT,
+                messages=[{"role": "user", "content": user_msg[:3000]}],
+            )
         )
 
         text = response.content[0].text.strip()
@@ -327,12 +430,20 @@ def moderate_comment(
         logger.error(f"Comment moderation returned invalid JSON: {e}")
         return None
     except Exception as e:
+        _handle_credit_error(e)
         logger.error(f"Comment moderation failed: {e}")
         return None
 
 
+class CreditExhaustedError(Exception):
+    """Raised when AI credits are exhausted."""
+    pass
+
+
 def test_ai_connection() -> dict:
     """Test if Claude AI is reachable."""
+    if is_credits_exhausted():
+        return {"ok": False, "error": "credits_exhausted", "credits_exhausted": True}
     try:
         ai = get_client()
         response = ai.messages.create(
@@ -342,4 +453,5 @@ def test_ai_connection() -> dict:
         )
         return {"ok": True, "model": settings.ANTHROPIC_MODEL}
     except Exception as e:
-        return {"ok": False, "error": str(e)}
+        is_credit = _handle_credit_error(e)
+        return {"ok": False, "error": str(e), "credits_exhausted": is_credit}

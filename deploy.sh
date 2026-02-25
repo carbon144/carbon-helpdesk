@@ -4,7 +4,7 @@ set -e
 
 SERVER="143.198.20.6"
 USER="root"
-PASS='OdysseY144.-a'
+PASS="${DEPLOY_PASSWORD:?Set DEPLOY_PASSWORD env var (e.g. export DEPLOY_PASSWORD='yourpass')}"
 REMOTE_DIR="/opt/carbon-helpdesk"
 
 echo "=== Carbon Helpdesk Deploy ==="

@@ -301,8 +301,8 @@ async def fetch_emails(
                 if extracted_data.get("phone") and not customer.phone:
                     customer.phone = extracted_data["phone"]
 
-            max_num = await db.execute(select(func.max(Ticket.number)))
-            next_num = (max_num.scalar() or 1000) + 1
+            from app.services.ticket_number import get_next_ticket_number
+            next_num = await get_next_ticket_number(db)
 
             sla_deadline = datetime.now(timezone.utc) + timedelta(hours=settings.SLA_MEDIUM_HOURS)
 
@@ -338,7 +338,7 @@ async def fetch_emails(
             # AI Triage for new ticket
             try:
                 from app.services.ai_service import triage_ticket as ai_triage
-                triage = ai_triage(
+                triage = await ai_triage(
                     subject=email_data["subject"],
                     body=email_data["body_text"][:2000],
                     customer_name=email_data["from_name"],
@@ -392,6 +392,11 @@ async def fetch_emails(
         mark_as_read(gmail_message_id)
 
     await db.commit()
+
+    if created or updated:
+        from app.services.cache import cache_delete_pattern
+        await cache_delete_pattern("dashboard:*")
+        await cache_delete_pattern("gamification:*")
 
     return {"fetched": len(emails), "created": created, "updated": updated}
 
@@ -561,8 +566,8 @@ async def fetch_email_history(
                 if extracted_data.get("phone") and not customer.phone:
                     customer.phone = extracted_data["phone"]
 
-            max_num = await db.execute(select(func.max(Ticket.number)))
-            next_num = (max_num.scalar() or 1000) + 1
+            from app.services.ticket_number import get_next_ticket_number
+            next_num = await get_next_ticket_number(db)
             sla_deadline = datetime.now(timezone.utc) + timedelta(hours=settings.SLA_MEDIUM_HOURS)
             email_date = _parse_email_date(email_data.get("date", ""))
 
@@ -596,7 +601,7 @@ async def fetch_email_history(
             # AI Triage
             try:
                 from app.services.ai_service import triage_ticket as ai_triage
-                triage = ai_triage(
+                triage = await ai_triage(
                     subject=email_data["subject"],
                     body=email_data["body_text"][:2000],
                     customer_name=email_data["from_name"],
@@ -778,8 +783,8 @@ async def compose_email(
     # Create ticket for tracking
     customer = await _find_or_create_customer(db, to_email, to_name or to_email.split("@")[0])
 
-    max_num = await db.execute(select(func.max(Ticket.number)))
-    next_num = (max_num.scalar() or 1000) + 1
+    from app.services.ticket_number import get_next_ticket_number
+    next_num = await get_next_ticket_number(db)
 
     sla_deadline = datetime.now(timezone.utc) + timedelta(hours=settings.SLA_MEDIUM_HOURS)
 
@@ -819,6 +824,10 @@ async def compose_email(
         pass
 
     await db.commit()
+
+    from app.services.cache import cache_delete_pattern
+    await cache_delete_pattern("dashboard:*")
+    await cache_delete_pattern("gamification:*")
 
     return {
         "ok": True,
@@ -918,8 +927,8 @@ async def rescue_and_create_ticket(
     # Create customer + ticket
     customer = await _find_or_create_customer(db, from_email, from_name)
 
-    max_num = await db.execute(select(func.max(Ticket.number)))
-    next_num = (max_num.scalar() or 1000) + 1
+    from app.services.ticket_number import get_next_ticket_number
+    next_num = await get_next_ticket_number(db)
 
     sla_deadline = datetime.now(timezone.utc) + timedelta(hours=settings.SLA_MEDIUM_HOURS)
 
@@ -950,7 +959,7 @@ async def rescue_and_create_ticket(
     # AI Triage
     try:
         from app.services.ai_service import triage_ticket as ai_triage
-        triage = ai_triage(
+        triage = await ai_triage(
             subject=subject,
             body=body_text[:2000],
             customer_name=from_name,
@@ -1001,7 +1010,4 @@ async def _find_or_create_customer(db: AsyncSession, email: str, name: str) -> C
     else:
         # Follow merge chain — if customer was merged, use the target customer
         customer = await _follow_merge_chain(db, customer)
-        customer.total_tickets += 1
-        if customer.total_tickets > 2:
-            customer.is_repeat = True
     return customer

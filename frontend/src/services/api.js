@@ -48,7 +48,7 @@ export const getCustomerFullHistory = (id) => api.get(`/customers/${id}/history`
 export const mergeCustomers = (data) => api.post('/customers/merge', data)
 
 // ── Tickets ──
-export const getTickets = (params) => api.get('/tickets', { params })
+export const getTickets = (params, config) => api.get('/tickets', { params, ...config })
 export const getTicketCounts = () => api.get('/tickets/counts')
 export const getTicket = (id) => api.get(`/tickets/${id}`)
 export const createTicket = (data) => api.post('/tickets', data)
@@ -142,6 +142,15 @@ export const claimReward = (id) => api.post(`/rewards/${id}/claim`)
 export const getRewardClaims = (status) => api.get('/rewards/claims', { params: status ? { status } : {} })
 export const approveRewardClaim = (id) => api.put(`/rewards/claims/${id}/approve`)
 export const rejectRewardClaim = (id) => api.put(`/rewards/claims/${id}/reject`)
+
+// ── Agent Analysis (super_admin only) ──
+export const getAgentAnalysisOverview = () => api.get('/agent-deep-analysis/overview')
+export const generateAgentAnalysis = (agentId, params) => api.post(`/agent-deep-analysis/${agentId}`, null, { params, timeout: LONG_OPERATION_TIMEOUT_MS })
+export const getAgentAnalysisHistory = (params) => api.get('/agent-deep-analysis', { params })
+export const getAgentAnalysisReport = (reportId) => api.get(`/agent-deep-analysis/${reportId}`)
+export const getAnalysisGuidelines = () => api.get('/agent-deep-analysis/guidelines')
+export const saveAnalysisGuidelines = (guidelines) => api.post('/agent-deep-analysis/guidelines', { guidelines })
+export const getDailyActivity = (date) => api.get('/agent-deep-analysis/daily-activity', { params: date ? { target_date: date } : {} })
 
 // ── Reports ──
 export const getAgentPerformance = (days = 30) => api.get(`/reports/agents?days=${days}`)

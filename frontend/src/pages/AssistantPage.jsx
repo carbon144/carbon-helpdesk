@@ -42,9 +42,13 @@ export default function AssistantPage({ user }) {
       })
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }])
     } catch (e) {
+      const isCredits = e?.response?.status === 402 || e?.response?.data?.error === 'credits_exhausted'
       setMessages(prev => [
         ...prev,
-        { role: 'assistant', content: 'Desculpe, houve um erro ao processar sua pergunta. Tente novamente.' },
+        { role: 'assistant', content: isCredits
+          ? 'Os creditos da IA estao esgotados no momento. Recarregue em console.anthropic.com para reativar o assistente.'
+          : 'Desculpe, houve um erro ao processar sua pergunta. Tente novamente.'
+        },
       ])
     } finally {
       setLoading(false)

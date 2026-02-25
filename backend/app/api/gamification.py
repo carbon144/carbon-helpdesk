@@ -21,6 +21,12 @@ async def get_leaderboard(
     user: User = Depends(get_current_user),
 ):
     """Agent leaderboard — resolved tickets, avg response time, SLA compliance."""
+    from app.services.cache import cache_get, cache_set
+    cache_key = f"gamification:leaderboard:{days}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return cached
+
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
     # Get all agents
@@ -91,6 +97,7 @@ async def get_leaderboard(
     for i, entry in enumerate(leaderboard):
         entry["rank"] = i + 1
 
+    await cache_set(cache_key, leaderboard, ttl_seconds=120)
     return leaderboard
 
 
