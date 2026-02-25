@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '../components/Toast'
 import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, fetchGmailHistory, updateTicket, composeEmail, getSentMessages, fetchSpamEmails, rescueFromSpam, bulkRescueFromSpam, rescueAndCreateTicket, uploadAttachment } from '../services/api'
 import MetaBadge from '../components/MetaBadge'
+import { SkeletonTicketList } from '../components/Skeleton'
 
 const AUTO_REFRESH_MS = 30_000
 const MS_PER_HOUR = 3_600_000
@@ -107,6 +108,17 @@ const TABS = [
   { key: 'all', label: 'Todos', icon: 'fa-list' },
 ]
 
+function timeAgo(dateStr) {
+  if (!dateStr) return ''
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins}min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h`
+  const days = Math.floor(hours / 24)
+  return `${days}d`
+}
+
 export default function TicketsPage({ user }) {
   const toast = useToast()
   const navigate = useNavigate()
@@ -173,6 +185,7 @@ export default function TicketsPage({ user }) {
   const [bulkRescuing, setBulkRescuing] = useState(false)
   const [sentSearch, setSentSearch] = useState('')
   const [spamSearch, setSpamSearch] = useState('')
+  const [loading, setLoading] = useState(true)
   const sentSearchTimerRef = useRef(null)
   const searchTimerRef = useRef(null)
 
@@ -261,6 +274,7 @@ export default function TicketsPage({ user }) {
   }
 
   const loadTickets = async () => {
+    setLoading(true)
     try {
       const params = {
         page,
@@ -318,6 +332,8 @@ export default function TicketsPage({ user }) {
       setTotal(data.total)
     } catch (e) {
       toast.error('Falha ao carregar tickets')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -1310,8 +1326,9 @@ export default function TicketsPage({ user }) {
 
       {/* Table */}
       <div className="bg-[var(--bg-secondary)] rounded-xl overflow-hidden border border-[var(--border-color)]">
+        {loading && tickets.length === 0 ? <SkeletonTicketList /> : (<>
         <table className="w-full">
-          <thead>
+          <thead className="sticky-header">
             <tr className="border-b border-[var(--border-color)]">
               <th className="px-6 py-4 text-left w-12">
                 <input type="checkbox" onChange={toggleAll} checked={selected.size === sortedTickets.length && sortedTickets.length > 0} className="rounded" />
@@ -1366,8 +1383,23 @@ export default function TicketsPage({ user }) {
                   <td className="px-6 py-4 text-[var(--text-secondary)] text-sm font-medium">#{ticket.number}</td>
                   <td className="px-6 py-4">
                     <div>
-                      <div className="text-[var(--text-primary)] text-sm font-medium mb-1">{ticket.subject}</div>
-                      <div className="flex gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[var(--text-primary)] text-sm font-medium">{ticket.subject}</span>
+                        {ticket.last_message_type === 'inbound' && (
+                          <span className="w-2 h-2 rounded-full bg-blue-500 inline-block flex-shrink-0" title="Cliente respondeu — precisa de ação" />
+                        )}
+                        {ticket.last_message_at && (
+                          <span className="text-xs font-mono-carbon flex-shrink-0" style={{ color: 'var(--text-tertiary)' }}>
+                            {timeAgo(ticket.last_message_at)}
+                          </span>
+                        )}
+                      </div>
+                      {ticket.last_message_preview && (
+                        <p className="text-xs mt-0.5 truncate max-w-[400px]" style={{ color: 'var(--text-tertiary)' }}>
+                          {ticket.last_message_preview.substring(0, 80)}
+                        </p>
+                      )}
+                      <div className="flex gap-1.5 flex-wrap mt-1">
                         {ticket.legal_risk && (
                           <span className="text-red-300 text-xs font-medium"><i className="fas fa-exclamation-triangle mr-1" />Jurídico</span>
                         )}
@@ -1511,7 +1543,7 @@ export default function TicketsPage({ user }) {
           </tbody>
         </table>
 
-        {sortedTickets.length === 0 && (
+        {sortedTickets.length === 0 && !loading && (
           <div className="p-16 text-center text-[var(--text-secondary)]">
             <i className={`fas ${activeTab === 'resolved' ? 'fa-check-circle' : activeTab === 'escalated' ? 'fa-exclamation-triangle' : 'fa-inbox'} text-5xl mb-4 opacity-30`} />
             <p className="text-base font-medium">
@@ -1521,6 +1553,7 @@ export default function TicketsPage({ user }) {
             </p>
           </div>
         )}
+        </>)}
       </div>
 
       {/* Pagination */}
