@@ -61,17 +61,16 @@ export default function KeyboardShortcutsModal() {
   return (
     <div className="fixed inset-0 z-[9997] flex items-center justify-center"
       onClick={() => setOpen(false)}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/30" />
       <div className="relative w-full max-w-2xl mx-4 rounded-2xl overflow-hidden"
         style={{
-          background: 'rgba(255,255,255,0.95)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(0,0,0,0.08)',
-          boxShadow: '0 25px 60px rgba(0,0,0,0.15)',
+          background: '#FFFFFF',
+          border: '1px solid #E5E7EB',
+          boxShadow: '0 25px 50px rgba(0,0,0,0.12)',
         }}
         onClick={e => e.stopPropagation()}>
 
-        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: '#E5E7EB' }}>
           <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
             <i className="fas fa-keyboard mr-2" style={{ color: 'var(--accent)' }} />
             Atalhos de Teclado
@@ -97,9 +96,9 @@ export default function KeyboardShortcutsModal() {
                           {j > 0 && <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>+</span>}
                           <kbd className="text-[11px] px-1.5 py-0.5 rounded font-medium min-w-[24px] text-center"
                             style={{
-                              background: 'rgba(0,0,0,0.06)',
+                              background: '#F3F4F6',
                               color: 'var(--text-primary)',
-                              border: '1px solid rgba(0,0,0,0.08)',
+                              border: '1px solid #E5E7EB',
                             }}>
                             {key}
                           </kbd>
@@ -113,9 +112,9 @@ export default function KeyboardShortcutsModal() {
           ))}
         </div>
 
-        <div className="px-6 py-3 border-t text-center" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+        <div className="px-6 py-3 border-t text-center" style={{ borderColor: '#E5E7EB' }}>
           <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-            Pressione <kbd className="px-1 py-0.5 rounded text-[10px]" style={{ background: 'rgba(0,0,0,0.05)' }}>?</kbd> para abrir/fechar
+            Pressione <kbd className="px-1 py-0.5 rounded text-[10px]" style={{ background: '#F3F4F6' }}>?</kbd> para abrir/fechar
           </p>
         </div>
       </div>

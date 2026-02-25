@@ -127,20 +127,19 @@ export default function CommandPalette() {
     <div className="fixed inset-0 z-[9998] flex items-start justify-center pt-[15vh]"
       onClick={() => setOpen(false)}>
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/30" />
 
       {/* Modal */}
       <div className="relative w-full max-w-lg mx-4 rounded-2xl overflow-hidden"
         style={{
-          background: 'rgba(255,255,255,0.92)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          border: '1px solid rgba(0,0,0,0.08)',
-          boxShadow: '0 25px 60px rgba(0,0,0,0.15), 0 8px 20px rgba(0,0,0,0.08)',
+          background: '#FFFFFF',
+          border: '1px solid #E5E7EB',
+          boxShadow: '0 25px 50px rgba(0,0,0,0.12)',
         }}
         onClick={e => e.stopPropagation()}>
 
         {/* Search input */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+        <div className="flex items-center gap-3 px-5 py-4 border-b" style={{ borderColor: '#E5E7EB' }}>
           <i className="fas fa-search text-sm" style={{ color: 'var(--text-tertiary)' }} />
           <input
             ref={inputRef}
@@ -153,7 +152,7 @@ export default function CommandPalette() {
           />
           {loading && <i className="fas fa-spinner fa-spin text-xs" style={{ color: 'var(--text-tertiary)' }} />}
           <kbd className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-            style={{ background: 'rgba(0,0,0,0.05)', color: 'var(--text-tertiary)' }}>
+            style={{ background: '#F3F4F6', color: '#4B5563' }}>
             ESC
           </kbd>
         </div>
@@ -179,7 +178,7 @@ export default function CommandPalette() {
                   <button key={t.id} onClick={() => handleSelect({ type: 'ticket', data: t })}
                     className="w-full flex items-center gap-3 px-5 py-2.5 transition-colors"
                     style={{
-                      background: selectedIdx === idx ? 'rgba(253,210,0,0.08)' : 'transparent',
+                      background: selectedIdx === idx ? 'rgba(229,168,0,0.08)' : 'transparent',
                     }}
                     onMouseEnter={() => setSelectedIdx(idx)}>
                     <i className="fas fa-ticket text-xs" style={{ color: 'var(--accent-muted)' }} />
@@ -215,7 +214,7 @@ export default function CommandPalette() {
                   <button key={p.path} onClick={() => handleSelect({ type: 'page', data: p })}
                     className="w-full flex items-center gap-3 px-5 py-2.5 transition-colors"
                     style={{
-                      background: selectedIdx === idx ? 'rgba(253,210,0,0.08)' : 'transparent',
+                      background: selectedIdx === idx ? 'rgba(229,168,0,0.08)' : 'transparent',
                     }}
                     onMouseEnter={() => setSelectedIdx(idx)}>
                     <i className={`fas ${p.icon} text-xs w-4 text-center`} style={{ color: 'var(--text-tertiary)' }} />
@@ -238,7 +237,7 @@ export default function CommandPalette() {
                   <button key={a.label} onClick={() => handleSelect({ type: 'action', data: a })}
                     className="w-full flex items-center gap-3 px-5 py-2.5 transition-colors"
                     style={{
-                      background: selectedIdx === idx ? 'rgba(253,210,0,0.08)' : 'transparent',
+                      background: selectedIdx === idx ? 'rgba(229,168,0,0.08)' : 'transparent',
                     }}
                     onMouseEnter={() => setSelectedIdx(idx)}>
                     <i className={`fas ${a.icon} text-xs w-4 text-center`} style={{ color: 'var(--accent-muted)' }} />
@@ -251,15 +250,15 @@ export default function CommandPalette() {
         </div>
 
         {/* Footer hint */}
-        <div className="flex items-center gap-4 px-5 py-2.5 border-t" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+        <div className="flex items-center gap-4 px-5 py-2.5 border-t" style={{ borderColor: '#E5E7EB' }}>
           <span className="text-[10px] flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
-            <kbd className="px-1 py-0.5 rounded" style={{ background: 'rgba(0,0,0,0.05)' }}>↑↓</kbd> navegar
+            <kbd className="px-1 py-0.5 rounded" style={{ background: '#F3F4F6' }}>↑↓</kbd> navegar
           </span>
           <span className="text-[10px] flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
-            <kbd className="px-1 py-0.5 rounded" style={{ background: 'rgba(0,0,0,0.05)' }}>Enter</kbd> selecionar
+            <kbd className="px-1 py-0.5 rounded" style={{ background: '#F3F4F6' }}>Enter</kbd> selecionar
           </span>
           <span className="text-[10px] flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
-            <kbd className="px-1 py-0.5 rounded" style={{ background: 'rgba(0,0,0,0.05)' }}>Esc</kbd> fechar
+            <kbd className="px-1 py-0.5 rounded" style={{ background: '#F3F4F6' }}>Esc</kbd> fechar
           </span>
         </div>
       </div>
