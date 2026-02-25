@@ -89,7 +89,7 @@ export default function DashboardPage({ user }) {
   if (!stats) return <SkeletonDashboard />
 
   return (
-    <div className="p-6">
+    <div className="p-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
@@ -164,7 +164,7 @@ function AdminDashboard({ stats, goToTickets }) {
   return (
     <>
       {/* Hero KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <KPICard label="Abertos" value={stats.open_tickets} icon="fa-folder-open" color="blue" size="hero" onClick={() => goToTickets({ status: 'open' })} />
         <KPICard label="SLA Cumprido" value={`${stats.sla_compliance}%`} icon="fa-clock" color="green" size="hero" />
         <KPICard label="Tempo Resposta" value={`${stats.avg_response_hours}h`} icon="fa-reply" color="blue" size="hero" />
@@ -198,7 +198,7 @@ function AdminDashboard({ stats, goToTickets }) {
       </div>
 
       {/* Charts — primary */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <ChartCard title="Volume Diário">
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={stats.daily_volume}>
@@ -621,7 +621,7 @@ function ReclamacoesDashboard({ stats, goToTickets }) {
 
 // ─── Shared Components ───
 const KPI_COLORS = {
-  accent: { bg: 'rgba(253,210,0,0.1)', text: '#fdd200' },
+  accent: { bg: 'rgba(229,168,0,0.08)', text: '#E5A800' },
   green: { bg: 'rgba(16,185,129,0.1)', text: '#10b981' },
   blue: { bg: 'rgba(59,130,246,0.1)', text: '#3b82f6' },
   red: { bg: 'rgba(239,68,68,0.1)', text: '#ef4444' },
@@ -653,7 +653,7 @@ function KPICard({ label, value, icon, color, onClick, size }) {
           <i className={`fas ${icon} ${isHero ? 'text-base' : 'text-sm'}`} />
         </div>
       </div>
-      <p className={`${isHero ? 'text-3xl' : 'text-2xl'} font-bold`} style={{ color: 'var(--text-primary)' }}>{value}</p>
+      <p className={`${isHero ? 'text-[32px] font-extrabold' : 'text-2xl font-bold'}`} style={{ color: 'var(--text-primary)' }}>{value}</p>
       {onClick && <p className="text-[10px] mt-1" style={{ color: 'var(--text-tertiary)' }}>clique para ver <i className="fas fa-arrow-right" /></p>}
     </Wrapper>
   )
