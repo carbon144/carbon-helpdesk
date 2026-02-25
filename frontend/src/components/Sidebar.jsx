@@ -41,7 +41,7 @@ export default function Sidebar({ user, onLogout, ticketCount, metaCount }) {
 
   return (
     <div className="w-60 shrink-0 flex flex-col h-full"
-      style={{ background: '#1d1d1f', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+      style={{ background: 'linear-gradient(180deg, #18181B 0%, #1F1F23 100%)', borderRight: '1px solid rgba(229,168,0,0.3)' }}>
       <div className="px-4 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
         <img src="/assets/carbon-logo.svg" alt="Carbon Expert Hub" className="h-8" />
       </div>
@@ -52,7 +52,7 @@ export default function Sidebar({ user, onLogout, ticketCount, metaCount }) {
           if (visibleItems.length === 0) return null
           return (
             <div key={group.label} className="mb-4">
-              <p className="text-[10px] font-semibold uppercase tracking-wider px-3 mb-2" style={{ color: '#636366' }}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider px-3 mb-2" style={{ color: '#52525B' }}>
                 {group.label}
               </p>
               <div className="space-y-0.5">
@@ -70,7 +70,7 @@ export default function Sidebar({ user, onLogout, ticketCount, metaCount }) {
                     </span>
                     {item.badge === 'tickets' && ticketCount > 0 && (
                       <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
-                        style={{ background: '#fdd200', color: '#1d1d1f' }}>
+                        style={{ background: '#E5A800', color: '#FFFFFF' }}>
                         {ticketCount}
                       </span>
                     )}
@@ -92,19 +92,19 @@ export default function Sidebar({ user, onLogout, ticketCount, metaCount }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-              style={{ background: '#fdd200', color: '#1d1d1f' }}>
+              style={{ background: '#E5A800', color: '#FFFFFF' }}>
               {user.name[0]}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium truncate" style={{ color: '#f5f5f7' }}>{user.name}</p>
-              <p className="text-[11px] truncate" style={{ color: '#636366' }}>{ROLE_LABELS[user.role] || user.role}</p>
+              <p className="text-sm font-medium truncate" style={{ color: '#E4E4E7' }}>{user.name}</p>
+              <p className="text-[11px] truncate" style={{ color: '#71717A' }}>{ROLE_LABELS[user.role] || user.role}</p>
             </div>
           </div>
           <button onClick={onLogout}
             className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors text-xs"
-            style={{ color: '#636366' }}
+            style={{ color: '#71717A' }}
             onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-            onMouseLeave={e => e.currentTarget.style.color = '#636366'}
+            onMouseLeave={e => e.currentTarget.style.color = '#71717A'}
             title="Sair">
             <i className="fas fa-sign-out-alt" />
           </button>
