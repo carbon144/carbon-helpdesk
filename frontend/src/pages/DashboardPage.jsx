@@ -156,6 +156,8 @@ const SOURCE_COLORS = { web: '#6B7280', gmail: '#EF4444', email: '#EF4444', slac
 
 function AdminDashboard({ stats, goToTickets }) {
   const cs = useChartStyles()
+  const [showSecondaryKPIs, setShowSecondaryKPIs] = useState(false)
+  const [showSecondaryCharts, setShowSecondaryCharts] = useState(false)
   const categoryData = Object.entries(stats.by_category || {}).map(([name, value]) => ({ name: CATEGORY_LABELS[name] || name, value, key: name }))
   const statusData = Object.entries(stats.by_status || {}).map(([name, value]) => ({ name: STATUS_LABELS[name] || name, value, key: name }))
   const priorityData = Object.entries(stats.by_priority || {}).map(([name, value]) => ({ name: PRIORITY_LABELS[name] || name, value, key: name }))
@@ -164,33 +166,41 @@ function AdminDashboard({ stats, goToTickets }) {
 
   return (
     <>
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-        <KPICard label="Total Tickets" value={stats.total_tickets} icon="fa-ticket" color="accent" onClick={() => goToTickets({})} />
-        <KPICard label="Abertos" value={stats.open_tickets} icon="fa-folder-open" color="blue" onClick={() => goToTickets({ status: 'open' })} />
-        <KPICard label="SLA Cumprido" value={`${stats.sla_compliance}%`} icon="fa-clock" color="green" onClick={() => goToTickets({ sla_breached: 'true' })} />
-        <KPICard label="Trocas" value={stats.trocas_count} icon="fa-rotate" color="yellow" onClick={() => goToTickets({ category: 'troca' })} />
-        <KPICard label="Problemas" value={stats.problemas_count} icon="fa-triangle-exclamation" color="orange" onClick={() => goToTickets({ category: 'garantia' })} />
-        <KPICard label="Risco Jurídico" value={stats.legal_risk_count} icon="fa-gavel" color="red" onClick={() => goToTickets({ legal_risk: 'true' })} />
+      {/* Hero KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <KPICard label="Abertos" value={stats.open_tickets} icon="fa-folder-open" color="blue" size="hero" onClick={() => goToTickets({ status: 'open' })} />
+        <KPICard label="SLA Cumprido" value={`${stats.sla_compliance}%`} icon="fa-clock" color="green" size="hero" />
+        <KPICard label="Tempo Resposta" value={`${stats.avg_response_hours}h`} icon="fa-reply" color="blue" size="hero" />
+        <KPICard label="Risco Jurídico" value={stats.legal_risk_count} icon="fa-gavel" color="red" size="hero" onClick={() => goToTickets({ legal_risk: 'true' })} />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
-        <KPICard label="Reclamações" value={stats.reclamacoes_count} icon="fa-face-angry" color="red" onClick={() => goToTickets({ category: 'reclamacao' })} />
-        <KPICard label="Escalados" value={stats.escalated_count} icon="fa-arrow-up" color="red" onClick={() => goToTickets({ status: 'escalated' })} />
-        <KPICard label="Tempo Resposta" value={`${stats.avg_response_hours}h`} icon="fa-reply" color="blue" />
-        <KPICard label="FCR" value={`${stats.fcr_rate || 0}%`} icon="fa-bullseye" color="green" />
-        <KPICard label="Não Atribuídos" value={stats.unassigned_count || 0} icon="fa-user-slash" color="orange" onClick={() => goToTickets({ assigned_to: 'none' })} />
+      {/* Secondary KPIs — collapsible */}
+      <div className="mb-6">
+        <button onClick={() => setShowSecondaryKPIs(!showSecondaryKPIs)}
+          className="flex items-center gap-2 text-xs font-medium mb-3 transition"
+          style={{ color: 'var(--text-tertiary)' }}>
+          <i className={`fas fa-chevron-${showSecondaryKPIs ? 'up' : 'down'} text-[10px]`} />
+          {showSecondaryKPIs ? 'Menos métricas' : 'Mais métricas'}
+        </button>
+        {showSecondaryKPIs && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <KPICard label="Total Tickets" value={stats.total_tickets} icon="fa-ticket" color="accent" onClick={() => goToTickets({})} />
+            <KPICard label="Trocas" value={stats.trocas_count} icon="fa-rotate" color="yellow" onClick={() => goToTickets({ category: 'troca' })} />
+            <KPICard label="Reclamações" value={stats.reclamacoes_count} icon="fa-face-angry" color="red" onClick={() => goToTickets({ category: 'reclamacao' })} />
+            <KPICard label="Escalados" value={stats.escalated_count} icon="fa-arrow-up" color="red" onClick={() => goToTickets({ status: 'escalated' })} />
+            <KPICard label="FCR" value={`${stats.fcr_rate || 0}%`} icon="fa-bullseye" color="green" />
+            <KPICard label="Não Atribuídos" value={stats.unassigned_count || 0} icon="fa-user-slash" color="orange" onClick={() => goToTickets({ assigned_to: 'none' })} />
+            <KPICard label="Resolvidos Hoje" value={stats.resolved_today} icon="fa-check-circle" color="green" onClick={() => goToTickets({ status: 'resolved' })} />
+            <KPICard label="Respondidos Hoje" value={stats.responded_today || 0} icon="fa-paper-plane" color="blue" />
+            <KPICard label="Tempo Resolução" value={`${stats.avg_resolution_hours}h`} icon="fa-check-double" color="purple" />
+            <KPICard label="SLA Quebrados" value={stats.sla_breached} icon="fa-exclamation-triangle" color="red" onClick={() => goToTickets({ sla_breached: 'true' })} />
+            <KPICard label="Problemas" value={stats.problemas_count} icon="fa-triangle-exclamation" color="orange" onClick={() => goToTickets({ category: 'garantia' })} />
+            <KPICard label="Resolv. 1ª Resp" value={stats.fcr_count || 0} icon="fa-bullseye" color="green" />
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        <KPICard label="Resolvidos Hoje" value={stats.resolved_today} icon="fa-check-circle" color="green" onClick={() => goToTickets({ status: 'resolved' })} />
-        <KPICard label="Respondidos Hoje" value={stats.responded_today || 0} icon="fa-paper-plane" color="blue" />
-        <KPICard label="Tempo Resolução" value={`${stats.avg_resolution_hours}h`} icon="fa-check-double" color="purple" />
-        <KPICard label="SLA Quebrados" value={stats.sla_breached} icon="fa-exclamation-triangle" color="red" onClick={() => goToTickets({ sla_breached: 'true' })} />
-        <KPICard label="Resolv. 1ª Resp" value={stats.fcr_count || 0} icon="fa-bullseye" color="green" />
-      </div>
-
-      {/* Charts */}
+      {/* Charts — primary */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <ChartCard title="Volume Diário">
           <ResponsiveContainer width="100%" height={220}>
@@ -214,52 +224,65 @@ function AdminDashboard({ stats, goToTickets }) {
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
+      </div>
 
-        <ChartCard title="Por Status">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={statusData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke={cs.grid} />
-              <XAxis type="number" tick={{ fill: cs.axisTick, fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" tick={{ fill: cs.axisLabel, fontSize: 11 }} width={110} />
-              <Tooltip contentStyle={cs.tooltip} />
-              <Bar dataKey="value" name="Qtd" fill="#fdd200" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+      {/* Secondary Charts — collapsible */}
+      <div className="mb-6">
+        <button onClick={() => setShowSecondaryCharts(!showSecondaryCharts)}
+          className="flex items-center gap-2 text-xs font-medium mb-3 transition"
+          style={{ color: 'var(--text-tertiary)' }}>
+          <i className={`fas fa-chevron-${showSecondaryCharts ? 'up' : 'down'} text-[10px]`} />
+          {showSecondaryCharts ? 'Menos gráficos' : 'Mais gráficos'}
+        </button>
+        {showSecondaryCharts && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ChartCard title="Por Status">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={statusData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke={cs.grid} />
+                  <XAxis type="number" tick={{ fill: cs.axisTick, fontSize: 11 }} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: cs.axisLabel, fontSize: 11 }} width={110} />
+                  <Tooltip contentStyle={cs.tooltip} />
+                  <Bar dataKey="value" name="Qtd" fill="#fdd200" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
 
-        <ChartCard title="Por Prioridade">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={priorityData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={cs.grid} />
-              <XAxis dataKey="name" tick={{ fill: cs.axisTick, fontSize: 11 }} />
-              <YAxis tick={{ fill: cs.axisTick, fontSize: 11 }} />
-              <Tooltip contentStyle={cs.tooltip} />
-              <Bar dataKey="value" name="Qtd" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+            <ChartCard title="Por Prioridade">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={priorityData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={cs.grid} />
+                  <XAxis dataKey="name" tick={{ fill: cs.axisTick, fontSize: 11 }} />
+                  <YAxis tick={{ fill: cs.axisTick, fontSize: 11 }} />
+                  <Tooltip contentStyle={cs.tooltip} />
+                  <Bar dataKey="value" name="Qtd" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
 
-        <ChartCard title="Por Canal">
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie data={sourceData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={{ fill: cs.pieLabel, fontSize: 11 }}>
-                {sourceData.map((_, i) => <Cell key={i} fill={['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#14b8a6'][i] || COLORS[i]} />)}
-              </Pie>
-              <Tooltip contentStyle={cs.tooltip} />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
+            <ChartCard title="Por Canal">
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={sourceData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={{ fill: cs.pieLabel, fontSize: 11 }}>
+                    {sourceData.map((_, i) => <Cell key={i} fill={['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#14b8a6'][i] || COLORS[i]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={cs.tooltip} />
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartCard>
 
-        <ChartCard title="Sentimento">
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie data={sentimentData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={{ fill: cs.pieLabel, fontSize: 11 }}>
-                {sentimentData.map((_, i) => <Cell key={i} fill={['#10b981', '#fdd200', '#f59e0b', '#ef4444'][i] || COLORS[i]} />)}
-              </Pie>
-              <Tooltip contentStyle={cs.tooltip} />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
+            <ChartCard title="Sentimento">
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={sentimentData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={{ fill: cs.pieLabel, fontSize: 11 }}>
+                    {sentimentData.map((_, i) => <Cell key={i} fill={['#10b981', '#fdd200', '#f59e0b', '#ef4444'][i] || COLORS[i]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={cs.tooltip} />
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          </div>
+        )}
       </div>
 
       {/* Quick Access */}
@@ -288,11 +311,11 @@ function GestaoDashboard({ stats, goToTickets }) {
 
   return (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <KPICard label="Total Tickets" value={stats.total_tickets} icon="fa-ticket" color="accent" onClick={() => goToTickets({})} />
-        <KPICard label="SLA Cumprido" value={`${stats.sla_compliance}%`} icon="fa-clock" color="green" />
-        <KPICard label="Tempo Médio Resposta" value={`${stats.avg_response_hours}h`} icon="fa-reply" color="blue" />
-        <KPICard label="Tempo Médio Resolução" value={`${stats.avg_resolution_hours}h`} icon="fa-check-double" color="purple" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <KPICard label="Total Tickets" value={stats.total_tickets} icon="fa-ticket" color="accent" size="hero" onClick={() => goToTickets({})} />
+        <KPICard label="SLA Cumprido" value={`${stats.sla_compliance}%`} icon="fa-clock" color="green" size="hero" />
+        <KPICard label="Tempo Médio Resposta" value={`${stats.avg_response_hours}h`} icon="fa-reply" color="blue" size="hero" />
+        <KPICard label="Tempo Médio Resolução" value={`${stats.avg_resolution_hours}h`} icon="fa-check-double" color="purple" size="hero" />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
@@ -349,11 +372,11 @@ function AgenteDashboard({ stats, agentStats, goToTickets }) {
 
   return (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <KPICard label="Meus Abertos" value={agentStats.my_open} icon="fa-folder-open" color="blue" onClick={() => goToTickets({ assigned_to: 'me', status: 'open' })} />
-        <KPICard label="Meus Resolvidos" value={agentStats.my_resolved} icon="fa-check-circle" color="green" onClick={() => goToTickets({ assigned_to: 'me', status: 'resolved' })} />
-        <KPICard label="Meu Tempo Resposta" value={`${agentStats.my_avg_response_hours}h`} icon="fa-reply" color="blue" />
-        <KPICard label="Meu SLA" value={`${agentStats.my_sla_compliance}%`} icon="fa-clock" color="green" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <KPICard label="Meus Abertos" value={agentStats.my_open} icon="fa-folder-open" color="blue" size="hero" onClick={() => goToTickets({ assigned_to: 'me', status: 'open' })} />
+        <KPICard label="Meus Resolvidos" value={agentStats.my_resolved} icon="fa-check-circle" color="green" size="hero" onClick={() => goToTickets({ assigned_to: 'me', status: 'resolved' })} />
+        <KPICard label="Meu Tempo Resposta" value={`${agentStats.my_avg_response_hours}h`} icon="fa-reply" color="blue" size="hero" />
+        <KPICard label="Meu SLA" value={`${agentStats.my_sla_compliance}%`} icon="fa-clock" color="green" size="hero" />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
@@ -610,14 +633,15 @@ const KPI_COLORS = {
   purple: { bg: 'rgba(168,85,247,0.1)', text: '#a855f7' },
 }
 
-function KPICard({ label, value, icon, color, onClick }) {
+function KPICard({ label, value, icon, color, onClick, size }) {
   const c = KPI_COLORS[color] || KPI_COLORS.accent
+  const isHero = size === 'hero'
   const Wrapper = onClick ? 'button' : 'div'
 
   return (
     <Wrapper
       onClick={onClick}
-      className="rounded-xl p-4 text-left transition border"
+      className={`rounded-xl text-left transition border ${isHero ? 'p-5' : 'p-4'}`}
       style={{
         background: 'var(--bg-secondary)',
         borderColor: 'var(--border-color)',
@@ -627,12 +651,12 @@ function KPICard({ label, value, icon, color, onClick }) {
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{label}</span>
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+        <div className={`${isHero ? 'w-10 h-10' : 'w-8 h-8'} rounded-lg flex items-center justify-center`}
           style={{ background: c.bg, color: c.text }}>
-          <i className={`fas ${icon} text-sm`} />
+          <i className={`fas ${icon} ${isHero ? 'text-base' : 'text-sm'}`} />
         </div>
       </div>
-      <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{value}</p>
+      <p className={`${isHero ? 'text-3xl' : 'text-2xl'} font-bold`} style={{ color: 'var(--text-primary)' }}>{value}</p>
       {onClick && <p className="text-[10px] mt-1" style={{ color: 'var(--text-tertiary)' }}>clique para ver <i className="fas fa-arrow-right" /></p>}
     </Wrapper>
   )
