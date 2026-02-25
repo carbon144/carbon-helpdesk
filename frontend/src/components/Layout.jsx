@@ -1,7 +1,8 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import CommandPalette from './CommandPalette'
+import KeyboardShortcutsModal from './KeyboardShortcutsModal'
 import TicketsPage from '../pages/TicketsPage'
 import TicketDetailPage from '../pages/TicketDetailPage'
 import { getTicketCounts } from '../services/api'
@@ -23,6 +24,7 @@ const DashboardPage = lazy(() => import('../pages/DashboardPage'))
 const AUTO_REFRESH_MS = 30_000
 
 export default function Layout({ user, onLogout }) {
+  const navigate = useNavigate()
   const [ticketCount, setTicketCount] = useState(0)
   const [metaCount, setMetaCount] = useState(0)
 
@@ -34,6 +36,36 @@ export default function Layout({ user, onLogout }) {
     }, AUTO_REFRESH_MS)
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    let gPending = false
+    let gTimer = null
+
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      if (gPending) {
+        gPending = false
+        clearTimeout(gTimer)
+        if (e.key === 'd') { e.preventDefault(); navigate('/dashboard') }
+        else if (e.key === 't') { e.preventDefault(); navigate('/tickets') }
+        else if (e.key === 'k') { e.preventDefault(); navigate('/kb') }
+        return
+      }
+
+      if (e.key === 'g') {
+        gPending = true
+        gTimer = setTimeout(() => { gPending = false }, 500)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      if (gTimer) clearTimeout(gTimer)
+    }
+  }, [navigate])
 
   const loadTicketCounts = async () => {
     try {
@@ -48,6 +80,7 @@ export default function Layout({ user, onLogout }) {
   return (
     <div className="flex h-screen" style={{ background: 'var(--bg-primary)' }}>
       <CommandPalette />
+      <KeyboardShortcutsModal />
       <Sidebar user={user} onLogout={onLogout} ticketCount={ticketCount} metaCount={metaCount} />
       <main className="flex-1 overflow-auto" style={{ background: 'var(--bg-primary)' }}>
         <Suspense fallback={<SkeletonDashboard />}>
