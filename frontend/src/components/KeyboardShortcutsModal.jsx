@@ -14,10 +14,7 @@ const SHORTCUT_GROUPS = [
   {
     label: 'Lista de Tickets',
     shortcuts: [
-      { keys: ['J'], desc: 'Próximo ticket' },
-      { keys: ['K'], desc: 'Ticket anterior' },
-      { keys: ['X'], desc: 'Selecionar ticket' },
-      { keys: ['Enter'], desc: 'Abrir ticket' },
+      { keys: ['Enter'], desc: 'Abrir ticket selecionado' },
     ],
   },
   {

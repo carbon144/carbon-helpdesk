@@ -20,18 +20,18 @@ const NAV_GROUPS = [
     items: [
       { to: '/assistant', label: 'Assistente IA', icon: 'fa-robot', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
       { to: '/kb', label: 'Base de Conhecimento', icon: 'fa-book', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
-      { to: '/media', label: 'Biblioteca de Midia', icon: 'fa-photo-video', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
-      { to: '/catalog', label: 'Catalogo', icon: 'fa-box-open', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
-      { to: '/moderation', label: 'Moderacao Social', icon: 'fa-shield-alt', roles: ['super_admin', 'admin', 'supervisor'] },
+      { to: '/media', label: 'Biblioteca de Mídia', icon: 'fa-photo-video', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
+      { to: '/catalog', label: 'Catálogo', icon: 'fa-box-open', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
+      { to: '/moderation', label: 'Moderação Social', icon: 'fa-shield-alt', roles: ['super_admin', 'admin', 'supervisor'] },
     ],
   },
   {
-    label: 'Gestao',
+    label: 'Gestão',
     items: [
       { to: '/leaderboard', label: 'Performance', icon: 'fa-gamepad', roles: ['super_admin', 'admin', 'supervisor'] },
-      { to: '/reports', label: 'Relatorios', icon: 'fa-chart-bar', roles: ['super_admin', 'admin', 'supervisor'] },
-      { to: '/integrations', label: 'Integracoes', icon: 'fa-plug', roles: ['super_admin'] },
-      { to: '/settings', label: 'Configuracoes', icon: 'fa-cog', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
+      { to: '/reports', label: 'Relatórios', icon: 'fa-chart-bar', roles: ['super_admin', 'admin', 'supervisor'] },
+      { to: '/integrations', label: 'Integrações', icon: 'fa-plug', roles: ['super_admin'] },
+      { to: '/settings', label: 'Configurações', icon: 'fa-cog', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
     ],
   },
 ]

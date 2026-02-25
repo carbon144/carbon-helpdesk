@@ -4,6 +4,7 @@ import { useToast } from '../components/Toast'
 import { getDashboardStats, getAgentDashboardStats } from '../services/api'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
 import { useTheme } from '../contexts/ThemeContext'
+import { SkeletonDashboard } from '../components/Skeleton'
 
 const COLORS = ['#fdd200', '#e6c000', '#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#ef4444', '#14b8a6', '#f97316']
 
@@ -85,11 +86,7 @@ export default function DashboardPage({ user }) {
     navigate(`/tickets${params.toString() ? '?' + params.toString() : ''}`)
   }
 
-  if (!stats) return (
-    <div className="p-6 flex items-center gap-2" style={{ color: 'var(--text-tertiary)' }}>
-      <i className="fas fa-spinner fa-spin" /> Carregando...
-    </div>
-  )
+  if (!stats) return <SkeletonDashboard />
 
   return (
     <div className="p-6">

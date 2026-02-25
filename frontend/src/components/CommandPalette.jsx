@@ -9,13 +9,18 @@ const PAGES = [
   { label: 'Rastreamento', icon: 'fa-truck-fast', path: '/tracking' },
   { label: 'Assistente IA', icon: 'fa-robot', path: '/assistant' },
   { label: 'Base de Conhecimento', icon: 'fa-book', path: '/kb' },
-  { label: 'Biblioteca de Midia', icon: 'fa-photo-video', path: '/media' },
-  { label: 'Catalogo', icon: 'fa-box-open', path: '/catalog' },
-  { label: 'Moderacao Social', icon: 'fa-shield-alt', path: '/moderation' },
+  { label: 'Biblioteca de Mídia', icon: 'fa-photo-video', path: '/media' },
+  { label: 'Catálogo', icon: 'fa-box-open', path: '/catalog' },
+  { label: 'Moderação Social', icon: 'fa-shield-alt', path: '/moderation' },
   { label: 'Performance', icon: 'fa-gamepad', path: '/leaderboard' },
-  { label: 'Relatorios', icon: 'fa-chart-bar', path: '/reports' },
-  { label: 'Integracoes', icon: 'fa-plug', path: '/integrations' },
-  { label: 'Configuracoes', icon: 'fa-cog', path: '/settings' },
+  { label: 'Relatórios', icon: 'fa-chart-bar', path: '/reports' },
+  { label: 'Integrações', icon: 'fa-plug', path: '/integrations' },
+  { label: 'Configurações', icon: 'fa-cog', path: '/settings' },
+]
+
+const ACTIONS = [
+  { label: 'Exportar CSV', icon: 'fa-file-csv', path: '/tickets?export=csv' },
+  { label: 'Atribuição Automática', icon: 'fa-magic', path: '/tickets?auto_assign=true' },
 ]
 
 const STATUS_LABELS = {
@@ -78,10 +83,12 @@ export default function CommandPalette() {
   // Build results
   const q = query.toLowerCase()
   const filteredPages = q ? PAGES.filter(p => p.label.toLowerCase().includes(q)) : []
+  const filteredActions = q ? ACTIONS.filter(a => a.label.toLowerCase().includes(q)) : []
 
   const allResults = [
     ...tickets.map(t => ({ type: 'ticket', data: t })),
     ...filteredPages.map(p => ({ type: 'page', data: p })),
+    ...filteredActions.map(a => ({ type: 'action', data: a })),
   ]
 
   // Show pages when empty query
@@ -95,6 +102,8 @@ export default function CommandPalette() {
     if (item.type === 'ticket') {
       navigate(`/tickets/${item.data.id}`)
     } else if (item.type === 'page') {
+      navigate(item.data.path)
+    } else if (item.type === 'action') {
       navigate(item.data.path)
     }
   }, [navigate])
@@ -138,7 +147,7 @@ export default function CommandPalette() {
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Buscar tickets, paginas..."
+            placeholder="Buscar tickets, páginas, ações..."
             className="flex-1 bg-transparent text-[15px] outline-none placeholder:text-[var(--text-tertiary)]"
             style={{ color: 'var(--text-primary)' }}
           />
@@ -195,7 +204,7 @@ export default function CommandPalette() {
           {(q ? filteredPages : PAGES).length > 0 && (
             <div className="mb-1">
               {q && <p className="px-5 py-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                Paginas
+                Páginas
               </p>}
               {!q && <p className="px-5 py-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                 Ir para
@@ -211,6 +220,29 @@ export default function CommandPalette() {
                     onMouseEnter={() => setSelectedIdx(idx)}>
                     <i className={`fas ${p.icon} text-xs w-4 text-center`} style={{ color: 'var(--text-tertiary)' }} />
                     <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{p.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Actions section */}
+          {filteredActions.length > 0 && (
+            <div className="mb-1">
+              <p className="px-5 py-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                Ações
+              </p>
+              {filteredActions.map((a, i) => {
+                const idx = tickets.length + filteredPages.length + i
+                return (
+                  <button key={a.label} onClick={() => handleSelect({ type: 'action', data: a })}
+                    className="w-full flex items-center gap-3 px-5 py-2.5 transition-colors"
+                    style={{
+                      background: selectedIdx === idx ? 'rgba(253,210,0,0.08)' : 'transparent',
+                    }}
+                    onMouseEnter={() => setSelectedIdx(idx)}>
+                    <i className={`fas ${a.icon} text-xs w-4 text-center`} style={{ color: 'var(--accent-muted)' }} />
+                    <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{a.label}</span>
                   </button>
                 )
               })}
