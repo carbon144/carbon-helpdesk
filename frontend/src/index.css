@@ -72,7 +72,7 @@
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -240,4 +240,10 @@ input::placeholder, textarea::placeholder {
 /* ═══ Smooth transitions ═══ */
 button, a {
   transition: all 0.15s ease;
+}
+
+/* ═══ Monospace for numbers/codes ═══ */
+.font-mono-carbon {
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  font-weight: 500;
 }
