@@ -26,15 +26,15 @@ export default function LoginPage({ onLogin }) {
       style={{ background: 'var(--bg-primary)' }}>
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full opacity-[0.03]"
+        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full opacity-[0.04]"
           style={{ background: 'var(--accent)' }} />
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full opacity-[0.03]"
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full opacity-[0.04]"
           style={{ background: 'var(--accent)' }} />
       </div>
 
       {/* Login card */}
       <div className="relative z-10 w-full max-w-md px-4">
-        <div className="rounded-2xl p-8 border"
+        <div className="rounded-xl p-8 border"
           style={{
             background: 'var(--bg-secondary)',
             borderColor: 'var(--border-color)',

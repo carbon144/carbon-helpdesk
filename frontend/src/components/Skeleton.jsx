@@ -49,7 +49,7 @@ export function SkeletonTicketList({ rows = 8 }) {
 
 export function SkeletonDashboard() {
   return (
-    <div className="p-6">
+    <div className="p-8">
       <div className="flex items-center justify-between mb-5">
         <SkeletonLine width="160px" height="28px" />
         <SkeletonLine width="120px" height="36px" />
