@@ -1603,7 +1603,7 @@ export default function TicketsPage({ user }) {
 
       {/* Modal: Import History */}
       {showImportModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => !importing && setShowImportModal(false)}>
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => !importing && setShowImportModal(false)}>
           <div className="bg-[var(--bg-secondary)] rounded-2xl w-full max-w-lg border border-[var(--border-color)] shadow-2xl" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between px-8 py-6 border-b border-[var(--border-color)]">
@@ -1741,7 +1741,7 @@ export default function TicketsPage({ user }) {
 
       {/* Modal: Compose Email */}
       {showComposeModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => !composeSending && setShowComposeModal(false)}>
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => !composeSending && setShowComposeModal(false)}>
           <div className="bg-[var(--bg-secondary)] rounded-2xl w-full max-w-2xl shadow-2xl border border-[var(--border-color)]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)]">
               <div className="flex items-center gap-3">

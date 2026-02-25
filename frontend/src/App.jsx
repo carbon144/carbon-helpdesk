@@ -28,7 +28,7 @@ class ErrorBoundary extends Component {
             <div className="w-14 h-14 rounded-xl flex items-center justify-center font-black text-xl mx-auto mb-4"
               style={{ background: '#E5A800', color: '#FFFFFF' }}>!</div>
             <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary, #1a1a2e)' }}>Algo deu errado</h2>
-            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary, #636366)' }}>
+            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary, #4B5563)' }}>
               Ocorreu um erro inesperado. Tente recarregar a pagina.
             </p>
             <button
@@ -89,7 +89,7 @@ export default function App() {
         <div className="text-center">
           <div className="w-14 h-14 rounded-xl flex items-center justify-center font-black text-xl mx-auto mb-4 animate-pulse"
             style={{ background: '#E5A800', color: '#FFFFFF' }}>C</div>
-          <p className="text-sm" style={{ color: 'var(--text-tertiary, #8e8e93)' }}>Carregando...</p>
+          <p className="text-sm" style={{ color: 'var(--text-tertiary, #9CA3AF)' }}>Carregando...</p>
         </div>
       </div>
     )

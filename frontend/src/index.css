@@ -135,6 +135,13 @@ body {
 
 /* ═══ Carbon-* overrides → light clean ═══ */
 .text-white { color: var(--text-primary) !important; }
+/* Exceptions: text-white on colored backgrounds stays white */
+.bg-red-500.text-white,
+.bg-green-500.text-white,
+.bg-blue-500.text-white,
+.bg-red-500 > .text-white,
+.bg-green-500 > .text-white,
+.bg-blue-500 > .text-white { color: #FFFFFF !important; }
 .bg-black, .bg-\[\#000\], .bg-\[\#0a0a0a\] { background-color: var(--bg-primary) !important; }
 
 .bg-carbon-900 { background-color: var(--bg-primary) !important; }
@@ -147,7 +154,7 @@ body {
 .border-carbon-600 { border-color: var(--border-color) !important; }
 
 .text-carbon-300 { color: var(--text-secondary) !important; }
-.text-carbon-400 { color: #636366 !important; }
+.text-carbon-400 { color: #71717A !important; }
 .text-carbon-500 { color: var(--text-tertiary) !important; }
 
 .hover\:bg-carbon-700:hover { background-color: var(--bg-hover) !important; }

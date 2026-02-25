@@ -78,7 +78,7 @@ export default function CanaisIAPage({ user }) {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-xl font-bold" style={{ color: '#f5f5f7' }}>Canais IA</h1>
+      <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Canais IA</h1>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
@@ -90,9 +90,9 @@ export default function CanaisIAPage({ user }) {
           { label: 'IA Ativa', value: stats.aiActive, color: '#34d399' },
           { label: 'IA Pausada', value: stats.aiPaused, color: '#f87171' },
         ].map(s => (
-          <div key={s.label} className="rounded-lg p-3 text-center" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div key={s.label} className="rounded-lg p-3 text-center" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}>
             <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
-            <p className="text-xs" style={{ color: '#8e8e93' }}>{s.label}</p>
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{s.label}</p>
           </div>
         ))}
       </div>
@@ -100,20 +100,20 @@ export default function CanaisIAPage({ user }) {
       {/* Filters */}
       <div className="flex gap-3 flex-wrap">
         <select value={filterPlatform} onChange={e => { setFilterPlatform(e.target.value); setPage(1) }}
-          className="px-3 py-1.5 rounded-lg text-sm" style={{ background: 'rgba(255,255,255,0.06)', color: '#f5f5f7', border: '1px solid rgba(255,255,255,0.1)' }}>
+          className="px-3 py-1.5 rounded-lg text-sm" style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}>
           <option value="">Todas plataformas</option>
           <option value="whatsapp">WhatsApp</option>
           <option value="instagram">Instagram</option>
           <option value="facebook">Facebook</option>
         </select>
         <select value={filterAI} onChange={e => { setFilterAI(e.target.value); setPage(1) }}
-          className="px-3 py-1.5 rounded-lg text-sm" style={{ background: 'rgba(255,255,255,0.06)', color: '#f5f5f7', border: '1px solid rgba(255,255,255,0.1)' }}>
+          className="px-3 py-1.5 rounded-lg text-sm" style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}>
           <option value="">Status IA</option>
           <option value="active">IA Ativa</option>
           <option value="paused">IA Pausada</option>
         </select>
         <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1) }}
-          className="px-3 py-1.5 rounded-lg text-sm" style={{ background: 'rgba(255,255,255,0.06)', color: '#f5f5f7', border: '1px solid rgba(255,255,255,0.1)' }}>
+          className="px-3 py-1.5 rounded-lg text-sm" style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}>
           <option value="">Todos status</option>
           <option value="open">Aberto</option>
           <option value="in_progress">Em Andamento</option>
@@ -123,30 +123,30 @@ export default function CanaisIAPage({ user }) {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
         {loading ? (
-          <div className="p-8 text-center" style={{ color: '#8e8e93' }}>Carregando...</div>
+          <div className="p-8 text-center" style={{ color: 'var(--text-tertiary)' }}>Carregando...</div>
         ) : tickets.length === 0 ? (
-          <div className="p-8 text-center" style={{ color: '#8e8e93' }}>Nenhuma conversa encontrada</div>
+          <div className="p-8 text-center" style={{ color: 'var(--text-tertiary)' }}>Nenhuma conversa encontrada</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: '#8e8e93' }}>Canal</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: '#8e8e93' }}>Cliente</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: '#8e8e93' }}>Assunto</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: '#8e8e93' }}>Status</th>
-                <th className="text-center px-4 py-3 font-medium" style={{ color: '#8e8e93' }}>IA</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: '#8e8e93' }}>Data</th>
-                <th className="text-center px-4 py-3 font-medium" style={{ color: '#8e8e93' }}>Ação</th>
+              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--text-tertiary)' }}>Canal</th>
+                <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--text-tertiary)' }}>Cliente</th>
+                <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--text-tertiary)' }}>Assunto</th>
+                <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--text-tertiary)' }}>Status</th>
+                <th className="text-center px-4 py-3 font-medium" style={{ color: 'var(--text-tertiary)' }}>IA</th>
+                <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--text-tertiary)' }}>Data</th>
+                <th className="text-center px-4 py-3 font-medium" style={{ color: 'var(--text-tertiary)' }}>Ação</th>
               </tr>
             </thead>
             <tbody>
               {tickets.map(t => {
                 const plat = PLATFORM_CONFIG[t.source] || PLATFORM_CONFIG.whatsapp
                 return (
-                  <tr key={t.id} className="cursor-pointer hover:bg-white/5 transition-colors"
-                    style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+                  <tr key={t.id} className="cursor-pointer transition-colors"
+                    style={{ borderBottom: '1px solid #F3F4F6' }}
                     onClick={() => onOpenTicket(t.id)}>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium"
@@ -154,15 +154,15 @@ export default function CanaisIAPage({ user }) {
                         <i className={plat.icon} /> {plat.label}
                       </span>
                     </td>
-                    <td className="px-4 py-3" style={{ color: '#f5f5f7' }}>
+                    <td className="px-4 py-3" style={{ color: 'var(--text-primary)' }}>
                       {t.customer?.name || t.customer_name || '-'}
                     </td>
-                    <td className="px-4 py-3 max-w-[250px] truncate" style={{ color: '#d1d1d6' }}>
+                    <td className="px-4 py-3 max-w-[250px] truncate" style={{ color: 'var(--text-secondary)' }}>
                       {t.subject}
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-xs px-2 py-0.5 rounded-full"
-                        style={{ background: 'rgba(255,255,255,0.08)', color: '#d1d1d6' }}>
+                        style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
                         {t.status}
                       </span>
                     </td>
@@ -173,7 +173,7 @@ export default function CanaisIAPage({ user }) {
                         <span className="text-xs font-medium" style={{ color: '#f87171' }}>Pausada</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs" style={{ color: '#8e8e93' }}>
+                    <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                       {formatDate(t.updated_at)}
                     </td>
                     <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
@@ -197,22 +197,22 @@ export default function CanaisIAPage({ user }) {
       {/* Pagination */}
       {total > perPage && (
         <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: '#8e8e93' }}>
+          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
             {total} conversas — Pagina {page} de {lastPage}
           </span>
           <div className="flex gap-1">
             <button onClick={() => setPage(1)} disabled={page <= 1}
               className="px-2 py-1 rounded text-xs disabled:opacity-30"
-              style={{ background: 'rgba(255,255,255,0.06)', color: '#f5f5f7' }}>&laquo;</button>
+              style={{ background: 'var(--bg-hover)', color: 'var(--text-primary)' }}>&laquo;</button>
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
               className="px-2 py-1 rounded text-xs disabled:opacity-30"
-              style={{ background: 'rgba(255,255,255,0.06)', color: '#f5f5f7' }}>&lsaquo;</button>
+              style={{ background: 'var(--bg-hover)', color: 'var(--text-primary)' }}>&lsaquo;</button>
             <button onClick={() => setPage(p => Math.min(lastPage, p + 1))} disabled={page >= lastPage}
               className="px-2 py-1 rounded text-xs disabled:opacity-30"
-              style={{ background: 'rgba(255,255,255,0.06)', color: '#f5f5f7' }}>&rsaquo;</button>
+              style={{ background: 'var(--bg-hover)', color: 'var(--text-primary)' }}>&rsaquo;</button>
             <button onClick={() => setPage(lastPage)} disabled={page >= lastPage}
               className="px-2 py-1 rounded text-xs disabled:opacity-30"
-              style={{ background: 'rgba(255,255,255,0.06)', color: '#f5f5f7' }}>&raquo;</button>
+              style={{ background: 'var(--bg-hover)', color: 'var(--text-primary)' }}>&raquo;</button>
           </div>
         </div>
       )}
