@@ -71,7 +71,7 @@ const ORDER_STATUS_COLORS = {
 export default function TicketDetailPage({ user }) {
   const toast = useToast()
   const { id } = useParams()
-  const ticketId = parseInt(id)
+  const ticketId = id
   const navigate = useNavigate()
   const onBack = () => navigate('/tickets')
   const onOpenTicket = (ticketId) => navigate(`/tickets/${ticketId}`)
@@ -196,12 +196,12 @@ export default function TicketDetailPage({ user }) {
             if (data.type === 'ticket_update' && data.ticket_id === ticketId) {
               loadTicket()
             }
-          } catch {}
+          } catch (e) { console.warn('WS message parse error:', e) }
         }
         return () => {
-          try { ws.send(JSON.stringify({ type: 'leave_ticket', ticket_id: ticketId })); ws.close() } catch {}
+          try { ws.send(JSON.stringify({ type: 'leave_ticket', ticket_id: ticketId })); ws.close() } catch { /* WS already closed */ }
         }
-      } catch {}
+      } catch (e) { console.warn('WS connection failed:', e) }
     }
   }, [ticketId])
 
@@ -649,7 +649,7 @@ export default function TicketDetailPage({ user }) {
               setAiInlineSuggestion(suggestion.slice(0, 120))
             }
           }
-        } catch {}
+        } catch (e) { console.warn('AI suggestion failed:', e) }
         finally { setAiInlineLoading(false) }
       }, 1500) // 1.5s debounce
     }
@@ -722,7 +722,7 @@ export default function TicketDetailPage({ user }) {
               <i className="fas fa-code-branch" />
             </button>
             <button onClick={async () => {
-              try { const { data } = await getNextTicket(); if (data.ticket_id && data.ticket_id !== ticketId) onOpenTicket?.(data.ticket_id); else toast.info('Nenhum ticket pendente na fila') } catch {}
+              try { const { data } = await getNextTicket(); if (data.ticket_id && data.ticket_id !== ticketId) onOpenTicket?.(data.ticket_id); else toast.info('Nenhum ticket pendente na fila') } catch { toast.error('Erro ao buscar próximo ticket') }
             }} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1.5 rounded transition" title="Próximo ticket (Alt+N)">
               <i className="fas fa-forward" />
             </button>
@@ -753,7 +753,7 @@ export default function TicketDetailPage({ user }) {
             <span className="text-[var(--text-tertiary)] text-xs">Categoria:</span>
             {editingCategory ? (
               <select autoFocus value={ticket.category || ''} onChange={async (e) => {
-                try { await updateTicket(ticketId, { category: e.target.value }); loadTicket() } catch {}
+                try { await updateTicket(ticketId, { category: e.target.value }); loadTicket() } catch { toast.error('Erro ao atualizar categoria') }
                 setEditingCategory(false)
               }} onBlur={() => setEditingCategory(false)}
                 className="bg-[var(--bg-secondary)] border border-blue-500/50 rounded px-1.5 py-0.5 text-[var(--text-primary)] text-xs focus:outline-none">
@@ -771,7 +771,7 @@ export default function TicketDetailPage({ user }) {
             <span className="text-[var(--text-tertiary)] text-xs">Prioridade:</span>
             {editingPriority ? (
               <select autoFocus value={ticket.priority || ''} onChange={async (e) => {
-                try { await updateTicket(ticketId, { priority: e.target.value }); loadTicket() } catch {}
+                try { await updateTicket(ticketId, { priority: e.target.value }); loadTicket() } catch { toast.error('Erro ao atualizar prioridade') }
                 setEditingPriority(false)
               }} onBlur={() => setEditingPriority(false)}
                 className="bg-[var(--bg-secondary)] border border-orange-500/50 rounded px-1.5 py-0.5 text-[var(--text-primary)] text-xs focus:outline-none">
@@ -1339,7 +1339,7 @@ export default function TicketDetailPage({ user }) {
                           className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-xs" title="Copiar"><i className="fas fa-copy" /></button>
                       </div>
                       <button onClick={async () => {
-                        try { const { data } = await refreshTracking(ticket.id); if (data.status) setTicket(prev => ({ ...prev, tracking_status: data.status, tracking_data: data })) } catch {}
+                        try { const { data } = await refreshTracking(ticket.id); if (data.status) setTicket(prev => ({ ...prev, tracking_status: data.status, tracking_data: data })) } catch { toast.error('Erro ao atualizar rastreio') }
                       }} className="text-blue-400 hover:text-blue-300 text-xs font-medium"><i className="fas fa-sync-alt mr-1" />Atualizar</button>
                     </div>
 
@@ -2336,7 +2336,7 @@ export default function TicketDetailPage({ user }) {
                 className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-[var(--text-primary)] text-sm resize-none focus:outline-none focus:border-yellow-500 leading-relaxed" />
               <button onClick={async () => {
                 setSavingNotes(true)
-                try { await updateInternalNotes(ticket.id, { internal_notes: internalNotes }) } catch {}
+                try { await updateInternalNotes(ticket.id, { internal_notes: internalNotes }) } catch { toast.error('Erro ao salvar notas') }
                 finally { setSavingNotes(false) }
               }} disabled={savingNotes}
                 className="mt-2 bg-yellow-600/20 text-yellow-400 hover:bg-yellow-600/40 px-4 py-2 rounded-lg text-xs transition disabled:opacity-50 w-full">

@@ -136,6 +136,7 @@ async def get_ticket_counts(
 async def get_sent_messages(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
+    search: str = Query(None),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -148,6 +149,17 @@ async def get_sent_messages(
             Message.meta_message_id.is_(None),
         )
     )
+
+    if search:
+        term = f"%{search}%"
+        base_query = base_query.outerjoin(Customer, Ticket.customer_id == Customer.id).where(
+            or_(
+                Ticket.subject.ilike(term),
+                Customer.name.ilike(term),
+                Customer.email.ilike(term),
+                Message.body_text.ilike(term),
+            )
+        )
 
     count_q = select(func.count()).select_from(base_query.subquery())
     total = (await db.execute(count_q)).scalar()
@@ -346,6 +358,32 @@ async def list_tickets(
     )
 
 
+@router.get("/next")
+async def next_ticket(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    """Fila inteligente: retorna o próximo ticket mais urgente para o agente."""
+    query = select(Ticket).where(
+        Ticket.status.in_(["open", "in_progress", "waiting", "analyzing", "waiting_supplier", "waiting_resend"]),
+    )
+    # Agentes veem só os deles
+    if user.role == "agent":
+        query = query.where(Ticket.assigned_to == user.id)
+    else:
+        # Admins/supervisores: prioriza tickets atribuídos a eles, depois sem agente
+        query = query.where(or_(Ticket.assigned_to == user.id, Ticket.assigned_to.is_(None)))
+
+    # Ordena: SLA mais urgente primeiro, depois prioridade
+    query = query.order_by(
+        Ticket.sla_breached.desc(),  # SLA estourado primeiro
+        Ticket.sla_deadline.asc().nulls_last(),  # Mais próximo de estourar
+    ).limit(1)
+
+    result = await db.execute(query)
+    ticket = result.scalar_one_or_none()
+    if not ticket:
+        return {"ticket_id": None, "message": "Nenhum ticket pendente na sua fila"}
+    return {"ticket_id": ticket.id, "number": ticket.number, "subject": ticket.subject, "priority": ticket.priority}
+
+
 @router.get("/{ticket_id}", response_model=TicketResponse)
 async def get_ticket(ticket_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     result = await db.execute(
@@ -422,8 +460,8 @@ async def create_ticket(body: TicketCreate, db: AsyncSession = Depends(get_db), 
         await db.refresh(duplicate)
         return _ticket_to_response(duplicate)
 
-    max_num = await db.execute(select(func.max(Ticket.number)))
-    next_num = (max_num.scalar() or 1000) + 1
+    from app.services.ticket_number import get_next_ticket_number
+    next_num = await get_next_ticket_number(db)
 
     sla_info = _calc_sla(None, body.priority)
 
@@ -462,7 +500,7 @@ async def create_ticket(body: TicketCreate, db: AsyncSession = Depends(get_db), 
     # AI Triage (non-blocking)
     try:
         from app.services.ai_service import triage_ticket as ai_triage
-        triage = ai_triage(
+        triage = await ai_triage(
             subject=body.subject,
             body=body.body,
             customer_name=body.customer_name,
@@ -509,21 +547,28 @@ async def create_ticket(body: TicketCreate, db: AsyncSession = Depends(get_db), 
             logger.warning(f"Auto-assign skipped: {e}")
 
     await db.commit()
+
+    from app.services.cache import cache_delete_pattern
+    await cache_delete_pattern("dashboard:*")
+    await cache_delete_pattern("gamification:*")
+
     await db.refresh(ticket)
 
     # Real-time notification
     try:
         await notify_new_ticket(ticket.id, ticket.number, ticket.subject, ticket.customer.name if ticket.customer else "")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"WS notify_new_ticket failed: {e}")
 
     return _ticket_to_response(ticket)
 
 
 @router.patch("/{ticket_id}", response_model=TicketResponse)
 async def update_ticket(ticket_id: str, body: TicketUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
-    ticket = result.scalar_one_or_none()
+    result = await db.execute(
+        select(Ticket).where(Ticket.id == ticket_id).options(joinedload(Ticket.customer))
+    )
+    ticket = result.unique().scalar_one_or_none()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket não encontrado")
 
@@ -543,7 +588,8 @@ async def update_ticket(ticket_id: str, body: TicketUpdate, db: AsyncSession = D
 
     if body.status in ("resolved", "closed") and not ticket.resolved_at:
         ticket.resolved_at = datetime.now(timezone.utc)
-        # Send CSAT email to customer
+    # Send CSAT email only when resolved (not closed)
+    if body.status == "resolved":
         try:
             from app.services.csat_service import send_csat_email
             send_csat_email(ticket)
@@ -560,6 +606,11 @@ async def update_ticket(ticket_id: str, body: TicketUpdate, db: AsyncSession = D
     ticket.updated_at = datetime.now(timezone.utc)
     db.add(AuditLog(ticket_id=ticket.id, user_id=user.id, action="ticket_updated", details=changes))
     await db.commit()
+
+    from app.services.cache import cache_delete_pattern
+    await cache_delete_pattern("dashboard:*")
+    await cache_delete_pattern("gamification:*")
+
     await db.refresh(ticket)
 
     # Real-time notifications
@@ -571,8 +622,8 @@ async def update_ticket(ticket_id: str, body: TicketUpdate, db: AsyncSession = D
             agent = agent.scalar_one_or_none()
             if agent:
                 await notify_assignment(ticket.id, ticket.number, agent.id, agent.name)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"WS notify_ticket_update failed: {e}")
 
     return _ticket_to_response(ticket)
 
@@ -599,8 +650,10 @@ async def bulk_update(body: TicketBulkUpdate, db: AsyncSession = Depends(get_db)
         raise HTTPException(status_code=400, detail=f"Status inválido: {body.status}")
     if body.priority and body.priority not in VALID_PRIORITIES:
         raise HTTPException(status_code=400, detail=f"Prioridade inválida: {body.priority}")
-    result = await db.execute(select(Ticket).where(Ticket.id.in_(body.ticket_ids)))
-    tickets = result.scalars().all()
+    result = await db.execute(
+        select(Ticket).where(Ticket.id.in_(body.ticket_ids)).options(joinedload(Ticket.customer))
+    )
+    tickets = result.unique().scalars().all()
     csat_tickets = []
     for ticket in tickets:
         changes = {}
@@ -609,6 +662,7 @@ async def bulk_update(body: TicketBulkUpdate, db: AsyncSession = Depends(get_db)
             ticket.status = body.status
             if body.status in ("resolved", "closed") and not ticket.resolved_at:
                 ticket.resolved_at = datetime.now(timezone.utc)
+            if body.status == "resolved":
                 csat_tickets.append(ticket)
         if body.priority:
             changes["priority"] = {"from": ticket.priority, "to": body.priority}
@@ -626,7 +680,11 @@ async def bulk_update(body: TicketBulkUpdate, db: AsyncSession = Depends(get_db)
         db.add(AuditLog(ticket_id=ticket.id, user_id=user.id, action="bulk_update", details=changes))
     await db.commit()
 
-    # Send CSAT emails for newly resolved/closed tickets
+    from app.services.cache import cache_delete_pattern
+    await cache_delete_pattern("dashboard:*")
+    await cache_delete_pattern("gamification:*")
+
+    # Send CSAT emails only for resolved tickets (not closed)
     for ticket in csat_tickets:
         try:
             from app.services.csat_service import send_csat_email
@@ -698,8 +756,8 @@ async def _auto_assign_single(ticket: Ticket, db: AsyncSession, user: User):
     try:
         agent = agent_map[chosen]
         await notify_assignment(ticket.id, ticket.number, agent.id, agent.name)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"WS notify_assignment failed: {e}")
 
 
 @router.post("/auto-assign")
@@ -790,37 +848,11 @@ async def auto_assign(db: AsyncSession = Depends(get_db), user: User = Depends(g
         try:
             agent = agent_map[chosen]
             await notify_assignment(ticket.id, ticket.number, agent.id, agent.name)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"WS notify_assignment failed: {e}")
 
     await db.commit()
     return {"assigned": assigned_count, "routed_by_specialty": routed_by_specialty}
-
-
-@router.get("/next")
-async def next_ticket(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    """Fila inteligente: retorna o próximo ticket mais urgente para o agente."""
-    query = select(Ticket).where(
-        Ticket.status.in_(["open", "in_progress", "waiting", "analyzing", "waiting_supplier", "waiting_resend"]),
-    )
-    # Agentes veem só os deles
-    if user.role == "agent":
-        query = query.where(Ticket.assigned_to == user.id)
-    else:
-        # Admins/supervisores: prioriza tickets atribuídos a eles, depois sem agente
-        query = query.where(or_(Ticket.assigned_to == user.id, Ticket.assigned_to.is_(None)))
-
-    # Ordena: SLA mais urgente primeiro, depois prioridade
-    query = query.order_by(
-        Ticket.sla_breached.desc(),  # SLA estourado primeiro
-        Ticket.sla_deadline.asc().nulls_last(),  # Mais próximo de estourar
-    ).limit(1)
-
-    result = await db.execute(query)
-    ticket = result.scalar_one_or_none()
-    if not ticket:
-        return {"ticket_id": None, "message": "Nenhum ticket pendente na sua fila"}
-    return {"ticket_id": ticket.id, "number": ticket.number, "subject": ticket.subject, "priority": ticket.priority}
 
 
 @router.get("/customer/{customer_id}/history")
@@ -1113,7 +1145,7 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
                 for m in reversed(recent.scalars().all())
             ]
             from app.services.ai_service import summarize_ticket
-            summary = summarize_ticket(
+            summary = await summarize_ticket(
                 ticket.subject, msgs,
                 category=ticket.category or "",
                 customer_name=ticket.customer.name if ticket.customer else "",
@@ -1130,6 +1162,10 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
 @router.post("/{ticket_id}/summarize")
 async def generate_summary(ticket_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """RF-019: Manually trigger AI summary generation."""
+    from app.services.ai_service import is_credits_exhausted, CreditExhaustedError
+    if is_credits_exhausted():
+        raise HTTPException(402, detail={"error": "credits_exhausted", "message": "Creditos IA esgotados. Recarregue em console.anthropic.com"})
+
     result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
     ticket = result.scalar_one_or_none()
     if not ticket:
@@ -1148,11 +1184,14 @@ async def generate_summary(ticket_id: str, db: AsyncSession = Depends(get_db), u
         return {"summary": None, "message": "Nenhuma mensagem para resumir"}
 
     from app.services.ai_service import summarize_ticket
-    summary = summarize_ticket(
-        ticket.subject, msgs,
-        category=ticket.category or "",
-        customer_name=ticket.customer.name if ticket.customer else "",
-    )
+    try:
+        summary = await summarize_ticket(
+            ticket.subject, msgs,
+            category=ticket.category or "",
+            customer_name=ticket.customer.name if ticket.customer else "",
+        )
+    except CreditExhaustedError:
+        raise HTTPException(402, detail={"error": "credits_exhausted", "message": "Creditos IA esgotados. Recarregue em console.anthropic.com"})
     if summary:
         ticket.ai_summary = summary
         ticket.updated_at = datetime.now(timezone.utc)

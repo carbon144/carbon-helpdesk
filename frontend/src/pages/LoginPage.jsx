@@ -1,11 +1,18 @@
 import React, { useState } from 'react'
 import { login } from '../services/api'
 
+const inputStyle = {
+  background: 'var(--bg-input)',
+  border: '1px solid var(--border-color)',
+  color: 'var(--text-primary)',
+}
+
 export default function LoginPage({ onLogin }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [hoverBtn, setHoverBtn] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -66,14 +73,8 @@ export default function LoginPage({ onLogin }) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg px-4 py-3 text-sm focus:outline-none transition"
-                style={{
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border-color)',
-                  color: 'var(--text-primary)',
-                }}
-                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                onBlur={e => e.target.style.borderColor = 'var(--border-color)'}
+                className="w-full rounded-lg px-4 py-3 text-sm transition login-input"
+                style={inputStyle}
                 required
               />
             </div>
@@ -85,14 +86,8 @@ export default function LoginPage({ onLogin }) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg px-4 py-3 text-sm focus:outline-none transition"
-                style={{
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border-color)',
-                  color: 'var(--text-primary)',
-                }}
-                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                onBlur={e => e.target.style.borderColor = 'var(--border-color)'}
+                className="w-full rounded-lg px-4 py-3 text-sm transition login-input"
+                style={inputStyle}
                 required
               />
             </div>
@@ -110,11 +105,11 @@ export default function LoginPage({ onLogin }) {
               disabled={loading}
               className="w-full font-semibold py-3 rounded-lg transition disabled:opacity-50 text-sm"
               style={{
-                background: 'var(--accent)',
+                background: !loading && hoverBtn ? 'var(--accent-hover)' : 'var(--accent)',
                 color: 'var(--accent-text)',
               }}
-              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'var(--accent-hover)' }}
-              onMouseLeave={e => e.currentTarget.style.background = 'var(--accent)'}
+              onMouseEnter={() => setHoverBtn(true)}
+              onMouseLeave={() => setHoverBtn(false)}
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">

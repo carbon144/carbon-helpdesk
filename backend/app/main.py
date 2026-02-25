@@ -5,18 +5,31 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import text
+from sqlalchemy import text, select
 from pathlib import Path
 
 from app.core.config import settings
 from app.core.database import engine, Base, async_session
-from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta, customers
+from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta, customers, agent_analysis
 from app.services.seed import seed_database
+from app.services.ticket_number import init_ticket_sequence
 from app.models.csat import CSATRating  # noqa: ensure table created
 from app.models.social_comment import SocialComment  # noqa: ensure table created
 from app.models.reward import Reward, RewardClaim  # noqa: ensure table created
+from app.models.agent_report import AgentReport  # noqa: ensure table created
 
 escalation_logger = logging.getLogger("escalation")
+
+# Email fetch health tracking
+_email_health = {
+    "last_success": None,        # timestamp of last successful fetch
+    "last_check": None,          # timestamp of last check attempt
+    "consecutive_failures": 0,   # number of consecutive failed cycles
+    "total_processed": 0,        # total emails processed since startup
+    "total_errors": 0,           # total individual email errors since startup
+    "last_error": None,          # last error message
+    "slack_alerted": False,      # whether we already sent a Slack alert for current failure streak
+}
 
 
 async def _run_escalation_loop():
@@ -143,141 +156,247 @@ async def _run_email_fetch_loop():
 
     while True:
         try:
+            _email_health["last_check"] = datetime.now(timezone.utc).isoformat()
             emails = await asyncio.to_thread(fetch_new_emails, max_results=20)
             if emails:
-                async with async_session() as db:
-                    created = 0
-                    updated = 0
-                    for email_data in emails:
-                        gmail_thread_id = email_data.get("thread_id")
-                        gmail_message_id = email_data.get("gmail_id")
-
-                        # Check if already processed
-                        existing_msg = await db.execute(
-                            select(Message).where(Message.gmail_message_id == gmail_message_id)
-                        )
-                        if existing_msg.scalars().first():
-                            continue
-
-                        # Check existing ticket for this thread
-                        existing_ticket = None
-                        if gmail_thread_id:
-                            result = await db.execute(
-                                select(Ticket).join(Message).where(Message.gmail_thread_id == gmail_thread_id)
+                created = 0
+                updated = 0
+                errors = 0
+                for email_data in emails:
+                    gmail_thread_id = email_data.get("thread_id")
+                    gmail_message_id = email_data.get("gmail_id")
+                    try:
+                        async with async_session() as db:
+                            # Check if already processed
+                            existing_msg = await db.execute(
+                                select(Message).where(Message.gmail_message_id == gmail_message_id)
                             )
-                            existing_ticket = result.scalars().first()
+                            if existing_msg.scalars().first():
+                                # Already in DB, just ensure it's marked as read
+                                await asyncio.to_thread(mark_as_read, gmail_message_id)
+                                continue
 
-                        if existing_ticket:
-                            msg = Message(
-                                ticket_id=existing_ticket.id,
-                                type="inbound",
-                                sender_name=email_data["from_name"],
-                                sender_email=email_data["from_email"],
-                                body_text=email_data["body_text"],
-                                body_html=email_data.get("body_html"),
-                                gmail_message_id=gmail_message_id,
-                                gmail_thread_id=gmail_thread_id,
-                            )
-                            db.add(msg)
-                            if existing_ticket.status == "resolved":
-                                existing_ticket.status = "open"
-                                existing_ticket.resolved_at = None
-                            now = datetime.now(timezone.utc)
-                            from app.core.sla_config import get_sla_for_ticket
-                            sla = get_sla_for_ticket(existing_ticket.category, existing_ticket.priority)
-                            existing_ticket.sla_deadline = now + timedelta(hours=sla["resolution_hours"])
-                            existing_ticket.sla_response_deadline = now + timedelta(hours=sla["response_hours"])
-                            existing_ticket.sla_breached = False
-                            existing_ticket.first_response_at = None
-                            existing_ticket.updated_at = now
-                            updated += 1
-                        else:
-                            # Find or create customer
-                            cust_result = await db.execute(select(Customer).where(Customer.email == email_data["from_email"]))
-                            customer = cust_result.scalars().first()
-                            if not customer:
-                                customer = Customer(name=email_data["from_name"], email=email_data["from_email"])
-                                db.add(customer)
-                                await db.flush()
-                            else:
-                                customer.total_tickets += 1
-                                if customer.total_tickets > 2:
-                                    customer.is_repeat = True
-
-                            max_num = await db.execute(select(func.max(Ticket.number)))
-                            next_num = (max_num.scalar() or 1000) + 1
-                            sla_deadline = datetime.now(timezone.utc) + timedelta(hours=settings.SLA_MEDIUM_HOURS)
-                            email_date = _parse_email_date(email_data.get("date", ""))
-
-                            ticket = Ticket(
-                                number=next_num,
-                                subject=email_data["subject"][:500],
-                                status="open",
-                                priority="medium",
-                                customer_id=customer.id,
-                                source="gmail",
-                                sla_deadline=sla_deadline,
-                                received_at=email_date or datetime.now(timezone.utc),
-                            )
-                            db.add(ticket)
-                            await db.flush()
-
-                            msg = Message(
-                                ticket_id=ticket.id,
-                                type="inbound",
-                                sender_name=email_data["from_name"],
-                                sender_email=email_data["from_email"],
-                                body_text=email_data["body_text"],
-                                body_html=email_data.get("body_html"),
-                                gmail_message_id=gmail_message_id,
-                                gmail_thread_id=gmail_thread_id,
-                            )
-                            db.add(msg)
-
-                            # AI Triage
-                            try:
-                                from app.services.ai_service import triage_ticket as ai_triage
-                                triage = await asyncio.to_thread(
-                                    ai_triage,
-                                    subject=email_data["subject"],
-                                    body=email_data["body_text"][:2000],
-                                    customer_name=email_data["from_name"],
-                                    is_repeat=customer.is_repeat,
+                            # Check existing ticket for this thread
+                            existing_ticket = None
+                            if gmail_thread_id:
+                                result = await db.execute(
+                                    select(Ticket).join(Message).where(Message.gmail_thread_id == gmail_thread_id)
                                 )
-                                if triage:
-                                    if triage.get("category"):
-                                        ticket.ai_category = triage["category"]
-                                        ticket.category = triage["category"]
-                                    if triage.get("priority"):
-                                        ticket.priority = triage["priority"]
-                                        hours_map = {"urgent": settings.SLA_URGENT_HOURS, "high": settings.SLA_HIGH_HOURS, "medium": settings.SLA_MEDIUM_HOURS, "low": settings.SLA_LOW_HOURS}
-                                        ticket.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=hours_map.get(triage["priority"], 24))
-                                    if triage.get("sentiment"):
-                                        ticket.sentiment = triage["sentiment"]
-                                    if triage.get("legal_risk") is not None:
-                                        ticket.legal_risk = triage["legal_risk"]
-                                    if triage.get("tags"):
-                                        ticket.tags = triage["tags"]
-                                    if triage.get("confidence"):
-                                        ticket.ai_confidence = triage["confidence"]
-                            except Exception as e:
-                                logger.warning(f"AI triage skipped: {e}")
+                                existing_ticket = result.scalars().first()
 
-                            try:
-                                await assign_protocol(ticket, db)
-                            except Exception as e:
-                                logger.warning(f"Migration warning: {e}")
+                            if existing_ticket:
+                                msg = Message(
+                                    ticket_id=existing_ticket.id,
+                                    type="inbound",
+                                    sender_name=email_data["from_name"],
+                                    sender_email=email_data["from_email"],
+                                    body_text=email_data["body_text"],
+                                    body_html=email_data.get("body_html"),
+                                    gmail_message_id=gmail_message_id,
+                                    gmail_thread_id=gmail_thread_id,
+                                )
+                                db.add(msg)
+                                if existing_ticket.status == "resolved":
+                                    existing_ticket.status = "open"
+                                    existing_ticket.resolved_at = None
+                                now = datetime.now(timezone.utc)
+                                from app.core.sla_config import get_sla_for_ticket
+                                sla = get_sla_for_ticket(existing_ticket.category, existing_ticket.priority)
+                                existing_ticket.sla_deadline = now + timedelta(hours=sla["resolution_hours"])
+                                existing_ticket.sla_response_deadline = now + timedelta(hours=sla["response_hours"])
+                                existing_ticket.sla_breached = False
+                                existing_ticket.first_response_at = None
+                                existing_ticket.updated_at = now
+                                await db.commit()
+                                updated += 1
+                            else:
+                                # Find or create customer
+                                cust_result = await db.execute(select(Customer).where(Customer.email == email_data["from_email"]))
+                                customer = cust_result.scalars().first()
+                                if not customer:
+                                    customer = Customer(name=email_data["from_name"], email=email_data["from_email"])
+                                    db.add(customer)
+                                    await db.flush()
+                                else:
+                                    customer.total_tickets += 1
+                                    if customer.total_tickets > 2:
+                                        customer.is_repeat = True
 
-                            created += 1
+                                from app.services.ticket_number import get_next_ticket_number
+                                next_num = await get_next_ticket_number(db)
+                                sla_deadline = datetime.now(timezone.utc) + timedelta(hours=settings.SLA_MEDIUM_HOURS)
+                                email_date = _parse_email_date(email_data.get("date", ""))
 
-                        await asyncio.to_thread(mark_as_read, gmail_message_id)
+                                ticket = Ticket(
+                                    number=next_num,
+                                    subject=email_data["subject"][:500],
+                                    status="open",
+                                    priority="medium",
+                                    customer_id=customer.id,
+                                    source="gmail",
+                                    sla_deadline=sla_deadline,
+                                    received_at=email_date or datetime.now(timezone.utc),
+                                )
+                                db.add(ticket)
+                                await db.flush()
 
-                    await db.commit()
-                    if created or updated:
-                        logger.info(f"Email fetch: {created} created, {updated} updated")
+                                msg = Message(
+                                    ticket_id=ticket.id,
+                                    type="inbound",
+                                    sender_name=email_data["from_name"],
+                                    sender_email=email_data["from_email"],
+                                    body_text=email_data["body_text"],
+                                    body_html=email_data.get("body_html"),
+                                    gmail_message_id=gmail_message_id,
+                                    gmail_thread_id=gmail_thread_id,
+                                )
+                                db.add(msg)
+
+                                # AI Triage
+                                try:
+                                    from app.services.ai_service import triage_ticket as ai_triage
+                                    triage = await ai_triage(
+                                        subject=email_data["subject"],
+                                        body=email_data["body_text"][:2000],
+                                        customer_name=email_data["from_name"],
+                                        is_repeat=customer.is_repeat,
+                                    )
+                                    if triage:
+                                        if triage.get("category"):
+                                            ticket.ai_category = triage["category"]
+                                            ticket.category = triage["category"]
+                                        if triage.get("priority"):
+                                            ticket.priority = triage["priority"]
+                                            hours_map = {"urgent": settings.SLA_URGENT_HOURS, "high": settings.SLA_HIGH_HOURS, "medium": settings.SLA_MEDIUM_HOURS, "low": settings.SLA_LOW_HOURS}
+                                            ticket.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=hours_map.get(triage["priority"], 24))
+                                        if triage.get("sentiment"):
+                                            ticket.sentiment = triage["sentiment"]
+                                        if triage.get("legal_risk") is not None:
+                                            ticket.legal_risk = triage["legal_risk"]
+                                        if triage.get("tags"):
+                                            ticket.tags = triage["tags"]
+                                        if triage.get("confidence"):
+                                            ticket.ai_confidence = triage["confidence"]
+                                except Exception as e:
+                                    logger.warning(f"AI triage skipped: {e}")
+
+                                try:
+                                    await assign_protocol(ticket, db)
+                                except Exception as e:
+                                    logger.warning(f"Protocol assign warning: {e}")
+
+                                await db.commit()
+                                created += 1
+
+                            # Only mark as read AFTER successful commit
+                            await asyncio.to_thread(mark_as_read, gmail_message_id)
+
+                    except Exception as e:
+                        errors += 1
+                        _email_health["total_errors"] += 1
+                        _email_health["last_error"] = f"{email_data.get('from_email', '?')}: {str(e)[:200]}"
+                        logger.error(f"Email fetch: failed to process {gmail_message_id} from {email_data.get('from_email', '?')}: {e}")
+                        continue  # Continue processing remaining emails
+
+                if created or updated:
+                    logger.warning(f"Email fetch: {created} created, {updated} updated")
+                    _email_health["total_processed"] += created + updated
+
+                # Send Slack alert if individual emails failed
+                if errors > 0:
+                    try:
+                        from app.services.slack_service import send_slack_message
+                        channel = settings.SLACK_SUPPORT_CHANNEL
+                        if channel:
+                            await send_slack_message(
+                                channel,
+                                f":warning: *Email Fetch: {errors} email(s) falharam ao processar*\n"
+                                f"Emails processados com sucesso: {created + updated}\n"
+                                f"Ultimo erro: `{_email_health['last_error']}`"
+                            )
+                    except Exception as slack_err:
+                        logger.warning(f"Slack alert for email errors failed: {slack_err}")
+
+            # Cycle succeeded
+            _email_health["last_success"] = datetime.now(timezone.utc).isoformat()
+            _email_health["consecutive_failures"] = 0
+            _email_health["slack_alerted"] = False
+
         except Exception as e:
+            _email_health["consecutive_failures"] += 1
+            _email_health["last_error"] = str(e)[:200]
             logger.error(f"Email fetch loop error: {e}")
+
+            # Alert on 3+ consecutive failures
+            if _email_health["consecutive_failures"] >= 3 and not _email_health["slack_alerted"]:
+                _email_health["slack_alerted"] = True
+                try:
+                    from app.services.slack_service import send_slack_message
+                    channel = settings.SLACK_SUPPORT_CHANNEL
+                    if channel:
+                        await send_slack_message(
+                            channel,
+                            f":rotating_light: *ALERTA: Email fetch falhou {_email_health['consecutive_failures']}x seguidas!*\n"
+                            f"Emails NAO estao sendo recebidos no helpdesk.\n"
+                            f"Erro: `{str(e)[:200]}`\n"
+                            f"Ultima execucao OK: {_email_health['last_success'] or 'nunca'}"
+                        )
+                except Exception as slack_err:
+                    logger.warning(f"Slack critical alert failed: {slack_err}")
+
         await asyncio.sleep(60)  # 60 seconds
+
+
+async def _run_weekly_analysis():
+    """Background task: generate weekly agent analysis reports every Sunday 23h UTC."""
+    from datetime import datetime, timezone, timedelta
+    from app.services.agent_analysis_service import (
+        calculate_quantitative_metrics, generate_ai_analysis, fetch_agent_messages,
+    )
+    from app.models.user import User
+
+    wlogger = logging.getLogger("weekly_analysis")
+    await asyncio.sleep(60)
+
+    last_run_week = None
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            current_week = now.isocalendar()[1]
+            if now.weekday() == 6 and now.hour == 23 and last_run_week != current_week:
+                wlogger.info("Starting weekly agent analysis...")
+                async with async_session() as db:
+                    agents = await db.execute(select(User).where(User.is_active == True))
+                    for agent in agents.scalars().all():
+                        try:
+                            period_end = now
+                            period_start = now - timedelta(days=7)
+                            metrics = await calculate_quantitative_metrics(db, agent.id, period_start, period_end)
+                            messages = await fetch_agent_messages(db, agent.id, period_start, period_end, sample_size=50)
+                            ai_result = {}
+                            if messages:
+                                ai_result = await generate_ai_analysis(agent.name, messages)
+                            report = AgentReport(
+                                agent_id=agent.id,
+                                period_start=period_start,
+                                period_end=period_end,
+                                sample_size=50,
+                                report_type="weekly_auto",
+                                quantitative_metrics=metrics,
+                                ai_analysis=ai_result.get("summary", ""),
+                                ai_scores=ai_result if not ai_result.get("error") else {"error": ai_result["error"]},
+                            )
+                            db.add(report)
+                            await db.commit()
+                            wlogger.info(f"Weekly report generated for {agent.name}")
+                        except Exception as e:
+                            wlogger.error(f"Weekly analysis failed for {agent.name}: {e}")
+                            await db.rollback()
+                last_run_week = current_week
+                wlogger.info("Weekly agent analysis complete")
+        except Exception as e:
+            wlogger.error(f"Weekly analysis loop error: {e}")
+        await asyncio.sleep(3600)
 
 
 @asynccontextmanager
@@ -362,22 +481,7 @@ async def lifespan(app: FastAPI):
                 created_by VARCHAR(36),
                 created_at TIMESTAMPTZ DEFAULT NOW()
             )""",
-            # Seed tracking data on demo tickets that don't have tracking codes yet
-            """UPDATE tickets SET tracking_code = 'NX123456789BR', tracking_status = 'Em trânsito - Saiu para entrega',
-                tracking_data = '{"carrier":"Correios","code":"NX123456789BR","status":"Em trânsito - Saiu para entrega","main_status":10,"delivered":false,"days_in_transit":4,"location":"São Paulo/SP","last_update":"2026-02-20T14:30:00","events":[{"date":"2026-02-20T14:30:00","status":"Objeto saiu para entrega ao destinatário","location":"São Paulo/SP"},{"date":"2026-02-19T08:15:00","status":"Objeto em trânsito - por favor aguarde","location":"Curitiba/PR"},{"date":"2026-02-17T10:00:00","status":"Objeto postado","location":"Florianópolis/SC"}]}'::jsonb
-                WHERE number = 1001 AND (tracking_code IS NULL OR tracking_code = '')""",
-            """UPDATE tickets SET tracking_code = 'NX987654321BR', tracking_status = 'Entregue',
-                tracking_data = '{"carrier":"Correios","code":"NX987654321BR","status":"Entregue","main_status":50,"delivered":true,"days_in_transit":6,"location":"Rio de Janeiro/RJ","last_update":"2026-02-18T16:45:00","events":[{"date":"2026-02-18T16:45:00","status":"Objeto entregue ao destinatário","location":"Rio de Janeiro/RJ"},{"date":"2026-02-17T09:00:00","status":"Objeto saiu para entrega","location":"Rio de Janeiro/RJ"},{"date":"2026-02-15T11:30:00","status":"Objeto em trânsito","location":"São Paulo/SP"},{"date":"2026-02-13T08:00:00","status":"Objeto postado","location":"Florianópolis/SC"}]}'::jsonb
-                WHERE number = 1002 AND (tracking_code IS NULL OR tracking_code = '')""",
-            """UPDATE tickets SET tracking_code = 'YT2312345678901', tracking_status = 'Em trânsito',
-                tracking_data = '{"carrier":"Cainiao","code":"YT2312345678901","status":"Em trânsito","main_status":10,"delivered":false,"days_in_transit":12,"location":"Cajamar/SP","last_update":"2026-02-21T20:00:00","events":[{"date":"2026-02-21T20:00:00","status":"Pacote em trânsito para o destino","location":"Cajamar/SP"},{"date":"2026-02-18T05:00:00","status":"Pacote chegou no país de destino","location":"Curitiba/PR"},{"date":"2026-02-12T08:00:00","status":"Despachado do país de origem","location":"Shenzhen, China"}]}'::jsonb
-                WHERE number = 1004 AND (tracking_code IS NULL OR tracking_code = '')""",
-            """UPDATE tickets SET tracking_code = 'NX555888222BR', tracking_status = 'Objeto devolvido ao remetente',
-                tracking_data = '{"carrier":"Correios","code":"NX555888222BR","status":"Objeto devolvido ao remetente","main_status":40,"delivered":false,"days_in_transit":8,"location":"Belo Horizonte/MG","last_update":"2026-02-22T10:00:00","events":[{"date":"2026-02-22T10:00:00","status":"Objeto devolvido ao remetente","location":"Belo Horizonte/MG"},{"date":"2026-02-21T14:00:00","status":"Destinatário ausente - 3ª tentativa","location":"Belo Horizonte/MG"},{"date":"2026-02-20T09:00:00","status":"Destinatário ausente - 2ª tentativa","location":"Belo Horizonte/MG"},{"date":"2026-02-19T10:30:00","status":"Destinatário ausente - 1ª tentativa","location":"Belo Horizonte/MG"}]}'::jsonb
-                WHERE number = 1005 AND (tracking_code IS NULL OR tracking_code = '')""",
-            """UPDATE tickets SET tracking_code = 'NX777333111BR', tracking_status = 'Aguardando postagem',
-                tracking_data = '{"carrier":"Correios","code":"NX777333111BR","status":"Aguardando postagem","main_status":0,"delivered":false,"events":[]}'::jsonb
-                WHERE number = 1008 AND (tracking_code IS NULL OR tracking_code = '')""",
+            # (tracking seed data removed - was causing bind parameter errors in production)
             """CREATE TABLE IF NOT EXISTS reward_claims (
                 id VARCHAR(36) PRIMARY KEY,
                 reward_id VARCHAR(36) REFERENCES rewards(id) ON DELETE CASCADE,
@@ -456,6 +560,12 @@ async def lifespan(app: FastAPI):
             "ALTER TABLE messages ADD COLUMN IF NOT EXISTS bcc TEXT",
             "ALTER TABLE messages ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ",
             "ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_scheduled BOOLEAN DEFAULT FALSE",
+            # Performance: composite indexes for common query patterns
+            "CREATE INDEX IF NOT EXISTS idx_tickets_status_created ON tickets(status, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_tickets_agent_created ON tickets(assigned_to, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_tickets_source_created ON tickets(source, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_tickets_sla ON tickets(sla_deadline) WHERE sla_breached = FALSE",
+            "CREATE INDEX IF NOT EXISTS idx_messages_type_created ON messages(type, created_at DESC)",
         ]
         migration_logger = logging.getLogger("migrations")
         for sql in migration_sqls:
@@ -464,6 +574,10 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 # Log but continue - column may already exist
                 migration_logger.warning(f"Migration skipped: {str(e)[:200]}")
+
+    # Initialize ticket number sequence (atomic generation)
+    async with engine.begin() as conn:
+        await init_ticket_sequence(conn)
 
     # Drop old enum types if they exist (after varchar conversion)
     async with engine.begin() as conn:
@@ -482,12 +596,14 @@ async def lifespan(app: FastAPI):
     escalation_task = asyncio.create_task(_run_escalation_loop())
     email_fetch_task = asyncio.create_task(_run_email_fetch_loop())
     scheduled_email_task = asyncio.create_task(_run_scheduled_email_loop())
+    weekly_analysis_task = asyncio.create_task(_run_weekly_analysis())
 
     yield
 
     escalation_task.cancel()
     email_fetch_task.cancel()
     scheduled_email_task.cancel()
+    weekly_analysis_task.cancel()
 
 
 app = FastAPI(
@@ -526,6 +642,7 @@ app.include_router(gamification.router, prefix="/api")
 app.include_router(rewards.router, prefix="/api")
 app.include_router(meta.router, prefix="/api")
 app.include_router(customers.router, prefix="/api")
+app.include_router(agent_analysis.router, prefix="/api")
 app.include_router(ws.router)
 
 # Public CSAT rating page (no auth required - customer clicks email link)
@@ -540,4 +657,19 @@ app.mount("/api/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "Carbon Expert Hub"}
+    from app.services.ai_service import is_credits_exhausted
+    return {
+        "status": "ok",
+        "service": "Carbon Expert Hub",
+        "email_fetch": {
+            "last_success": _email_health["last_success"],
+            "last_check": _email_health["last_check"],
+            "consecutive_failures": _email_health["consecutive_failures"],
+            "total_processed": _email_health["total_processed"],
+            "total_errors": _email_health["total_errors"],
+            "healthy": _email_health["consecutive_failures"] < 3,
+        },
+        "ai": {
+            "credits_exhausted": is_credits_exhausted(),
+        },
+    }
