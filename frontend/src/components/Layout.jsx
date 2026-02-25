@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
+import CommandPalette from './CommandPalette'
 import TicketsPage from '../pages/TicketsPage'
 import TicketDetailPage from '../pages/TicketDetailPage'
 import { getTicketCounts } from '../services/api'
@@ -46,6 +47,7 @@ export default function Layout({ user, onLogout }) {
 
   return (
     <div className="flex h-screen" style={{ background: 'var(--bg-primary)' }}>
+      <CommandPalette />
       <Sidebar user={user} onLogout={onLogout} ticketCount={ticketCount} metaCount={metaCount} />
       <main className="flex-1 overflow-auto" style={{ background: 'var(--bg-primary)' }}>
         <Suspense fallback={<SkeletonDashboard />}>
