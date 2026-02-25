@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '../components/Toast'
 import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, fetchGmailHistory, updateTicket, composeEmail, getSentMessages, fetchSpamEmails, rescueFromSpam, bulkRescueFromSpam, rescueAndCreateTicket, uploadAttachment } from '../services/api'
 import MetaBadge from '../components/MetaBadge'
@@ -106,8 +107,12 @@ const TABS = [
   { key: 'all', label: 'Todos', icon: 'fa-list' },
 ]
 
-export default function TicketsPage({ filters, onOpenTicket, user }) {
+export default function TicketsPage({ user }) {
   const toast = useToast()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const filters = Object.fromEntries(searchParams.entries())
+  const onOpenTicket = (id) => navigate(`/tickets/${id}`)
   const [tickets, setTickets] = useState([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -166,6 +171,9 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   const [spamRescuing, setSpamRescuing] = useState(null) // gmail_id being rescued
   const [selectedSpam, setSelectedSpam] = useState(new Set())
   const [bulkRescuing, setBulkRescuing] = useState(false)
+  const [sentSearch, setSentSearch] = useState('')
+  const [spamSearch, setSpamSearch] = useState('')
+  const sentSearchTimerRef = useRef(null)
   const searchTimerRef = useRef(null)
 
   // Debounced search: triggers loadTickets after 300ms of inactivity
@@ -316,7 +324,9 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   const loadSentMessages = async () => {
     setSentLoading(true)
     try {
-      const { data } = await getSentMessages({ page: sentPage, per_page: 20 })
+      const params = { page: sentPage, per_page: 20 }
+      if (sentSearch.trim()) params.search = sentSearch.trim()
+      const { data } = await getSentMessages(params)
       setSentMessages(data.items)
       setSentTotal(data.total)
     } catch (e) {
@@ -324,6 +334,14 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
     } finally {
       setSentLoading(false)
     }
+  }
+
+  const handleSentSearchInput = (value) => {
+    setSentSearch(value)
+    if (sentSearchTimerRef.current) clearTimeout(sentSearchTimerRef.current)
+    sentSearchTimerRef.current = setTimeout(() => {
+      setSentPage(1)
+    }, 300)
   }
 
   useEffect(() => {
@@ -406,10 +424,19 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   }
 
   const toggleSpamSelectAll = () => {
-    if (selectedSpam.size === spamEmails.length) {
+    const visible = spamSearch.trim()
+      ? spamEmails.filter(e => {
+          const q = spamSearch.toLowerCase()
+          return (e.from_name || '').toLowerCase().includes(q)
+            || (e.from_email || '').toLowerCase().includes(q)
+            || (e.subject || '').toLowerCase().includes(q)
+            || (e.snippet || '').toLowerCase().includes(q)
+        })
+      : spamEmails
+    if (selectedSpam.size === visible.length) {
       setSelectedSpam(new Set())
     } else {
-      setSelectedSpam(new Set(spamEmails.map(e => e.gmail_id)))
+      setSelectedSpam(new Set(visible.map(e => e.gmail_id)))
     }
   }
 
@@ -436,7 +463,7 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
   useEffect(() => {
     if (topView === 'sent') loadSentMessages()
     if (topView === 'spam') loadSpamEmails()
-  }, [topView, sentPage])
+  }, [topView, sentPage, sentSearch])
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -654,6 +681,16 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
 
   const sentLastPage = Math.max(1, Math.ceil(sentTotal / 20))
 
+  const filteredSpam = spamSearch.trim()
+    ? spamEmails.filter(e => {
+        const q = spamSearch.toLowerCase()
+        return (e.from_name || '').toLowerCase().includes(q)
+          || (e.from_email || '').toLowerCase().includes(q)
+          || (e.subject || '').toLowerCase().includes(q)
+          || (e.snippet || '').toLowerCase().includes(q)
+      })
+    : spamEmails
+
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] p-8">
       {/* Top-level tabs: Caixa de Entrada | Enviados */}
@@ -711,6 +748,25 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
             </button>
           </div>
 
+          <div className="mb-4">
+            <div className="relative">
+              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] text-sm" />
+              <input
+                type="text"
+                value={spamSearch}
+                onChange={(e) => setSpamSearch(e.target.value)}
+                placeholder="Buscar por remetente, email ou assunto..."
+                className="w-full pl-10 pr-10 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] text-sm placeholder-[var(--text-tertiary)] focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition"
+              />
+              {spamSearch && (
+                <button onClick={() => setSpamSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition">
+                  <i className="fas fa-times text-sm" />
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Barra de acao flutuante quando tem itens selecionados */}
           {selectedSpam.size > 0 && (
             <div className="mb-3 flex items-center gap-3 p-3 rounded-xl border border-blue-500/30 bg-blue-500/10">
@@ -756,10 +812,10 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
           <div className="bg-[var(--bg-secondary)] rounded-xl overflow-hidden border border-[var(--border-color)]">
             {spamLoading ? (
               <div className="p-12 text-center text-[var(--text-secondary)]">Carregando spam...</div>
-            ) : spamEmails.length === 0 ? (
+            ) : filteredSpam.length === 0 ? (
               <div className="p-12 text-center text-[var(--text-secondary)]">
                 <i className="fas fa-check-circle text-4xl mb-3 text-emerald-400 opacity-50" />
-                <p>Nenhum email no spam</p>
+                <p>{spamSearch ? 'Nenhum resultado encontrado' : 'Nenhum email no spam'}</p>
               </div>
             ) : (
               <div className="divide-y divide-[var(--border-color)]">
@@ -767,16 +823,16 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
                 <div className="px-4 py-2.5 flex items-center gap-3 bg-[var(--bg-tertiary)]">
                   <input
                     type="checkbox"
-                    checked={selectedSpam.size === spamEmails.length && spamEmails.length > 0}
+                    checked={selectedSpam.size === filteredSpam.length && filteredSpam.length > 0}
                     onChange={toggleSpamSelectAll}
                     className="w-4 h-4 rounded accent-blue-500 cursor-pointer"
                   />
                   <span className="text-xs text-[var(--text-secondary)]">
-                    {selectedSpam.size === spamEmails.length ? 'Desmarcar todos' : 'Selecionar todos'}
+                    {selectedSpam.size === filteredSpam.length ? 'Desmarcar todos' : 'Selecionar todos'}
                   </span>
-                  <span className="text-xs text-[var(--text-tertiary)] ml-auto">{spamEmails.length} email{spamEmails.length > 1 ? 's' : ''}</span>
+                  <span className="text-xs text-[var(--text-tertiary)] ml-auto">{filteredSpam.length} email{filteredSpam.length > 1 ? 's' : ''}</span>
                 </div>
-                {spamEmails.map(email => (
+                {filteredSpam.map(email => (
                   <div key={email.gmail_id}
                     className={`p-4 hover:bg-[var(--bg-tertiary)] transition-colors ${selectedSpam.has(email.gmail_id) ? 'bg-blue-500/5' : ''}`}
                   >
@@ -830,13 +886,31 @@ export default function TicketsPage({ filters, onOpenTicket, user }) {
         </div>
       ) : topView === 'sent' ? (
         <div>
+          <div className="mb-4">
+            <div className="relative">
+              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] text-sm" />
+              <input
+                type="text"
+                value={sentSearch}
+                onChange={(e) => handleSentSearchInput(e.target.value)}
+                placeholder="Buscar por destinatario, assunto ou conteudo..."
+                className="w-full pl-10 pr-10 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] text-sm placeholder-[var(--text-tertiary)] focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition"
+              />
+              {sentSearch && (
+                <button onClick={() => { setSentSearch(''); setSentPage(1) }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition">
+                  <i className="fas fa-times text-sm" />
+                </button>
+              )}
+            </div>
+          </div>
           <div className="bg-[var(--bg-secondary)] rounded-xl overflow-hidden border border-[var(--border-color)]">
             {sentLoading ? (
               <div className="p-12 text-center text-[var(--text-secondary)]">Carregando...</div>
             ) : sentMessages.length === 0 ? (
               <div className="p-12 text-center text-[var(--text-secondary)]">
-                <i className="fas fa-paper-plane text-4xl mb-3 opacity-30" />
-                <p>Nenhuma mensagem enviada</p>
+                <i className={`fas ${sentSearch ? 'fa-search' : 'fa-paper-plane'} text-4xl mb-3 opacity-30`} />
+                <p>{sentSearch ? 'Nenhum resultado encontrado' : 'Nenhuma mensagem enviada'}</p>
               </div>
             ) : (
               <table className="w-full">

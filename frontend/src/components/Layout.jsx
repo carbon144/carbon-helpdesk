@@ -1,11 +1,11 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import TicketsPage from '../pages/TicketsPage'
 import TicketDetailPage from '../pages/TicketDetailPage'
-import DashboardPage from '../pages/DashboardPage'
 import { getTicketCounts } from '../services/api'
+import { SkeletonDashboard } from './Skeleton'
 
-// Lazy-load secondary pages for faster initial load
 const KBPage = lazy(() => import('../pages/KBPage'))
 const IntegrationsPage = lazy(() => import('../pages/IntegrationsPage'))
 const ReportsPage = lazy(() => import('../pages/ReportsPage'))
@@ -17,26 +17,19 @@ const CatalogPage = lazy(() => import('../pages/CatalogPage'))
 const LeaderboardPage = lazy(() => import('../pages/LeaderboardPage'))
 const ModerationPage = lazy(() => import('../pages/ModerationPage'))
 const CanaisIAPage = lazy(() => import('../pages/CanaisIAPage'))
+const DashboardPage = lazy(() => import('../pages/DashboardPage'))
 
 const AUTO_REFRESH_MS = 30_000
 
 export default function Layout({ user, onLogout }) {
-  const [page, setPage] = useState('dashboard')
-  const [selectedTicketId, setSelectedTicketId] = useState(null)
-  const [ticketFilters, setTicketFilters] = useState({})
   const [ticketCount, setTicketCount] = useState(0)
   const [metaCount, setMetaCount] = useState(0)
 
-  useEffect(() => {
-    loadTicketCounts()
-  }, [])
+  useEffect(() => { loadTicketCounts() }, [])
 
   useEffect(() => {
     const interval = setInterval(() => {
-      // Only refresh when tab is visible
-      if (document.visibilityState === 'visible') {
-        loadTicketCounts()
-      }
+      if (document.visibilityState === 'visible') loadTicketCounts()
     }, AUTO_REFRESH_MS)
     return () => clearInterval(interval)
   }, [])
@@ -51,81 +44,28 @@ export default function Layout({ user, onLogout }) {
     }
   }
 
-  const handleOpenTicket = (ticketId) => {
-    setSelectedTicketId(ticketId)
-    setPage('ticket-detail')
-  }
-
-  const handleBack = () => {
-    setSelectedTicketId(null)
-    setPage('tickets')
-  }
-
-  const renderPage = () => {
-    switch (page) {
-      case 'dashboard':
-        return <DashboardPage user={user} onNavigate={(p, filters) => { setTicketFilters(filters || {}); setPage(p); setSelectedTicketId(null); }} />
-      case 'tickets':
-        return (
-          <TicketsPage
-            filters={ticketFilters}
-            onOpenTicket={handleOpenTicket}
-            user={user}
-          />
-        )
-      case 'ticket-detail':
-        return (
-          <TicketDetailPage
-            ticketId={selectedTicketId}
-            onBack={handleBack}
-            onOpenTicket={handleOpenTicket}
-            user={user}
-          />
-        )
-      case 'kb':
-        return <KBPage />
-      case 'reports':
-        return <ReportsPage />
-      case 'integrations':
-        return <IntegrationsPage />
-      case 'assistant':
-        return <AssistantPage user={user} />
-      case 'media':
-        return <MediaPage />
-      case 'catalog':
-        return <CatalogPage />
-      case 'leaderboard':
-        return <LeaderboardPage user={user} />
-      case 'canais-ia':
-        return <CanaisIAPage onOpenTicket={handleOpenTicket} user={user} />
-      case 'moderation':
-        return <ModerationPage />
-      case 'tracking':
-        return <TrackingPage onOpenTicket={handleOpenTicket} />
-      case 'settings':
-        return <SettingsPage user={user} />
-      default:
-        return <DashboardPage />
-    }
-  }
-
   return (
     <div className="flex h-screen" style={{ background: 'var(--bg-primary)' }}>
-      <Sidebar
-        user={user}
-        onLogout={onLogout}
-        page={page}
-        setPage={(p) => { setPage(p); setSelectedTicketId(null); setTicketFilters({}) }}
-        ticketCount={ticketCount}
-        metaCount={metaCount}
-      />
+      <Sidebar user={user} onLogout={onLogout} ticketCount={ticketCount} metaCount={metaCount} />
       <main className="flex-1 overflow-auto" style={{ background: 'var(--bg-primary)' }}>
-        <Suspense fallback={
-          <div className="flex items-center justify-center h-full">
-            <i className="fas fa-spinner fa-spin text-2xl" style={{ color: 'var(--accent)' }} />
-          </div>
-        }>
-          {renderPage()}
+        <Suspense fallback={<SkeletonDashboard />}>
+          <Routes>
+            <Route path="/dashboard" element={<DashboardPage user={user} />} />
+            <Route path="/tickets" element={<TicketsPage user={user} />} />
+            <Route path="/tickets/:id" element={<TicketDetailPage user={user} />} />
+            <Route path="/kb" element={<KBPage />} />
+            <Route path="/assistant" element={<AssistantPage user={user} />} />
+            <Route path="/media" element={<MediaPage />} />
+            <Route path="/catalog" element={<CatalogPage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage user={user} />} />
+            <Route path="/tracking" element={<TrackingPage />} />
+            <Route path="/canais-ia" element={<CanaisIAPage user={user} />} />
+            <Route path="/moderation" element={<ModerationPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/integrations" element={<IntegrationsPage />} />
+            <Route path="/settings" element={<SettingsPage user={user} />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
         </Suspense>
       </main>
     </div>

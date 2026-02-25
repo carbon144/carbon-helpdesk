@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast'
 import {
   getTicket, getTickets, updateTicket, addMessage, getMacros, getUsers, getCustomerHistory,
@@ -67,8 +68,13 @@ const ORDER_STATUS_COLORS = {
   processando: 'bg-indigo-500/15 text-indigo-400',
 }
 
-export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user }) {
+export default function TicketDetailPage({ user }) {
   const toast = useToast()
+  const { id } = useParams()
+  const ticketId = parseInt(id)
+  const navigate = useNavigate()
+  const onBack = () => navigate('/tickets')
+  const onOpenTicket = (ticketId) => navigate(`/tickets/${ticketId}`)
   const [ticket, setTicket] = useState(null)
   const [reply, setReply] = useState('')
   const [replyType, setReplyType] = useState('outbound')
@@ -481,15 +487,20 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
     catch (e) { toast.error(e.response?.data?.detail || 'Erro ao atribuir agente') }
   }
 
+  const _isCreditsError = (e) => e?.response?.status === 402 || e?.response?.data?.error === 'credits_exhausted' || e?.response?.data?.credits_exhausted
+
   const handleAiTriage = async () => {
     setAiLoading(true)
-    try { await triageTicket(ticketId); loadTicket() } catch { toast.error('Erro na triagem IA') } finally { setAiLoading(false) }
+    try { await triageTicket(ticketId); loadTicket() }
+    catch (e) { toast.error(_isCreditsError(e) ? 'Creditos IA esgotados. Recarregue em console.anthropic.com' : 'Erro na triagem IA') }
+    finally { setAiLoading(false) }
   }
 
   const handleAiSuggest = async () => {
     setAiLoading(true); setAiSuggestion(null)
     try { const { data } = await suggestReply(ticketId); setAiSuggestion(data.suggestion) }
-    catch { toast.error('Erro ao gerar sugestão') } finally { setAiLoading(false) }
+    catch (e) { toast.error(_isCreditsError(e) ? 'Creditos IA esgotados. Recarregue em console.anthropic.com' : 'Erro ao gerar sugestão') }
+    finally { setAiLoading(false) }
   }
 
   const handleSaveSupplierNotes = async () => {
@@ -798,14 +809,14 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
             <i className="fas fa-brain text-orange-400 text-xs" />
             <p className="text-[var(--text-secondary)] text-xs flex-1 truncate">{ticket.ai_summary}</p>
             <button onClick={async () => {
-              try { const { data } = await generateSummary(ticket.id); if (data.summary) setTicket(prev => ({ ...prev, ai_summary: data.summary })) } catch {}
+              try { const { data } = await generateSummary(ticket.id); if (data.summary) setTicket(prev => ({ ...prev, ai_summary: data.summary })) } catch (e) { if (_isCreditsError(e)) toast.error('Creditos IA esgotados') }
             }} className="text-orange-400 hover:text-orange-300 text-xs shrink-0" title="Atualizar resumo"><i className="fas fa-sync-alt" /></button>
           </div>
         ) : (
           <div className="px-6 py-1.5 border-b border-[var(--border-color)] flex items-center gap-2">
             <i className="fas fa-brain text-[var(--text-tertiary)] text-xs" />
             <button onClick={async () => {
-              try { const { data } = await generateSummary(ticket.id); if (data.summary) setTicket(prev => ({ ...prev, ai_summary: data.summary })) } catch {}
+              try { const { data } = await generateSummary(ticket.id); if (data.summary) setTicket(prev => ({ ...prev, ai_summary: data.summary })) } catch (e) { if (_isCreditsError(e)) toast.error('Creditos IA esgotados') }
             }} className="text-orange-400 hover:text-orange-300 text-xs">Gerar resumo IA</button>
           </div>
         )}
@@ -1206,7 +1217,7 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
                   {/* Send button with dropdown */}
                   <div className="relative">
                     <div className="flex">
-                      <button onClick={handleSend} disabled={!reply.trim() || sending}
+                      <button onClick={() => handleSend()} disabled={!reply.trim() || sending}
                         className={`px-4 py-2.5 rounded-l-xl text-xs font-medium text-white transition disabled:opacity-40 ${
                           replyType === 'internal_note' ? 'bg-yellow-600 hover:bg-yellow-500' : 'bg-indigo-600 hover:bg-indigo-500'}`}>
                         <i className="fas fa-paper-plane mr-1.5" />Enviar
@@ -1475,6 +1486,12 @@ export default function TicketDetailPage({ ticketId, onBack, onOpenTicket, user 
               </div>
               {copilotLoading && !copilotData ? (
                 <div className="text-center py-8"><i className="fas fa-spinner animate-spin text-orange-400" /></div>
+              ) : copilotData?.credits_exhausted ? (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-center">
+                  <i className="fas fa-coins text-amber-400 text-lg mb-2" />
+                  <p className="text-amber-400 text-xs font-medium">Creditos IA esgotados</p>
+                  <p className="text-amber-300/70 text-[10px] mt-1">Recarregue em console.anthropic.com</p>
+                </div>
               ) : copilotData ? (
                 <div className="space-y-3">
                   {/* Sentiment alert */}

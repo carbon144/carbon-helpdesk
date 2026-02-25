@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast'
 import { getDashboardStats, getAgentDashboardStats } from '../services/api'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
@@ -50,8 +51,9 @@ function useChartStyles() {
   }
 }
 
-export default function DashboardPage({ user, onNavigate }) {
+export default function DashboardPage({ user }) {
   const toast = useToast()
+  const navigate = useNavigate()
   const [stats, setStats] = useState(null)
   const [agentStats, setAgentStats] = useState(null)
   const [days, setDays] = useState(30)
@@ -78,7 +80,9 @@ export default function DashboardPage({ user, onNavigate }) {
   }
 
   const goToTickets = (filters = {}) => {
-    if (onNavigate) onNavigate('tickets', filters)
+    const params = new URLSearchParams()
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, String(v)) })
+    navigate(`/tickets${params.toString() ? '?' + params.toString() : ''}`)
   }
 
   if (!stats) return (

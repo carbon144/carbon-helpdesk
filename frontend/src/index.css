@@ -260,3 +260,17 @@ button, a {
   animation: shimmer 1.5s ease-in-out infinite;
   border-radius: 8px;
 }
+
+/* ═══ Sidebar Nav Items ═══ */
+.sidebar-nav-item {
+  color: #8e8e93;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sidebar-nav-item:not(.sidebar-nav-active):hover {
+  background: rgba(255,255,255,0.06);
+  color: #f5f5f7;
+}
+.sidebar-nav-active {
+  background: rgba(253,210,0,0.12);
+  color: #fdd200;
+}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast'
 import { getTrackingList, getTrackingSummary, refreshAllTrackings, refreshSingleTracking, syncShopifyTracking } from '../services/api'
 
@@ -17,8 +18,10 @@ const STATUS_LABELS = {
   resolved: 'Resolvido', closed: 'Fechado', escalated: 'Escalado',
 }
 
-export default function TrackingPage({ onOpenTicket }) {
+export default function TrackingPage() {
   const toast = useToast()
+  const navigate = useNavigate()
+  const onOpenTicket = (id) => navigate(`/tickets/${id}`)
   const [items, setItems] = useState([])
   const [summary, setSummary] = useState(null)
   const [statusFilter, setStatusFilter] = useState('all')

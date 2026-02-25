@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getTickets, pauseTicketAI, resumeTicketAI } from '../services/api'
 
 const META_SOURCES = ['whatsapp', 'instagram', 'facebook']
@@ -9,7 +10,9 @@ const PLATFORM_CONFIG = {
   facebook: { label: 'Facebook', color: '#1877F2', icon: 'fa-brands fa-facebook-messenger' },
 }
 
-export default function CanaisIAPage({ onOpenTicket, user }) {
+export default function CanaisIAPage({ user }) {
+  const navigate = useNavigate()
+  const onOpenTicket = (id) => navigate(`/tickets/${id}`)
   const [tickets, setTickets] = useState([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
