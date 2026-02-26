@@ -145,6 +145,27 @@ async def change_password(body: ChangePasswordRequest, db: AsyncSession = Depend
     return {"message": "Senha alterada com sucesso"}
 
 
+class ResetPasswordRequest(BaseModel):
+    new_password: str
+
+
+@router.post("/users/{user_id}/reset-password")
+async def reset_user_password(user_id: str, body: ResetPasswordRequest, db: AsyncSession = Depends(get_db), current: User = Depends(get_current_user)):
+    if current.role != "super_admin":
+        raise HTTPException(status_code=403, detail="Apenas o super admin pode resetar senhas")
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Nova senha deve ter pelo menos 6 caracteres")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    user.password_hash = hash_password(body.new_password)
+    await db.commit()
+    return {"message": f"Senha de {user.name} resetada com sucesso"}
+
+
 @router.delete("/users/{user_id}", status_code=204)
 async def delete_user(user_id: str, db: AsyncSession = Depends(get_db), current: User = Depends(get_current_user)):
     if current.role != "super_admin":

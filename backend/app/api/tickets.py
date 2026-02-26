@@ -242,10 +242,6 @@ async def list_tickets(
 ):
     query = select(Ticket)
 
-    # Privacidade: agentes veem apenas seus tickets, admins/supervisores veem todos
-    if user.role == "agent":
-        query = query.where(Ticket.assigned_to == user.id)
-
     if status:
         if "," in status:
             query = query.where(Ticket.status.in_(status.split(",")))

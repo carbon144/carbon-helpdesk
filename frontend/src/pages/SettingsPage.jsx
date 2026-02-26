@@ -11,6 +11,87 @@ const SECTIONS = [
   { id: 'macros', label: 'Respostas Rápidas', icon: 'fa-bolt' },
   { id: 'shortcuts', label: 'Atalhos de Teclado', icon: 'fa-keyboard' },
   { id: 'security', label: 'Segurança', icon: 'fa-shield-alt' },
+  { id: 'changelog', label: 'Changelog', icon: 'fa-code-branch' },
+]
+
+const CHANGELOG = [
+  {
+    date: '26/02/2026',
+    title: 'Permissões e Roles',
+    items: [
+      { type: 'fix', text: 'Agentes agora têm acesso a todos os tickets (antes só viam os atribuídos)' },
+      { type: 'change', text: 'Pedro e Lyvia como Super Admin; Victor e Tauane como Supervisor' },
+    ],
+  },
+  {
+    date: '25/02/2026',
+    title: 'Análise de Equipe + Overhaul Visual',
+    items: [
+      { type: 'new', text: 'Página Análise de Equipe — métricas quantitativas e análise qualitativa com IA por agente' },
+      { type: 'new', text: 'Relatórios semanais automáticos de performance (todo domingo)' },
+      { type: 'new', text: 'Design system completo: dark theme + paleta dourada Carbon' },
+      { type: 'new', text: 'Command Palette (Ctrl+K) para busca rápida' },
+      { type: 'new', text: 'Notificações real-time com sino e toast' },
+      { type: 'new', text: 'Skeleton loading em todas as páginas' },
+      { type: 'new', text: 'Leaderboard com gamificação: pontos, ranking, streaks' },
+      { type: 'new', text: 'Sistema de recompensas com resgate por pontos' },
+    ],
+  },
+  {
+    date: '24/02/2026',
+    title: 'Helpdesk 100% + Performance',
+    items: [
+      { type: 'new', text: 'Protocolo automático por ticket (CARBON-YYYYMMDD-XXXX)' },
+      { type: 'new', text: 'Notas internas (sticky) e notas do fornecedor' },
+      { type: 'new', text: 'Merge de tickets duplicados do mesmo cliente' },
+      { type: 'new', text: 'CC/BCC em emails e agendamento de envio' },
+      { type: 'new', text: 'Busca ampla: assunto, número, nome, email, tracking, conteúdo' },
+      { type: 'new', text: 'Blacklist de clientes com motivo e tags' },
+      { type: 'new', text: 'Rastreamento integrado (LinkeTrack + 17Track)' },
+      { type: 'perf', text: 'Índices compostos para queries frequentes no banco' },
+      { type: 'perf', text: 'Ordenação por data real do email (received_at)' },
+    ],
+  },
+  {
+    date: '23/02/2026',
+    title: 'Canais Meta + Correções',
+    items: [
+      { type: 'new', text: 'WhatsApp Business — receber e responder mensagens via API' },
+      { type: 'new', text: 'Instagram DM — receber e responder mensagens diretas' },
+      { type: 'new', text: 'Facebook Messenger — receber e responder mensagens' },
+      { type: 'new', text: 'Moderação de comentários sociais com IA (auto-reply, auto-hide)' },
+      { type: 'new', text: 'Auto-resposta por IA nos canais Meta com toggle on/off por ticket' },
+      { type: 'fix', text: 'Correções de CSS, configurações e estabilidade geral' },
+    ],
+  },
+  {
+    date: '22/02/2026',
+    title: 'E-Commerce + Deploy',
+    items: [
+      { type: 'new', text: 'Integração Yampi — pedidos, detalhes e rastreio' },
+      { type: 'new', text: 'Integração Appmax — vendas, detalhes e transações' },
+      { type: 'new', text: 'Integração Shopify' },
+      { type: 'new', text: 'API unificada de e-commerce com normalização de status' },
+      { type: 'new', text: 'Deploy automatizado: Docker + Nginx + DigitalOcean' },
+      { type: 'new', text: 'Health check com monitoramento de email e créditos IA' },
+    ],
+  },
+  {
+    date: 'Base',
+    title: 'Sistema Core',
+    items: [
+      { type: 'new', text: 'Tickets com 11 status, 4 prioridades, SLA automático e escalação' },
+      { type: 'new', text: 'Gmail bidirecional — fetch automático a cada 60s' },
+      { type: 'new', text: 'IA (Claude) — triagem, categorização, sentimento, risco jurídico, resumo' },
+      { type: 'new', text: 'Dashboard em tempo real com contadores e métricas' },
+      { type: 'new', text: 'Base de Conhecimento, Biblioteca de Mídia e Catálogo' },
+      { type: 'new', text: 'Assistente IA para consultas da equipe' },
+      { type: 'new', text: 'CSAT — pesquisa de satisfação por email' },
+      { type: 'new', text: 'WebSocket para notificações real-time' },
+      { type: 'new', text: 'Roles: Super Admin, Admin, Supervisor, Agente' },
+      { type: 'new', text: 'Slack — notificações e alertas' },
+    ],
+  },
 ]
 
 const SPECIALTY_OPTIONS = [
@@ -64,6 +145,9 @@ export default function SettingsPage({ user }) {
   const [pwNew, setPwNew] = useState('')
   const [pwConfirm, setPwConfirm] = useState('')
   const [changingPw, setChangingPw] = useState(false)
+  const [resetPwAgent, setResetPwAgent] = useState(null)
+  const [resetPwValue, setResetPwValue] = useState('')
+  const [resettingPw, setResettingPw] = useState(false)
 
   const DEFAULT_BH = {
     timezone: 'America/Sao_Paulo',
@@ -151,6 +235,21 @@ export default function SettingsPage({ user }) {
       setShowAddMember(false)
     } catch (e) { toast.error(e.response?.data?.detail || 'Erro ao criar membro') }
     finally { setAddingMember(false) }
+  }
+
+  const resetPassword = async () => {
+    if (!resetPwValue.trim() || resetPwValue.length < 6) {
+      toast.warning('A senha deve ter pelo menos 6 caracteres')
+      return
+    }
+    setResettingPw(true)
+    try {
+      const res = await api.post(`/auth/users/${resetPwAgent.id}/reset-password`, { new_password: resetPwValue })
+      toast.success(res.data.message || 'Senha resetada!')
+      setResetPwAgent(null)
+      setResetPwValue('')
+    } catch (e) { toast.error(e.response?.data?.detail || 'Erro ao resetar senha') }
+    finally { setResettingPw(false) }
   }
 
   const removeMember = async (agentId, agentName) => {
@@ -506,16 +605,47 @@ export default function SettingsPage({ user }) {
                       {agent.is_active ? 'Ativo' : 'Inativo'}
                     </button>
                     {agent.id !== user?.id && (
-                      <button onClick={() => removeMember(agent.id, agent.name)}
-                        className="text-red-400 hover:text-red-300 ml-1" title="Remover membro">
-                        <i className="fas fa-trash text-xs" />
-                      </button>
+                      <>
+                        <button onClick={() => { setResetPwAgent(agent); setResetPwValue('') }}
+                          className="text-yellow-400 hover:text-yellow-300 ml-1" title="Resetar senha">
+                          <i className="fas fa-key text-xs" />
+                        </button>
+                        <button onClick={() => removeMember(agent.id, agent.name)}
+                          className="text-red-400 hover:text-red-300 ml-1" title="Remover membro">
+                          <i className="fas fa-trash text-xs" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
               ))}
             </div>
           </SettingsSection>
+
+          {/* Modal Resetar Senha */}
+          {resetPwAgent && (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setResetPwAgent(null)}>
+              <div className="bg-carbon-800 rounded-xl p-6 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
+                <p className="text-white text-sm font-medium mb-1">
+                  <i className="fas fa-key mr-2 text-yellow-400" />Resetar Senha
+                </p>
+                <p className="text-carbon-400 text-xs mb-4">{resetPwAgent.name} ({resetPwAgent.email})</p>
+                <input type="password" value={resetPwValue} onChange={e => setResetPwValue(e.target.value)}
+                  placeholder="Nova senha (mín. 6 caracteres)" className="settings-input mb-4 w-full"
+                  onKeyDown={e => e.key === 'Enter' && resetPassword()} autoFocus />
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setResetPwAgent(null)}
+                    className="px-4 py-2 rounded-lg text-sm text-carbon-400 hover:text-white">
+                    Cancelar
+                  </button>
+                  <button onClick={resetPassword} disabled={resettingPw}
+                    className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50">
+                    {resettingPw ? 'Resetando...' : 'Resetar Senha'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         )}
 
         {/* ── Respostas Rápidas ── */}
@@ -735,6 +865,53 @@ export default function SettingsPage({ user }) {
                 </button>
               </div>
             )}
+          </SettingsSection>
+        )}
+
+        {/* ── Changelog ── */}
+        {section === 'changelog' && (
+          <SettingsSection title="Changelog" icon="fa-code-branch">
+            <p className="text-carbon-400 text-sm mb-6">Histórico de atualizações e melhorias do Carbon Expert Hub.</p>
+            <div className="space-y-6">
+              {CHANGELOG.map((release, idx) => (
+                <div key={idx} className="relative">
+                  {/* Timeline line */}
+                  {idx < CHANGELOG.length - 1 && (
+                    <div className="absolute left-[7px] top-8 bottom-0 w-px" style={{ background: 'rgba(229,168,0,0.2)' }} />
+                  )}
+                  <div className="flex items-start gap-4">
+                    <div className="w-4 h-4 rounded-full mt-1 shrink-0 border-2" style={{ borderColor: '#E5A800', background: idx === 0 ? '#E5A800' : 'transparent' }} />
+                    <div className="flex-1">
+                      <div className="flex items-baseline gap-3 mb-2">
+                        <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ background: 'rgba(229,168,0,0.15)', color: '#E5A800' }}>
+                          {release.date}
+                        </span>
+                        <h3 className="text-white font-semibold text-sm">{release.title}</h3>
+                      </div>
+                      <div className="space-y-1.5">
+                        {release.items.map((item, i) => {
+                          const badge = {
+                            new: { label: 'NOVO', bg: 'rgba(34,197,94,0.15)', color: '#22c55e' },
+                            fix: { label: 'FIX', bg: 'rgba(239,68,68,0.15)', color: '#ef4444' },
+                            change: { label: 'ALTERADO', bg: 'rgba(59,130,246,0.15)', color: '#3b82f6' },
+                            perf: { label: 'PERF', bg: 'rgba(168,85,247,0.15)', color: '#a855f7' },
+                          }[item.type] || { label: item.type, bg: 'rgba(113,113,122,0.15)', color: '#71717a' }
+                          return (
+                            <div key={i} className="flex items-start gap-2">
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5"
+                                style={{ background: badge.bg, color: badge.color }}>
+                                {badge.label}
+                              </span>
+                              <span className="text-carbon-300 text-sm">{item.text}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </SettingsSection>
         )}
       </div>

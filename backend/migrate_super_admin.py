@@ -16,11 +16,11 @@ async def main():
     except Exception as e:
         print(f"Enum já existe ou erro: {e}")
 
-    # 2. Set Pedro as super_admin
+    # 2. Set Pedro and Lyvia as super_admin
     r = await conn.execute(
-        "UPDATE users SET role='super_admin' WHERE email='pedro@carbonsmartwatch.com.br'"
+        "UPDATE users SET role='super_admin' WHERE email IN ('pedro@carbonsmartwatch.com.br', 'lyvia@carbonsmartwatch.com.br')"
     )
-    print(f"✓ Pedro atualizado para super_admin: {r}")
+    print(f"✓ Pedro e Lyvia atualizados para super_admin: {r}")
 
     # 3. Show all users with roles
     rows = await conn.fetch("SELECT name, email, role FROM users ORDER BY name")
