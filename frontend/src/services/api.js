@@ -40,6 +40,8 @@ export const getMe = () => api.get('/auth/me')
 export const updateMyProfile = (data) => api.patch('/auth/me', data)
 export const getUsers = () => api.get('/auth/users')
 export const changePassword = (currentPassword, newPassword) => api.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword })
+export const forgotPassword = (email) => api.post('/auth/forgot-password', { email })
+export const resetPasswordWithToken = (token, newPassword) => api.post('/auth/reset-password-with-token', { token, new_password: newPassword })
 
 // ── Customers ──
 export const searchCustomers = (q) => api.get('/customers/search', { params: { q } })

@@ -1,17 +1,22 @@
 from __future__ import annotations
+import logging
 import time
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from jose import JWTError, jwt
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.core.security import verify_password, hash_password, create_access_token, get_current_user
 from app.models.user import User
 from pydantic import BaseModel
 from app.schemas.auth import LoginRequest, TokenResponse, UserResponse, UserCreate, UserUpdate
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -143,6 +148,92 @@ async def change_password(body: ChangePasswordRequest, db: AsyncSession = Depend
     current.password_hash = hash_password(body.new_password)
     await db.commit()
     return {"message": "Senha alterada com sucesso"}
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordWithTokenRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+@router.post("/forgot-password")
+async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """Envia email com link para redefinir senha."""
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+
+    # Sempre retorna sucesso para não revelar se o email existe
+    if not user or not user.is_active:
+        return {"message": "Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha."}
+
+    # Gera token JWT com expiração de 30 minutos
+    expire = datetime.now(timezone.utc) + timedelta(minutes=30)
+    reset_token = jwt.encode(
+        {"sub": user.id, "purpose": "password_reset", "exp": expire},
+        settings.JWT_SECRET,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+
+    # Monta o link de reset
+    base_url = "https://helpdesk.brutodeverdade.com.br"
+    if settings.ENVIRONMENT == "development":
+        base_url = "http://localhost:5173"
+    reset_link = f"{base_url}?reset_token={reset_token}"
+
+    # Envia email via Gmail
+    try:
+        from app.services.gmail_service import send_email
+        email_body = f"""Olá {user.name},
+
+Você solicitou a redefinição de sua senha no Carbon Expert Hub.
+
+Clique no link abaixo para criar uma nova senha:
+{reset_link}
+
+Este link expira em 30 minutos.
+
+Se você não solicitou esta redefinição, ignore este e-mail.
+
+— Carbon Expert Hub"""
+
+        send_email(
+            to=user.email,
+            subject="Redefinir senha — Carbon Expert Hub",
+            body_text=email_body,
+        )
+        logger.info(f"Password reset email sent to {user.email}")
+    except Exception as e:
+        logger.error(f"Failed to send reset email to {user.email}: {e}")
+
+    return {"message": "Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha."}
+
+
+@router.post("/reset-password-with-token")
+async def reset_password_with_token(body: ResetPasswordWithTokenRequest, db: AsyncSession = Depends(get_db)):
+    """Redefine a senha usando o token recebido por email."""
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Nova senha deve ter pelo menos 6 caracteres")
+
+    try:
+        payload = jwt.decode(body.token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Link expirado ou inválido. Solicite um novo.")
+
+    if payload.get("purpose") != "password_reset":
+        raise HTTPException(status_code=400, detail="Token inválido")
+
+    user_id = payload.get("sub")
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=400, detail="Usuário não encontrado")
+
+    user.password_hash = hash_password(body.new_password)
+    await db.commit()
+    return {"message": "Senha redefinida com sucesso! Faça login com sua nova senha."}
 
 
 class ResetPasswordRequest(BaseModel):
