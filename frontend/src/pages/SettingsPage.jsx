@@ -621,31 +621,31 @@ export default function SettingsPage({ user }) {
               ))}
             </div>
           </SettingsSection>
+        )}
 
-          {/* Modal Resetar Senha */}
-          {resetPwAgent && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setResetPwAgent(null)}>
-              <div className="bg-carbon-800 rounded-xl p-6 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
-                <p className="text-white text-sm font-medium mb-1">
-                  <i className="fas fa-key mr-2 text-yellow-400" />Resetar Senha
-                </p>
-                <p className="text-carbon-400 text-xs mb-4">{resetPwAgent.name} ({resetPwAgent.email})</p>
-                <input type="password" value={resetPwValue} onChange={e => setResetPwValue(e.target.value)}
-                  placeholder="Nova senha (mín. 6 caracteres)" className="settings-input mb-4 w-full"
-                  onKeyDown={e => e.key === 'Enter' && resetPassword()} autoFocus />
-                <div className="flex gap-2 justify-end">
-                  <button onClick={() => setResetPwAgent(null)}
-                    className="px-4 py-2 rounded-lg text-sm text-carbon-400 hover:text-white">
-                    Cancelar
-                  </button>
-                  <button onClick={resetPassword} disabled={resettingPw}
-                    className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50">
-                    {resettingPw ? 'Resetando...' : 'Resetar Senha'}
-                  </button>
-                </div>
+        {/* Modal Resetar Senha */}
+        {resetPwAgent && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setResetPwAgent(null)}>
+            <div className="bg-carbon-800 rounded-xl p-6 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
+              <p className="text-white text-sm font-medium mb-1">
+                <i className="fas fa-key mr-2 text-yellow-400" />Resetar Senha
+              </p>
+              <p className="text-carbon-400 text-xs mb-4">{resetPwAgent.name} ({resetPwAgent.email})</p>
+              <input type="password" value={resetPwValue} onChange={e => setResetPwValue(e.target.value)}
+                placeholder="Nova senha (mín. 6 caracteres)" className="settings-input mb-4 w-full"
+                onKeyDown={e => e.key === 'Enter' && resetPassword()} autoFocus />
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setResetPwAgent(null)}
+                  className="px-4 py-2 rounded-lg text-sm text-carbon-400 hover:text-white">
+                  Cancelar
+                </button>
+                <button onClick={resetPassword} disabled={resettingPw}
+                  className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50">
+                  {resettingPw ? 'Resetando...' : 'Resetar Senha'}
+                </button>
               </div>
             </div>
-          )}
+          </div>
         )}
 
         {/* ── Respostas Rápidas ── */}
