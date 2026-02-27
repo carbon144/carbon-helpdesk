@@ -14,6 +14,34 @@ from googleapiclient.discovery import build
 
 from app.core.config import settings
 
+
+def _extract_body(payload: dict) -> tuple[str, str]:
+    """Recursively extract body_text and body_html from Gmail payload.
+    Handles nested multipart structures (multipart/mixed > multipart/alternative).
+    """
+    body_text = ""
+    body_html = ""
+
+    mime = payload.get("mimeType", "")
+
+    if mime.startswith("multipart/"):
+        for part in payload.get("parts", []):
+            t, h = _extract_body(part)
+            if t and not body_text:
+                body_text = t
+            if h and not body_html:
+                body_html = h
+    else:
+        data = payload.get("body", {}).get("data", "")
+        if data:
+            decoded = base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
+            if mime == "text/plain":
+                body_text = decoded
+            elif mime == "text/html":
+                body_html = decoded
+
+    return body_text, body_html
+
 logger = logging.getLogger(__name__)
 
 SCOPES = [
@@ -78,29 +106,8 @@ def fetch_new_emails(after_timestamp: int | None = None, max_results: int = 20, 
 
             headers = {h["name"].lower(): h["value"] for h in msg["payload"]["headers"]}
 
-            # Extract body
-            body_text = ""
-            body_html = ""
-            payload = msg["payload"]
-
-            if "parts" in payload:
-                for part in payload["parts"]:
-                    mime = part.get("mimeType", "")
-                    data = part.get("body", {}).get("data", "")
-                    if data:
-                        decoded = base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
-                        if mime == "text/plain":
-                            body_text = decoded
-                        elif mime == "text/html":
-                            body_html = decoded
-            else:
-                data = payload.get("body", {}).get("data", "")
-                if data:
-                    decoded = base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
-                    if payload.get("mimeType") == "text/html":
-                        body_html = decoded
-                    else:
-                        body_text = decoded
+            # Extract body (recursive to handle nested multipart)
+            body_text, body_html = _extract_body(msg["payload"])
 
             # Clean body text from HTML if no plain text
             if not body_text and body_html:
@@ -150,29 +157,8 @@ def fetch_spam_emails(max_results: int = 50) -> list[dict]:
 
             headers = {h["name"].lower(): h["value"] for h in msg["payload"]["headers"]}
 
-            # Extract body
-            body_text = ""
-            body_html = ""
-            payload = msg["payload"]
-
-            if "parts" in payload:
-                for part in payload["parts"]:
-                    mime = part.get("mimeType", "")
-                    data = part.get("body", {}).get("data", "")
-                    if data:
-                        decoded = base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
-                        if mime == "text/plain":
-                            body_text = decoded
-                        elif mime == "text/html":
-                            body_html = decoded
-            else:
-                data = payload.get("body", {}).get("data", "")
-                if data:
-                    decoded = base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
-                    if payload.get("mimeType") == "text/html":
-                        body_html = decoded
-                    else:
-                        body_text = decoded
+            # Extract body (recursive to handle nested multipart)
+            body_text, body_html = _extract_body(msg["payload"])
 
             # Clean body text from HTML if no plain text
             if not body_text and body_html:

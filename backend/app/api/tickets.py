@@ -640,11 +640,12 @@ async def update_ticket(ticket_id: str, body: TicketUpdate, db: AsyncSession = D
 
     if body.status in ("resolved", "closed") and not ticket.resolved_at:
         ticket.resolved_at = datetime.now(timezone.utc)
-    # Send CSAT email only when resolved (not closed)
-    if body.status == "resolved":
+    # Send CSAT email only when resolved (not closed), and only once
+    if body.status == "resolved" and not getattr(ticket, 'csat_sent', False):
         try:
             from app.services.csat_service import send_csat_email
-            send_csat_email(ticket)
+            if send_csat_email(ticket):
+                ticket.csat_sent = True
         except Exception as e:
             logger.warning(f"Failed to send CSAT email for ticket {ticket_id}: {e}")
     if body.status == "escalated" and not ticket.escalated_at:
@@ -714,7 +715,7 @@ async def bulk_update(body: TicketBulkUpdate, db: AsyncSession = Depends(get_db)
             ticket.status = body.status
             if body.status in ("resolved", "closed") and not ticket.resolved_at:
                 ticket.resolved_at = datetime.now(timezone.utc)
-            if body.status == "resolved":
+            if body.status == "resolved" and not getattr(ticket, 'csat_sent', False):
                 csat_tickets.append(ticket)
         if body.priority:
             changes["priority"] = {"from": ticket.priority, "to": body.priority}
@@ -740,7 +741,8 @@ async def bulk_update(body: TicketBulkUpdate, db: AsyncSession = Depends(get_db)
     for ticket in csat_tickets:
         try:
             from app.services.csat_service import send_csat_email
-            send_csat_email(ticket)
+            if send_csat_email(ticket):
+                ticket.csat_sent = True
         except Exception as e:
             logger.warning(f"Failed to send CSAT email for ticket #{ticket.number}: {e}")
 

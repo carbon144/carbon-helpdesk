@@ -365,6 +365,31 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
     }
   }
 
+  const handlePaste = async (e) => {
+    const items = Array.from(e.clipboardData?.items || [])
+    const imageItems = items.filter(item => item.type.startsWith('image/'))
+    if (!imageItems.length) return
+    e.preventDefault()
+    setUploadingAttachment(true)
+    try {
+      for (const item of imageItems) {
+        const file = item.getAsFile()
+        if (!file) continue
+        const formData = new FormData()
+        const ext = file.type.split('/')[1] || 'png'
+        const name = `screenshot-${Date.now()}.${ext}`
+        formData.append('file', file, name)
+        const { data } = await uploadAttachment(formData)
+        setReplyAttachments(prev => [...prev, data])
+      }
+      toast.success('Screenshot anexado')
+    } catch (err) {
+      toast.error('Falha ao colar imagem')
+    } finally {
+      setUploadingAttachment(false)
+    }
+  }
+
   const handleDragOver = (e) => {
     e.preventDefault()
     e.stopPropagation()
@@ -1162,7 +1187,7 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                 )}
                 <div className="flex gap-2">
                   <div className="flex-1 relative">
-                    <textarea ref={textareaRef} value={reply} onChange={handleReplyChange} onKeyDown={handleKeyDown} rows={5}
+                    <textarea ref={textareaRef} value={reply} onChange={handleReplyChange} onKeyDown={handleKeyDown} onPaste={handlePaste} rows={5}
                       placeholder={replyType === 'internal_note' ? 'Nota interna...' : 'Escreva sua resposta... (/ para macros)'}
                       className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-[var(--text-primary)] text-sm resize-y focus:outline-none focus:border-indigo-500" style={{ minHeight: '100px' }} />
                     {/* Slash command inline dropdown */}
