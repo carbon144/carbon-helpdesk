@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File
 
 logger = logging.getLogger(__name__)
 from pydantic import BaseModel
@@ -813,15 +813,24 @@ async def _auto_assign_single(ticket: Ticket, db: AsyncSession, user: User):
 
 
 @router.post("/auto-assign")
-async def auto_assign(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def auto_assign(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """RF-013: Auto-assign with specialty routing.
     1) Match ticket category -> specialty via CATEGORY_ROUTING
     2) Find specialist agents with capacity
     3) Fallback to any agent (round-robin by load)
+    Accepts optional body: { "agent_ids": ["id1", "id2"] } to filter agents.
     """
-    agents_result = await db.execute(
-        select(User).where(User.is_active == True, User.role.in_(["agent", "supervisor", "admin"]))
-    )
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    agent_ids_filter = body.get("agent_ids")
+
+    query = select(User).where(User.is_active == True, User.role.in_(["agent", "supervisor", "admin"]))
+    if agent_ids_filter:
+        query = query.where(User.id.in_(agent_ids_filter))
+    agents_result = await db.execute(query)
     agents = agents_result.scalars().all()
     if not agents:
         return {"assigned": 0, "message": "Nenhum agente disponível"}
