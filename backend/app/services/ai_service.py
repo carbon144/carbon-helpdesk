@@ -104,35 +104,88 @@ def _clean_json(text: str) -> dict:
     return json.loads(text)
 
 
+def apply_triage_results(ticket, triage: dict, customer=None):
+    """Apply AI triage results to a ticket (and optionally enrich customer).
+    Centralizes the repeated triage-application logic.
+    """
+    if not triage:
+        return
+    if triage.get("category"):
+        ticket.ai_category = triage["category"]
+        ticket.category = triage["category"]
+    if triage.get("priority"):
+        ticket.priority = triage["priority"]
+    if triage.get("sentiment"):
+        ticket.sentiment = triage["sentiment"]
+    if triage.get("legal_risk") is not None:
+        ticket.legal_risk = triage["legal_risk"]
+    if triage.get("tags"):
+        existing = list(ticket.tags or [])
+        ticket.tags = list(set(existing + triage["tags"]))
+    if triage.get("confidence"):
+        ticket.ai_confidence = triage["confidence"]
+
+    # Enrich customer data if available
+    if customer:
+        ai_data = triage.get("customer_data")
+        if ai_data and isinstance(ai_data, dict):
+            if ai_data.get("cpf") and not getattr(customer, 'cpf', None):
+                customer.cpf = ai_data["cpf"]
+            if ai_data.get("phone") and not getattr(customer, 'phone', None):
+                customer.phone = ai_data["phone"]
+            if ai_data.get("full_name") and getattr(customer, 'name', '') == getattr(customer, 'email', ''):
+                customer.name = ai_data["full_name"]
+
+
 TRIAGE_SYSTEM_PROMPT = """Você é um assistente de triagem para o suporte da Carbon Smartwatch, uma empresa brasileira de smartwatches.
 
 Analise a mensagem do cliente e retorne APENAS um JSON válido (sem markdown, sem texto extra) com:
 
 {
-  "category": "uma das categorias: garantia, troca, mau_uso, carregador, duvida, reclamacao, juridico, suporte_tecnico, financeiro",
-  "priority": "uma das prioridades: low, medium, high, urgent",
-  "sentiment": "um dos sentimentos: positive, neutral, negative, angry",
-  "legal_risk": true ou false (se menciona PROCON, processo, advogado, Reclame Aqui, chargeback, danos morais),
-  "tags": ["lista de tags relevantes entre: garantia, troca, carregador, mau_uso, procon, chargeback, duvida, reclamacao, juridico, suporte_tecnico"],
+  "category": "UMA das categorias abaixo",
+  "priority": "low | medium | high | urgent",
+  "sentiment": "positive | neutral | negative | angry",
+  "legal_risk": true ou false,
+  "tags": ["tags relevantes da lista abaixo"],
   "confidence": 0.0 a 1.0,
   "summary": "resumo em 1 frase do problema",
   "customer_data": {
-    "cpf": "CPF se encontrado na mensagem (apenas dígitos, 11 caracteres)",
+    "cpf": "CPF se encontrado (apenas dígitos, 11 chars)",
     "phone": "telefone se encontrado (apenas dígitos)",
-    "order_number": "número do pedido Shopify se encontrado (apenas dígitos)",
-    "full_name": "nome completo do cliente se identificado"
+    "order_number": "número do pedido se encontrado (apenas dígitos)",
+    "full_name": "nome completo se identificado"
   }
 }
 
-Se não encontrar dados do cliente na mensagem, retorne customer_data como null ou omita o campo.
+CATEGORIAS (use exatamente estes valores):
+- defeito_garantia: produto com defeito dentro da garantia de 1 ano
+- troca: solicitação de troca (tamanho, cor, modelo)
+- reenvio: produto não chegou, extraviado, precisa reenviar
+- rastreamento: dúvida sobre status de entrega, código de rastreio
+- mau_uso: produto danificado por mau uso (tela quebrada, molhou além do IP, etc)
+- carregador: problema específico com carregador magnético
+- suporte_tecnico: problemas de software, app, bluetooth, configuração
+- chargeback: cliente abriu disputa no cartão
+- procon: mencionou PROCON, processo, advogado, danos morais
+- reclame_aqui: mencionou Reclame Aqui
+- financeiro: reembolso, estorno, pagamento, nota fiscal
+- duvida: dúvida geral sobre produto, funcionalidades, compra
+- reclamacao: reclamação genérica que não se encaixa nas acima
+- elogio: feedback positivo, elogio
+
+TAGS possíveis: garantia, troca, carregador, mau_uso, procon, chargeback, reclame_aqui, reenvio, rastreamento, defeito, reembolso, duvida, elogio
 
 Regras de prioridade:
-- urgent: risco jurídico, PROCON, chargeback, cliente muito irritado
-- high: reclamação forte, produto com defeito grave, cliente reincidente
-- medium: dúvidas gerais, trocas normais, problemas técnicos comuns
-- low: elogios, dúvidas simples, feedback
+- urgent: risco jurídico (PROCON, chargeback, advogado, Reclame Aqui), cliente muito irritado
+- high: reclamação forte, defeito grave, cliente reincidente, produto não chegou
+- medium: trocas normais, problemas técnicos comuns, dúvidas sobre entrega
+- low: dúvidas simples, elogios, feedback positivo
 
-Contexto do produto: smartwatches Carbon, carregadores magnéticos, pulseiras, garantia de 1 ano."""
+legal_risk = true se menciona: PROCON, processo, advogado, Reclame Aqui, chargeback, danos morais, juizado
+
+Se não encontrar dados do cliente, retorne customer_data como null.
+
+Contexto: smartwatches Carbon, carregadores magnéticos, pulseiras, garantia de 1 ano."""
 
 
 SUGGEST_SYSTEM_PROMPT = """Você é um agente de suporte da Carbon Smartwatch. Sugira uma resposta profissional e empática para o ticket abaixo.
@@ -166,9 +219,10 @@ async def triage_ticket(subject: str, body: str, customer_name: str = "", is_rep
             user_msg += " [CLIENTE REINCIDENTE]"
         user_msg += f":\n{body[:2000]}"
 
+        triage_model = getattr(settings, 'ANTHROPIC_TRIAGE_MODEL', None) or "claude-haiku-4-5-20251001"
         response = await _call_with_retry(
             lambda: ai.messages.create(
-                model=settings.ANTHROPIC_MODEL,
+                model=triage_model,
                 max_tokens=500,
                 system=TRIAGE_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_msg}],

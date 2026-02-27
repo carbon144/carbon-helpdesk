@@ -13,7 +13,7 @@ from app.models.user import User
 from app.models.ticket import Ticket
 from app.models.message import Message
 from app.models.kb_article import KBArticle
-from app.services.ai_service import triage_ticket, suggest_reply, test_ai_connection, is_credits_exhausted, CreditExhaustedError
+from app.services.ai_service import triage_ticket, suggest_reply, test_ai_connection, is_credits_exhausted, CreditExhaustedError, apply_triage_results
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -86,20 +86,7 @@ async def triage_single_ticket(
     if not triage:
         raise HTTPException(500, "Falha na triagem IA")
 
-    # Apply triage results
-    if triage.get("category"):
-        ticket.ai_category = triage["category"]
-        ticket.category = triage["category"]
-    if triage.get("priority"):
-        ticket.priority = triage["priority"]
-    if triage.get("sentiment"):
-        ticket.sentiment = triage["sentiment"]
-    if triage.get("legal_risk") is not None:
-        ticket.legal_risk = triage["legal_risk"]
-    if triage.get("tags"):
-        ticket.tags = triage["tags"]
-    if triage.get("confidence"):
-        ticket.ai_confidence = triage["confidence"]
+    apply_triage_results(ticket, triage, customer=ticket.customer)
 
     # Recalc SLA based on new priority
     from datetime import datetime, timezone, timedelta

@@ -15,6 +15,10 @@ SLA_BY_CATEGORY = {
     "mau_uso": {"response_hours": 8, "resolution_hours": 120, "priority": "medium"},
     "duvida": {"response_hours": 8, "resolution_hours": 48, "priority": "medium"},
     "rastreamento": {"response_hours": 4, "resolution_hours": 48, "priority": "medium"},
+    "carregador": {"response_hours": 4, "resolution_hours": 72, "priority": "high"},
+    "suporte_tecnico": {"response_hours": 8, "resolution_hours": 72, "priority": "medium"},
+    "financeiro": {"response_hours": 4, "resolution_hours": 72, "priority": "high"},
+    "reclamacao": {"response_hours": 4, "resolution_hours": 72, "priority": "high"},
     "elogio": {"response_hours": 24, "resolution_hours": 168, "priority": "low"},
     "sugestao": {"response_hours": 24, "resolution_hours": 168, "priority": "low"},
     "outros": {"response_hours": 8, "resolution_hours": 72, "priority": "medium"},
@@ -49,10 +53,13 @@ CATEGORY_ROUTING = {
     "procon": "juridico",
     "reclame_aqui": "juridico",
     "defeito_garantia": "tecnico",
+    "mau_uso": "tecnico",
+    "carregador": "tecnico",
+    "suporte_tecnico": "tecnico",
     "troca": "logistica",
     "reenvio": "logistica",
     "rastreamento": "logistica",
-    "mau_uso": "tecnico",
+    "financeiro": "financeiro",
 }
 
 

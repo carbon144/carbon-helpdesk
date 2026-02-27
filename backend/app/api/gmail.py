@@ -337,39 +337,18 @@ async def fetch_emails(
 
             # AI Triage for new ticket
             try:
-                from app.services.ai_service import triage_ticket as ai_triage
+                from app.services.ai_service import triage_ticket as ai_triage, apply_triage_results
                 triage = await ai_triage(
                     subject=email_data["subject"],
                     body=email_data["body_text"][:2000],
                     customer_name=email_data["from_name"],
                     is_repeat=customer.is_repeat,
                 )
-                if triage:
-                    if triage.get("category"):
-                        ticket.ai_category = triage["category"]
-                        ticket.category = triage["category"]
-                    if triage.get("priority"):
-                        ticket.priority = triage["priority"]
-                        from app.core.config import settings as cfg
-                        hours_map = {"urgent": cfg.SLA_URGENT_HOURS, "high": cfg.SLA_HIGH_HOURS, "medium": cfg.SLA_MEDIUM_HOURS, "low": cfg.SLA_LOW_HOURS}
-                        ticket.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=hours_map.get(triage["priority"], 24))
-                    if triage.get("sentiment"):
-                        ticket.sentiment = triage["sentiment"]
-                    if triage.get("legal_risk") is not None:
-                        ticket.legal_risk = triage["legal_risk"]
-                    if triage.get("tags"):
-                        ticket.tags = triage["tags"]
-                    if triage.get("confidence"):
-                        ticket.ai_confidence = triage["confidence"]
-                    # Use AI-extracted customer data to enrich customer record
-                    ai_customer_data = triage.get("customer_data")
-                    if ai_customer_data and isinstance(ai_customer_data, dict):
-                        if ai_customer_data.get("cpf") and not customer.cpf:
-                            customer.cpf = ai_customer_data["cpf"]
-                        if ai_customer_data.get("phone") and not customer.phone:
-                            customer.phone = ai_customer_data["phone"]
-                        if ai_customer_data.get("full_name") and customer.name == customer.email:
-                            customer.name = ai_customer_data["full_name"]
+                apply_triage_results(ticket, triage, customer=customer)
+                if triage and triage.get("priority"):
+                    from app.core.config import settings as cfg
+                    hours_map = {"urgent": cfg.SLA_URGENT_HOURS, "high": cfg.SLA_HIGH_HOURS, "medium": cfg.SLA_MEDIUM_HOURS, "low": cfg.SLA_LOW_HOURS}
+                    ticket.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=hours_map.get(triage["priority"], 24))
             except Exception as e:
                 logger.warning(f"AI triage skipped for gmail ticket: {e}")
 
@@ -600,39 +579,18 @@ async def fetch_email_history(
 
             # AI Triage
             try:
-                from app.services.ai_service import triage_ticket as ai_triage
+                from app.services.ai_service import triage_ticket as ai_triage, apply_triage_results
                 triage = await ai_triage(
                     subject=email_data["subject"],
                     body=email_data["body_text"][:2000],
                     customer_name=email_data["from_name"],
                     is_repeat=customer.is_repeat,
                 )
-                if triage:
-                    if triage.get("category"):
-                        ticket.ai_category = triage["category"]
-                        ticket.category = triage["category"]
-                    if triage.get("priority"):
-                        ticket.priority = triage["priority"]
-                        from app.core.config import settings as cfg
-                        hours_map = {"urgent": cfg.SLA_URGENT_HOURS, "high": cfg.SLA_HIGH_HOURS, "medium": cfg.SLA_MEDIUM_HOURS, "low": cfg.SLA_LOW_HOURS}
-                        ticket.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=hours_map.get(triage["priority"], 24))
-                    if triage.get("sentiment"):
-                        ticket.sentiment = triage["sentiment"]
-                    if triage.get("legal_risk") is not None:
-                        ticket.legal_risk = triage["legal_risk"]
-                    if triage.get("tags"):
-                        ticket.tags = triage["tags"]
-                    if triage.get("confidence"):
-                        ticket.ai_confidence = triage["confidence"]
-                    # Use AI-extracted customer data to enrich customer record
-                    ai_customer_data = triage.get("customer_data")
-                    if ai_customer_data and isinstance(ai_customer_data, dict):
-                        if ai_customer_data.get("cpf") and not customer.cpf:
-                            customer.cpf = ai_customer_data["cpf"]
-                        if ai_customer_data.get("phone") and not customer.phone:
-                            customer.phone = ai_customer_data["phone"]
-                        if ai_customer_data.get("full_name") and customer.name == customer.email:
-                            customer.name = ai_customer_data["full_name"]
+                apply_triage_results(ticket, triage, customer=customer)
+                if triage and triage.get("priority"):
+                    from app.core.config import settings as cfg
+                    hours_map = {"urgent": cfg.SLA_URGENT_HOURS, "high": cfg.SLA_HIGH_HOURS, "medium": cfg.SLA_MEDIUM_HOURS, "low": cfg.SLA_LOW_HOURS}
+                    ticket.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=hours_map.get(triage["priority"], 24))
             except Exception as e:
                 logger.warning(f"AI triage skipped for history ticket: {e}")
 
@@ -958,23 +916,14 @@ async def rescue_and_create_ticket(
 
     # AI Triage
     try:
-        from app.services.ai_service import triage_ticket as ai_triage
+        from app.services.ai_service import triage_ticket as ai_triage, apply_triage_results
         triage = await ai_triage(
             subject=subject,
             body=body_text[:2000],
             customer_name=from_name,
             is_repeat=customer.is_repeat,
         )
-        if triage:
-            if triage.get("category"):
-                ticket.ai_category = triage["category"]
-                ticket.category = triage["category"]
-            if triage.get("priority"):
-                ticket.priority = triage["priority"]
-            if triage.get("sentiment"):
-                ticket.sentiment = triage["sentiment"]
-            if triage.get("tags"):
-                ticket.tags = list(ticket.tags or []) + triage["tags"]
+        apply_triage_results(ticket, triage, customer=customer)
     except Exception as e:
         logger.warning(f"AI triage skipped for spam-rescued ticket: {e}")
 

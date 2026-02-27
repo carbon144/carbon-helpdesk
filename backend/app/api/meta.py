@@ -20,7 +20,7 @@ from app.services.meta_service import (
     unhide_comment, fetch_page_posts, fetch_instagram_media,
     fetch_comments_for_post,
 )
-from app.services.ai_service import triage_ticket as ai_triage, ai_auto_reply, moderate_comment
+from app.services.ai_service import triage_ticket as ai_triage, ai_auto_reply, moderate_comment, apply_triage_results
 from app.services.protocol_service import assign_protocol
 from app.models.social_comment import SocialComment
 
@@ -123,29 +123,17 @@ async def _process_inbound_message(db: AsyncSession, msg_data: dict):
                 customer_name=customer.name,
                 is_repeat=customer.is_repeat,
             )
-            if triage:
-                if triage.get("category"):
-                    ticket.ai_category = triage["category"]
-                    ticket.category = triage["category"]
-                if triage.get("priority"):
-                    ticket.priority = triage["priority"]
-                    hours_map = {
-                        "urgent": settings.SLA_URGENT_HOURS,
-                        "high": settings.SLA_HIGH_HOURS,
-                        "medium": settings.SLA_MEDIUM_HOURS,
-                        "low": settings.SLA_LOW_HOURS,
-                    }
-                    ticket.sla_deadline = datetime.now(timezone.utc) + timedelta(
-                        hours=hours_map.get(triage["priority"], 24)
-                    )
-                if triage.get("sentiment"):
-                    ticket.sentiment = triage["sentiment"]
-                if triage.get("legal_risk") is not None:
-                    ticket.legal_risk = triage["legal_risk"]
-                if triage.get("tags"):
-                    ticket.tags = triage["tags"]
-                if triage.get("confidence"):
-                    ticket.ai_confidence = triage["confidence"]
+            apply_triage_results(ticket, triage, customer=customer)
+            if triage and triage.get("priority"):
+                hours_map = {
+                    "urgent": settings.SLA_URGENT_HOURS,
+                    "high": settings.SLA_HIGH_HOURS,
+                    "medium": settings.SLA_MEDIUM_HOURS,
+                    "low": settings.SLA_LOW_HOURS,
+                }
+                ticket.sla_deadline = datetime.now(timezone.utc) + timedelta(
+                    hours=hours_map.get(triage["priority"], 24)
+                )
         except Exception as e:
             logger.warning(f"AI triage skipped for Meta ticket: {e}")
 
