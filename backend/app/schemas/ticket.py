@@ -133,6 +133,7 @@ class TicketResponse(BaseModel):
     last_agent_response_at: datetime | None = None
     customer_name: str | None = None
     messages: list[MessageResponse] | None = None
+    is_unread: bool = False
 
     class Config:
         from_attributes = True

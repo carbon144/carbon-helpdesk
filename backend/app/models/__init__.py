@@ -7,5 +7,6 @@ from app.models.audit_log import AuditLog
 from app.models.kb_article import KBArticle
 from app.models.macro import Macro
 from app.models.media_item import MediaItem
+from app.models.ticket_view import TicketView
 
-__all__ = ["User", "Customer", "Ticket", "Message", "Inbox", "AuditLog", "KBArticle", "Macro", "MediaItem"]
+__all__ = ["User", "Customer", "Ticket", "Message", "Inbox", "AuditLog", "KBArticle", "Macro", "MediaItem", "TicketView"]

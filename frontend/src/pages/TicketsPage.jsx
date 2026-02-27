@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '../components/Toast'
-import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, fetchGmailHistory, updateTicket, composeEmail, getSentMessages, fetchSpamEmails, rescueFromSpam, bulkRescueFromSpam, rescueAndCreateTicket, uploadAttachment } from '../services/api'
+import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, fetchGmailHistory, updateTicket, composeEmail, getSentMessages, fetchSpamEmails, rescueFromSpam, bulkRescueFromSpam, rescueAndCreateTicket, uploadAttachment, markTicketViewed } from '../services/api'
 import MetaBadge from '../components/MetaBadge'
 import { SkeletonTicketList } from '../components/Skeleton'
+import TicketDetailPage from './TicketDetailPage'
 
 const AUTO_REFRESH_MS = 30_000
 const MS_PER_HOUR = 3_600_000
@@ -99,13 +100,13 @@ const SORT_OPTIONS = [
 ]
 
 const TABS = [
-  { key: 'mine', label: 'Privado', icon: 'fa-lock' },
-  { key: 'team', label: 'Equipe', icon: 'fa-users' },
-  { key: 'active', label: 'Novos', icon: 'fa-inbox' },
-  { key: 'responded', label: 'Respondidos', icon: 'fa-reply' },
-  { key: 'escalated', label: 'Prioridade', icon: 'fa-exclamation-triangle' },
+  { key: 'mine', label: 'Privado', icon: 'fa-lock', countKey: 'mine' },
+  { key: 'team', label: 'Equipe', icon: 'fa-users', countKey: 'team' },
+  { key: 'active', label: 'Novos', icon: 'fa-inbox', countKey: 'unassigned' },
+  { key: 'responded', label: 'Respondidos', icon: 'fa-reply', countKey: 'waiting' },
+  { key: 'escalated', label: 'Prioridade', icon: 'fa-exclamation-triangle', countKey: 'escalated' },
   { key: 'resolved', label: 'Arquivado', icon: 'fa-archive' },
-  { key: 'all', label: 'Todos', icon: 'fa-list' },
+  { key: 'all', label: 'Todos', icon: 'fa-list', countKey: 'total_open' },
 ]
 
 function timeAgo(dateStr) {
@@ -124,7 +125,11 @@ export default function TicketsPage({ user }) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const filters = Object.fromEntries(searchParams.entries())
-  const onOpenTicket = (id) => navigate(`/tickets/${id}`)
+  const onOpenTicket = (id) => {
+    setSplitTicketId(id)
+    markTicketViewed(id).catch(() => {})
+    setTickets(prev => prev.map(t => t.id === id ? { ...t, is_unread: false } : t))
+  }
   const [tickets, setTickets] = useState([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -186,6 +191,7 @@ export default function TicketsPage({ user }) {
   const [sentSearch, setSentSearch] = useState('')
   const [spamSearch, setSpamSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [splitTicketId, setSplitTicketId] = useState(null)
   const sentSearchTimerRef = useRef(null)
   const searchTimerRef = useRef(null)
   const abortRef = useRef(null)
@@ -1003,10 +1009,13 @@ export default function TicketsPage({ user }) {
           )}
         </div>
       ) : (
+      <div className={`flex gap-0 ${splitTicketId ? '' : ''}`}>
+      {/* LEFT PANEL: Ticket List */}
+      <div className={splitTicketId ? 'w-[420px] flex-shrink-0 flex flex-col overflow-hidden' : 'flex-1'}>
       <>
       {/* Page Header with Counter Cards */}
       <div className="mb-6">
-        <div className="grid grid-cols-5 gap-4 mb-6">
+        {!splitTicketId && <div className="grid grid-cols-5 gap-4 mb-6">
           <button onClick={() => handleTabChange('mine')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-4 text-left transition hover:border-indigo-500/30 ${activeTab === 'mine' ? 'border-indigo-500/40 ring-1 ring-indigo-500/20' : ''}`}>
             <div className="flex items-center gap-2 mb-1">
               <i className="fas fa-lock text-indigo-400 text-sm" />
@@ -1044,26 +1053,41 @@ export default function TicketsPage({ user }) {
             </div>
             <p className="text-2xl font-bold text-[var(--text-primary)]">{counts.total_open}</p>
           </button>
-        </div>
+        </div>}
       </div>
 
       {/* Top Action Bar */}
-      <div className="mb-6 flex flex-col gap-4">
+      <div className={`mb-6 flex flex-col gap-4 ${splitTicketId ? 'hidden' : ''}`}>
         {/* Tabs */}
         <div className="flex gap-1">
-          {TABS.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => handleTabChange(tab.key)}
-              className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab.key
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
-              }`}
-            >
-              <i className={`fas ${tab.icon} mr-2`} />{tab.label}
-            </button>
-          ))}
+          {TABS.map(tab => {
+            const count = tab.countKey ? counts[tab.countKey] : null
+            return (
+              <button
+                key={tab.key}
+                onClick={() => handleTabChange(tab.key)}
+                className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  activeTab === tab.key
+                    ? 'bg-indigo-600 text-white'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+                }`}
+              >
+                <i className={`fas ${tab.icon}`} />{tab.label}
+                {count > 0 && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold min-w-[20px] text-center ${
+                    activeTab === tab.key
+                      ? 'bg-white/20 text-white'
+                      : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
+                  }`}>{count}</span>
+                )}
+                {tab.key === 'active' && counts.unread > 0 && (
+                  <span className="text-xs px-1.5 py-0.5 rounded-full font-bold min-w-[20px] text-center bg-red-500/20 text-red-400">
+                    {counts.unread}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
 
         {/* Search and Controls */}
@@ -1385,7 +1409,9 @@ export default function TicketsPage({ user }) {
                   key={ticket.id}
                   className={`hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors ${
                     slaStatus === 'breached' && !['resolved', 'closed'].includes(ticket.status) ? 'bg-red-900/5' : ''
-                  } ${ticket.status === 'escalated' ? 'border-l-4 border-l-red-500' : ''}`}
+                  } ${ticket.status === 'escalated' ? 'border-l-4 border-l-red-500' : ''} ${
+                    ticket.is_unread ? 'bg-indigo-500/[0.03]' : ''
+                  }`}
                   onClick={() => onOpenTicket(ticket.id)}
                 >
                   <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
@@ -1396,11 +1422,16 @@ export default function TicketsPage({ user }) {
                       className="rounded"
                     />
                   </td>
-                  <td className="px-6 py-4 text-[var(--text-secondary)] text-sm font-medium">#{ticket.number}</td>
+                  <td className="px-6 py-4 text-[var(--text-secondary)] text-sm font-medium">
+                    <span className="inline-flex items-center gap-1.5">
+                      {ticket.is_unread && <span className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0" />}
+                      #{ticket.number}
+                    </span>
+                  </td>
                   <td className="px-6 py-4">
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[var(--text-primary)] text-sm font-medium">{ticket.subject}</span>
+                        <span className={`text-[var(--text-primary)] text-sm ${ticket.is_unread ? 'font-bold' : 'font-medium'}`}>{ticket.subject}</span>
                         {ticket.last_message_type === 'inbound' && (
                           <span className="w-2 h-2 rounded-full bg-blue-500 inline-block flex-shrink-0" title="Cliente respondeu — precisa de ação" />
                         )}
@@ -1411,7 +1442,7 @@ export default function TicketsPage({ user }) {
                         )}
                       </div>
                       {ticket.last_message_preview && (
-                        <p className="text-xs mt-0.5 truncate max-w-[400px]" style={{ color: 'var(--text-tertiary)' }}>
+                        <p className={`text-xs mt-0.5 truncate max-w-[400px] ${ticket.is_unread ? 'font-semibold' : ''}`} style={{ color: ticket.is_unread ? 'var(--text-secondary)' : 'var(--text-tertiary)' }}>
                           {ticket.last_message_preview.substring(0, 80)}
                         </p>
                       )}
@@ -1615,6 +1646,26 @@ export default function TicketsPage({ user }) {
       })()}
 
       </>
+      </div>
+      {/* RIGHT PANEL: Ticket Detail (split-view) */}
+      {splitTicketId && (
+        <div className="flex-1 min-w-0 border-l border-[var(--border-color)] h-[calc(100vh-120px)] overflow-auto">
+          <TicketDetailPage
+            user={user}
+            embeddedTicketId={splitTicketId}
+            onEmbeddedBack={() => setSplitTicketId(null)}
+            onEmbeddedOpen={(tid) => {
+              setSplitTicketId(tid)
+              markTicketViewed(tid).catch(() => {})
+              setTickets(prev => prev.map(t => t.id === tid ? { ...t, is_unread: false } : t))
+            }}
+          />
+        </div>
+      )}
+      {!splitTicketId && (
+        <div className="hidden" />
+      )}
+      </div>
       )}
 
       {/* Modal: Import History */}

@@ -4,7 +4,7 @@ import {
   getDashboardStats, getAgentPerformance, getCsatReport,
   getTicketsBySource, getSentimentBreakdown, getTopCustomers,
   getAgentAnalysis, getTrends, getPatterns, getFullAIAnalysis,
-  exportTicketsCsv,
+  exportTicketsCsv, getAgentEmailMetrics,
 } from '../services/api'
 
 const CATEGORY_LABELS = {
@@ -41,6 +41,7 @@ export default function ReportsPage() {
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [fullAnalysis, setFullAnalysis] = useState(null)
   const [fullAnalysisLoading, setFullAnalysisLoading] = useState(false)
+  const [emailMetrics, setEmailMetrics] = useState([])
   const [exporting, setExporting] = useState(false)
   const [exportFilters, setExportFilters] = useState({ status: '', priority: '', category: '', date_from: '', date_to: '' })
 
@@ -49,10 +50,10 @@ export default function ReportsPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [s, a, c, src, sent, cust, tr, pat] = await Promise.allSettled([
+      const [s, a, c, src, sent, cust, tr, pat, em] = await Promise.allSettled([
         getDashboardStats(days), getAgentPerformance(days), getCsatReport(days),
         getTicketsBySource(days), getSentimentBreakdown(days), getTopCustomers(days),
-        getTrends(days), getPatterns(days),
+        getTrends(days), getPatterns(days), getAgentEmailMetrics(days),
       ])
       if (s.status === 'fulfilled') setStats(s.value.data)
       if (a.status === 'fulfilled') setAgents(a.value.data.agents || [])
@@ -62,6 +63,7 @@ export default function ReportsPage() {
       if (cust.status === 'fulfilled') setCustomers(cust.value.data.customers || [])
       if (tr.status === 'fulfilled') setTrends(tr.value.data.trends || [])
       if (pat.status === 'fulfilled') setPatterns(pat.value.data)
+      if (em.status === 'fulfilled') setEmailMetrics(em.value.data.agents || [])
     } finally { setLoading(false) }
   }
 
@@ -383,6 +385,51 @@ export default function ReportsPage() {
               </table>
             </div>
           ) : <EmptyState text="Nenhum agente encontrado no período selecionado." />}
+
+          {/* Métricas de Email por Agente */}
+          {emailMetrics.length > 0 && (
+            <div className="bg-carbon-700 rounded-xl overflow-hidden mb-6">
+              <div className="p-4 border-b border-carbon-600">
+                <h3 className="text-white text-sm font-semibold"><i className="fas fa-envelope text-blue-400 mr-2" />Métricas de Email por Especialista</h3>
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-carbon-800 text-carbon-400 text-xs uppercase">
+                    <th className="text-left p-3">Agente</th>
+                    <th className="text-center p-3">Recebidos</th>
+                    <th className="text-center p-3">Enviados</th>
+                    <th className="text-center p-3">Tempo Resp.</th>
+                    <th className="text-center p-3">Atribuídos</th>
+                    <th className="text-center p-3">Resolvidos</th>
+                    <th className="text-center p-3">Redirecionados</th>
+                    <th className="text-center p-3">SLA Estourado</th>
+                    <th className="text-center p-3">Sem Resposta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {emailMetrics.map(a => (
+                    <tr key={a.id} className="border-t border-carbon-600 hover:bg-carbon-600/30 transition">
+                      <td className="p-3 text-white font-medium">{a.name}</td>
+                      <td className="p-3 text-center text-blue-400">{a.emails_received}</td>
+                      <td className="p-3 text-center text-green-400">{a.emails_sent}</td>
+                      <td className={`p-3 text-center ${a.avg_response_time_hours <= 4 ? 'text-green-400' : a.avg_response_time_hours <= 12 ? 'text-yellow-400' : 'text-red-400'}`}>
+                        {a.avg_response_time_hours}h
+                      </td>
+                      <td className="p-3 text-center text-carbon-200">{a.tickets_assigned}</td>
+                      <td className="p-3 text-center text-green-400">{a.tickets_resolved}</td>
+                      <td className="p-3 text-center text-orange-400">{a.tickets_redirected}</td>
+                      <td className={`p-3 text-center font-medium ${a.sla_breached > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                        {a.sla_breached}
+                      </td>
+                      <td className={`p-3 text-center font-medium ${a.unanswered > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                        {a.unanswered}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Análise individual do agente */}
           {selectedAgent && (

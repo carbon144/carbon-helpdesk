@@ -154,7 +154,11 @@ export const getAnalysisGuidelines = () => api.get('/agent-deep-analysis/guideli
 export const saveAnalysisGuidelines = (guidelines) => api.post('/agent-deep-analysis/guidelines', { guidelines })
 export const getDailyActivity = (date) => api.get('/agent-deep-analysis/daily-activity', { params: date ? { target_date: date } : {} })
 
+// ── Ticket Views ──
+export const markTicketViewed = (ticketId) => api.post(`/tickets/${ticketId}/view`)
+
 // ── Reports ──
+export const getAgentEmailMetrics = (days = 30) => api.get(`/reports/agent-email-metrics?days=${days}`)
 export const getAgentPerformance = (days = 30) => api.get(`/reports/agents?days=${days}`)
 export const getTicketsBySource = (days = 30) => api.get(`/reports/sources?days=${days}`)
 export const getSentimentBreakdown = (days = 30) => api.get(`/reports/sentiment?days=${days}`)

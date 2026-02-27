@@ -19,6 +19,7 @@ from app.models.ticket import Ticket, VALID_STATUSES, VALID_PRIORITIES, STATUS_L
 from app.models.message import Message
 from app.models.customer import Customer
 from app.models.audit_log import AuditLog
+from app.models.ticket_view import TicketView
 from app.schemas.ticket import (
     TicketCreate, TicketUpdate, TicketBulkAssign, TicketBulkUpdate,
     TicketResponse, TicketListResponse, MessageCreate, MessageResponse,
@@ -40,7 +41,7 @@ def _calc_sla(category: str | None, priority: str, from_time: datetime | None = 
     }
 
 
-def _ticket_to_response(ticket: Ticket, include_messages: bool = False) -> TicketResponse:
+def _ticket_to_response(ticket: Ticket, include_messages: bool = False, is_unread: bool = False) -> TicketResponse:
     messages = None
     if include_messages:
         try:
@@ -87,7 +88,31 @@ def _ticket_to_response(ticket: Ticket, include_messages: bool = False) -> Ticke
         last_agent_response_at=getattr(ticket, 'last_agent_response_at', None),
         customer_name=ticket.customer.name if ticket.customer else None,
         messages=messages,
+        is_unread=is_unread,
     )
+
+
+@router.post("/{ticket_id}/view")
+async def mark_ticket_viewed(
+    ticket_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Upsert ticket_views: mark ticket as viewed by current user."""
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    stmt = pg_insert(TicketView).values(
+        id=str(__import__("uuid").uuid4()),
+        user_id=user.id,
+        ticket_id=ticket_id,
+        viewed_at=datetime.now(timezone.utc),
+    ).on_conflict_do_update(
+        constraint="uq_ticket_views_user_ticket",
+        set_={"viewed_at": datetime.now(timezone.utc)},
+    )
+    await db.execute(stmt)
+    await db.commit()
+    return {"ok": True}
 
 
 @router.get("/counts")
@@ -120,6 +145,22 @@ async def get_ticket_counts(
     )
     row = result.one()
 
+    # Unread count: tickets updated since user last viewed them (or never viewed)
+    unread_sub = (
+        select(func.count())
+        .select_from(Ticket)
+        .outerjoin(TicketView, (TicketView.ticket_id == Ticket.id) & (TicketView.user_id == user.id))
+        .where(
+            is_open,
+            or_(
+                TicketView.viewed_at.is_(None),
+                Ticket.updated_at > TicketView.viewed_at,
+            ),
+        )
+    )
+    unread_result = await db.execute(unread_sub)
+    unread = unread_result.scalar() or 0
+
     return {
         "total_open": row.total_open or 0,
         "mine": row.mine or 0,
@@ -129,6 +170,7 @@ async def get_ticket_counts(
         "waiting": row.waiting or 0,
         "archived": row.archived or 0,
         "meta_channels": row.meta_channels or 0,
+        "unread": unread,
     }
 
 
@@ -346,8 +388,22 @@ async def list_tickets(
     result = await db.execute(query)
     tickets = result.unique().scalars().all()
 
+    # Compute is_unread for each ticket
+    ticket_ids = [t.id for t in tickets]
+    unread_set = set()
+    if ticket_ids:
+        viewed_q = await db.execute(
+            select(TicketView.ticket_id, TicketView.viewed_at)
+            .where(TicketView.user_id == user.id, TicketView.ticket_id.in_(ticket_ids))
+        )
+        viewed_map = {row[0]: row[1] for row in viewed_q.all()}
+        for t in tickets:
+            view_time = viewed_map.get(t.id)
+            if view_time is None or t.updated_at > view_time:
+                unread_set.add(t.id)
+
     return TicketListResponse(
-        tickets=[_ticket_to_response(t) for t in tickets],
+        tickets=[_ticket_to_response(t, is_unread=(t.id in unread_set)) for t in tickets],
         total=total,
         page=page,
         per_page=per_page,

@@ -68,13 +68,14 @@ const ORDER_STATUS_COLORS = {
   processando: 'bg-indigo-500/15 text-indigo-400',
 }
 
-export default function TicketDetailPage({ user }) {
+export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBack, onEmbeddedOpen }) {
   const toast = useToast()
   const { id } = useParams()
-  const ticketId = id
+  const ticketId = embeddedTicketId || id
   const navigate = useNavigate()
-  const onBack = () => navigate('/tickets')
-  const onOpenTicket = (ticketId) => navigate(`/tickets/${ticketId}`)
+  const embedded = !!embeddedTicketId
+  const onBack = embedded ? (onEmbeddedBack || (() => {})) : () => navigate('/tickets')
+  const onOpenTicket = embedded ? (onEmbeddedOpen || ((tid) => navigate(`/tickets/${tid}`))) : (tid) => navigate(`/tickets/${tid}`)
   const [ticket, setTicket] = useState(null)
   const [reply, setReply] = useState('')
   const [replyType, setReplyType] = useState('outbound')

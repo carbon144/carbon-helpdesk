@@ -15,9 +15,117 @@ from app.models.ticket import Ticket
 from app.models.message import Message
 from app.models.customer import Customer
 from app.models.csat import CSATRating
+from app.models.audit_log import AuditLog
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/reports", tags=["reports"])
+
+
+# ── Agent Email Metrics (detailed) ──
+
+@router.get("/agent-email-metrics")
+async def agent_email_metrics(
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Detailed email metrics per agent: received, sent, avg response time, redirects, SLA, unanswered."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # Get all agents who had tickets assigned in the period
+    agents_q = await db.execute(
+        select(User.id, User.name)
+        .where(User.is_active == True, User.role.in_(["agent", "admin", "supervisor", "super_admin"]))
+        .order_by(User.name)
+    )
+    all_agents = agents_q.all()
+
+    result = []
+    for agent_id, agent_name in all_agents:
+        # Tickets assigned to this agent in the period
+        tickets_q = await db.execute(
+            select(
+                func.count(Ticket.id).label("assigned"),
+                func.count().filter(Ticket.status == "resolved").label("resolved"),
+                func.count().filter(Ticket.sla_breached == True).label("sla_breached"),
+                func.count().filter(Ticket.first_response_at.is_(None) & Ticket.status.notin_(["resolved", "closed", "archived"])).label("unanswered"),
+                func.avg(
+                    func.extract("epoch", Ticket.first_response_at - Ticket.created_at) / 3600
+                ).filter(Ticket.first_response_at.isnot(None)).label("avg_response_h"),
+            )
+            .where(Ticket.assigned_to == agent_id, Ticket.created_at >= since)
+        )
+        t = tickets_q.one()
+
+        # Inbound messages on agent's tickets
+        inbound_q = await db.execute(
+            select(func.count())
+            .select_from(Message)
+            .join(Ticket, Message.ticket_id == Ticket.id)
+            .where(
+                Ticket.assigned_to == agent_id,
+                Message.type == "inbound",
+                Message.created_at >= since,
+            )
+        )
+        emails_received = inbound_q.scalar() or 0
+
+        # Outbound messages by agent
+        outbound_q = await db.execute(
+            select(func.count())
+            .select_from(Message)
+            .join(Ticket, Message.ticket_id == Ticket.id)
+            .where(
+                Ticket.assigned_to == agent_id,
+                Message.type == "outbound",
+                Message.created_at >= since,
+            )
+        )
+        emails_sent = outbound_q.scalar() or 0
+
+        # Redirects: audit log where ticket was re-assigned FROM this agent
+        redirected_q = await db.execute(
+            select(func.count())
+            .select_from(AuditLog)
+            .where(
+                AuditLog.action == "ticket_updated",
+                AuditLog.created_at >= since,
+                AuditLog.details["assigned_to"]["from"].as_string() == str(agent_id),
+            )
+        )
+        redirected = redirected_q.scalar() or 0
+
+        # Redirects received: audit log where ticket was re-assigned TO this agent
+        received_redirect_q = await db.execute(
+            select(func.count())
+            .select_from(AuditLog)
+            .where(
+                AuditLog.action == "ticket_updated",
+                AuditLog.created_at >= since,
+                AuditLog.details["assigned_to"]["to"].as_string() == str(agent_id),
+            )
+        )
+        received_redirect = received_redirect_q.scalar() or 0
+
+        assigned_count = t.assigned or 0
+        if assigned_count == 0 and emails_received == 0 and emails_sent == 0:
+            continue  # Skip agents with zero activity
+
+        result.append({
+            "id": agent_id,
+            "name": agent_name,
+            "tickets_assigned": assigned_count,
+            "tickets_resolved": t.resolved or 0,
+            "emails_received": emails_received,
+            "emails_sent": emails_sent,
+            "avg_response_time_hours": round(t.avg_response_h or 0, 1),
+            "tickets_redirected": redirected,
+            "tickets_received_redirect": received_redirect,
+            "sla_breached": t.sla_breached or 0,
+            "unanswered": t.unanswered or 0,
+        })
+
+    return {"period_days": days, "agents": result}
 
 
 # ── Agent Performance ──
