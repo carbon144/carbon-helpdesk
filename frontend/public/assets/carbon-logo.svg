@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40">
+  <rect x="0" y="4" width="32" height="32" rx="8" fill="#fdd200"/>
+  <text x="16" y="27" font-family="Inter, -apple-system, sans-serif" font-size="18" font-weight="900" fill="#1d1d1f" text-anchor="middle">C</text>
+  <text x="48" y="22" font-family="Inter, -apple-system, sans-serif" font-size="17" font-weight="800" letter-spacing="2" fill="#f5f5f7">CARBON</text>
+  <text x="48" y="34" font-family="Inter, -apple-system, sans-serif" font-size="8" font-weight="700" letter-spacing="4" fill="#fdd200">HELPDESK</text>
+</svg>

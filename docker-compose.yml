@@ -1,0 +1,86 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: carbon-db
+    environment:
+      POSTGRES_DB: carbon_helpdesk
+      POSTGRES_USER: carbon
+      POSTGRES_PASSWORD: carbon_secret_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carbon -d carbon_helpdesk"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: carbon-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: carbon-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://carbon:carbon_secret_2026@postgres:5432/carbon_helpdesk
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: carbon-jwt-secret-change-in-production-2026
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://143.198.20.6,http://143.198.20.6:80
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID:-}
+      GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET:-}
+      GMAIL_REDIRECT_URI: ${GMAIL_REDIRECT_URI:-http://localhost:8000/api/gmail/callback}
+      GMAIL_SUPPORT_EMAIL: ${GMAIL_SUPPORT_EMAIL:-}
+      GMAIL_REFRESH_TOKEN: ${GMAIL_REFRESH_TOKEN:-}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
+      SLACK_SUPPORT_CHANNEL: ${SLACK_SUPPORT_CHANNEL:-}
+      SHOPIFY_STORE: ${SHOPIFY_STORE:-}
+      SHOPIFY_ACCESS_TOKEN: ${SHOPIFY_ACCESS_TOKEN:-}
+      YAMPI_TOKEN: ${YAMPI_TOKEN:-}
+      YAMPI_ALIAS: ${YAMPI_ALIAS:-}
+      APPMAX_API_KEY: ${APPMAX_API_KEY:-}
+      LINKETRACK_USER: ${LINKETRACK_USER:-}
+      LINKETRACK_TOKEN: ${LINKETRACK_TOKEN:-}
+      TRACK17_API_KEY: ${TRACK17_API_KEY:-}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      META_VERIFY_TOKEN: ${META_VERIFY_TOKEN:-}
+      META_PAGE_ACCESS_TOKEN: ${META_PAGE_ACCESS_TOKEN:-}
+      META_PAGE_ID: ${META_PAGE_ID:-}
+      META_INSTAGRAM_ACCOUNT_ID: ${META_INSTAGRAM_ACCOUNT_ID:-}
+      META_WHATSAPP_TOKEN: ${META_WHATSAPP_TOKEN:-}
+      META_WHATSAPP_PHONE_ID: ${META_WHATSAPP_PHONE_ID:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://backend:8000
+    container_name: carbon-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

@@ -1,0 +1,103 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: carbon-db
+    environment:
+      POSTGRES_DB: carbon_helpdesk
+      POSTGRES_USER: carbon
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-carbon_secret_2026}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carbon -d carbon_helpdesk"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: carbon-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: carbon-backend
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "warning"]
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    environment:
+      DATABASE_URL: postgresql+asyncpg://carbon:${POSTGRES_PASSWORD:-carbon_secret_2026}@postgres:5432/carbon_helpdesk
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-carbon-jwt-secret-change-in-production-2026}
+      CORS_ORIGINS: http://localhost,http://143.198.20.6,https://helpdesk.brutodeverdade.com.br,http://helpdesk.brutodeverdade.com.br
+      ENVIRONMENT: production
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID:-}
+      GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET:-}
+      GMAIL_REDIRECT_URI: ${GMAIL_REDIRECT_URI:-http://143.198.20.6:8000/api/gmail/callback}
+      GMAIL_SUPPORT_EMAIL: ${GMAIL_SUPPORT_EMAIL:-}
+      GMAIL_REFRESH_TOKEN: ${GMAIL_REFRESH_TOKEN:-}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
+      SLACK_SUPPORT_CHANNEL: ${SLACK_SUPPORT_CHANNEL:-}
+      SHOPIFY_STORE: ${SHOPIFY_STORE:-}
+      SHOPIFY_ACCESS_TOKEN: ${SHOPIFY_ACCESS_TOKEN:-}
+      YAMPI_TOKEN: ${YAMPI_TOKEN:-}
+      YAMPI_ALIAS: ${YAMPI_ALIAS:-}
+      APPMAX_API_KEY: ${APPMAX_API_KEY:-}
+      LINKETRACK_USER: ${LINKETRACK_USER:-}
+      LINKETRACK_TOKEN: ${LINKETRACK_TOKEN:-}
+      TRACK17_API_KEY: ${TRACK17_API_KEY:-}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      META_VERIFY_TOKEN: ${META_VERIFY_TOKEN:-}
+      META_PAGE_ACCESS_TOKEN: ${META_PAGE_ACCESS_TOKEN:-}
+      META_WHATSAPP_TOKEN: ${META_WHATSAPP_TOKEN:-}
+      META_WHATSAPP_PHONE_ID: ${META_WHATSAPP_PHONE_ID:-}
+      META_PAGE_ID: ${META_PAGE_ID:-}
+      META_INSTAGRAM_ACCOUNT_ID: ${META_INSTAGRAM_ACCOUNT_ID:-}
+    volumes:
+      - uploads:/app/uploads
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: carbon-frontend
+    ports:
+      - "127.0.0.1:3000:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:

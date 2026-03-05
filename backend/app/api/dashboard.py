@@ -1,0 +1,268 @@
+from datetime import datetime, timezone, timedelta
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, case, and_
+
+from app.core.database import get_db
+from app.core.security import get_current_user
+from app.models.user import User
+from app.models.ticket import Ticket
+from app.models.message import Message
+from app.services.cache import cache_get, cache_set
+
+router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+
+@router.get("/stats")
+async def get_stats(
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    cache_key = f"dashboard:stats:{days}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return cached
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Query 1: All ticket counts in one pass
+    q1 = await db.execute(
+        select(
+            func.count().label("total"),
+            # By status
+            func.count(case((Ticket.status == "open", 1))).label("s_open"),
+            func.count(case((Ticket.status == "in_progress", 1))).label("s_in_progress"),
+            func.count(case((Ticket.status == "waiting", 1))).label("s_waiting"),
+            func.count(case((Ticket.status == "waiting_supplier", 1))).label("s_waiting_supplier"),
+            func.count(case((Ticket.status == "waiting_resend", 1))).label("s_waiting_resend"),
+            func.count(case((Ticket.status == "analyzing", 1))).label("s_analyzing"),
+            func.count(case((Ticket.status == "resolved", 1))).label("s_resolved"),
+            func.count(case((Ticket.status == "closed", 1))).label("s_closed"),
+            func.count(case((Ticket.status == "escalated", 1))).label("s_escalated"),
+            # By priority
+            func.count(case((Ticket.priority == "low", 1))).label("p_low"),
+            func.count(case((Ticket.priority == "medium", 1))).label("p_medium"),
+            func.count(case((Ticket.priority == "high", 1))).label("p_high"),
+            func.count(case((Ticket.priority == "urgent", 1))).label("p_urgent"),
+            # Flags
+            func.count(case((Ticket.sla_breached == True, 1))).label("sla_breached"),
+            func.count(case((Ticket.legal_risk == True, 1))).label("legal_risk"),
+            # Categories
+            func.count(case((Ticket.category == "troca", 1))).label("c_troca"),
+            func.count(case((Ticket.category == "reclamacao", 1))).label("c_reclamacao"),
+            func.count(case((Ticket.category.in_(["garantia", "mau_uso", "suporte_tecnico", "carregador"]), 1))).label("c_problemas"),
+            # Resolved today
+            func.count(case((Ticket.resolved_at >= today_start, 1))).label("resolved_today"),
+            # Unassigned open
+            func.count(case((and_(Ticket.assigned_to.is_(None), Ticket.status.notin_(["resolved", "closed"])), 1))).label("unassigned"),
+        )
+        .select_from(Ticket)
+        .where(Ticket.created_at >= since)
+    )
+    r = q1.one()
+
+    by_status = {}
+    for s in ["open", "in_progress", "waiting", "waiting_supplier", "waiting_resend", "analyzing", "resolved", "closed", "escalated"]:
+        val = getattr(r, f"s_{s}")
+        if val:
+            by_status[s] = val
+
+    by_priority = {}
+    for p in ["low", "medium", "high", "urgent"]:
+        val = getattr(r, f"p_{p}")
+        if val:
+            by_priority[p] = val
+
+    total_tickets = r.total
+
+    # By category (dynamic - need separate small query)
+    cat_q = await db.execute(
+        select(Ticket.category, func.count())
+        .where(Ticket.created_at >= since, Ticket.category.isnot(None))
+        .group_by(Ticket.category)
+    )
+    by_category = {row[0]: row[1] for row in cat_q.all()}
+
+    # By source
+    source_q = await db.execute(
+        select(Ticket.source, func.count())
+        .where(Ticket.created_at >= since, Ticket.source.isnot(None))
+        .group_by(Ticket.source)
+    )
+    by_source = {row[0]: row[1] for row in source_q.all()}
+
+    # By sentiment
+    sentiment_q = await db.execute(
+        select(Ticket.sentiment, func.count())
+        .where(Ticket.created_at >= since, Ticket.sentiment.isnot(None))
+        .group_by(Ticket.sentiment)
+    )
+    by_sentiment = {row[0]: row[1] for row in sentiment_q.all()}
+
+    # Query 2: Time averages
+    q2 = await db.execute(
+        select(
+            func.avg(func.extract("epoch", Ticket.first_response_at - Ticket.created_at) / 3600)
+            .filter(Ticket.first_response_at.isnot(None)).label("avg_resp"),
+            func.avg(func.extract("epoch", Ticket.resolved_at - Ticket.created_at) / 3600)
+            .filter(Ticket.resolved_at.isnot(None)).label("avg_res"),
+        )
+        .where(Ticket.created_at >= since)
+    )
+    times = q2.one()
+    avg_response_hours = round(times.avg_resp or 0, 1)
+    avg_resolution_hours = round(times.avg_res or 0, 1)
+
+    # Query 3: Daily volume
+    daily_q = await db.execute(
+        select(func.date(Ticket.created_at).label("day"), func.count().label("count"))
+        .where(Ticket.created_at >= since)
+        .group_by(func.date(Ticket.created_at))
+        .order_by(func.date(Ticket.created_at))
+    )
+    daily_volume = [{"date": str(row[0]), "count": row[1]} for row in daily_q.all()]
+
+    # Query 4: Responded today + FCR (messages)
+    responded_result = await db.execute(
+        select(func.count(func.distinct(Message.ticket_id)))
+        .where(Message.type == "outbound", Message.created_at >= today_start)
+    )
+    responded_today = responded_result.scalar() or 0
+
+    # FCR - with date filter fix
+    fcr_subq = (
+        select(Message.ticket_id, func.count().label("outbound_count"))
+        .where(Message.type == "outbound", Message.created_at >= since)
+        .group_by(Message.ticket_id)
+        .subquery()
+    )
+    fcr_q = await db.execute(
+        select(func.count()).select_from(Ticket)
+        .outerjoin(fcr_subq, Ticket.id == fcr_subq.c.ticket_id)
+        .where(
+            Ticket.created_at >= since,
+            Ticket.status == "resolved",
+            func.coalesce(fcr_subq.c.outbound_count, 0) <= 1,
+        )
+    )
+    fcr_count = fcr_q.scalar() or 0
+    total_resolved = by_status.get("resolved", 0)
+    fcr_rate = round((fcr_count / max(total_resolved, 1)) * 100, 1) if total_resolved > 0 else 0
+
+    open_tickets = sum(v for k, v in by_status.items() if k not in ("resolved", "closed"))
+
+    result = {
+        "period_days": days,
+        "total_tickets": total_tickets,
+        "by_status": by_status,
+        "by_priority": by_priority,
+        "by_category": by_category,
+        "by_source": by_source,
+        "by_sentiment": by_sentiment,
+        "sla_breached": r.sla_breached,
+        "sla_compliance": round((1 - r.sla_breached / max(total_tickets, 1)) * 100, 1),
+        "avg_response_hours": avg_response_hours,
+        "avg_resolution_hours": avg_resolution_hours,
+        "legal_risk_count": r.legal_risk,
+        "daily_volume": daily_volume,
+        "trocas_count": r.c_troca,
+        "reclamacoes_count": r.c_reclamacao,
+        "problemas_count": r.c_problemas,
+        "escalated_count": by_status.get("escalated", 0),
+        "open_tickets": open_tickets,
+        "resolved_today": r.resolved_today,
+        "responded_today": responded_today,
+        "fcr_count": fcr_count,
+        "fcr_rate": fcr_rate,
+        "unassigned_count": r.unassigned,
+    }
+
+    await cache_set(cache_key, result, ttl_seconds=300)
+    return result
+
+
+@router.get("/agent-stats")
+async def get_agent_stats(
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Stats específicas do agente logado."""
+    cache_key = f"dashboard:agent:{user.id}:{days}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return cached
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # Meus tickets abertos
+    my_open = await db.execute(
+        select(func.count()).select_from(Ticket)
+        .where(Ticket.assigned_to == user.id, Ticket.status.notin_(["resolved", "closed"]))
+    )
+    my_open_count = my_open.scalar()
+
+    # Meus tickets resolvidos no período
+    my_resolved = await db.execute(
+        select(func.count()).select_from(Ticket)
+        .where(Ticket.assigned_to == user.id, Ticket.resolved_at >= since)
+    )
+    my_resolved_count = my_resolved.scalar()
+
+    # Meu tempo médio de resposta
+    my_avg_resp = await db.execute(
+        select(
+            func.avg(func.extract("epoch", Ticket.first_response_at - Ticket.created_at) / 3600)
+        ).where(
+            Ticket.assigned_to == user.id,
+            Ticket.first_response_at.isnot(None),
+            Ticket.created_at >= since,
+        )
+    )
+    my_avg_response = round(my_avg_resp.scalar() or 0, 1)
+
+    # Meu SLA
+    my_sla_breach = await db.execute(
+        select(func.count()).select_from(Ticket)
+        .where(Ticket.assigned_to == user.id, Ticket.created_at >= since, Ticket.sla_breached == True)
+    )
+    my_sla_breached = my_sla_breach.scalar()
+
+    my_total = await db.execute(
+        select(func.count()).select_from(Ticket)
+        .where(Ticket.assigned_to == user.id, Ticket.created_at >= since)
+    )
+    my_total_count = my_total.scalar()
+
+    # Meus tickets por categoria
+    my_cat_q = await db.execute(
+        select(Ticket.category, func.count())
+        .where(Ticket.assigned_to == user.id, Ticket.created_at >= since, Ticket.category.isnot(None))
+        .group_by(Ticket.category)
+    )
+    my_by_category = {row[0]: row[1] for row in my_cat_q.all()}
+
+    # Meus tickets por status
+    my_status_q = await db.execute(
+        select(Ticket.status, func.count())
+        .where(Ticket.assigned_to == user.id, Ticket.created_at >= since)
+        .group_by(Ticket.status)
+    )
+    my_by_status = {row[0]: row[1] for row in my_status_q.all()}
+
+    result = {
+        "my_open": my_open_count,
+        "my_resolved": my_resolved_count,
+        "my_total": my_total_count,
+        "my_avg_response_hours": my_avg_response,
+        "my_sla_breached": my_sla_breached,
+        "my_sla_compliance": round((1 - my_sla_breached / max(my_total_count, 1)) * 100, 1),
+        "my_by_category": my_by_category,
+        "my_by_status": my_by_status,
+    }
+
+    await cache_set(cache_key, result, ttl_seconds=120)
+    return result
