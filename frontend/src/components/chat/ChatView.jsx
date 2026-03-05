@@ -1,0 +1,243 @@
+import { useState, useEffect, useRef, useCallback } from 'react'
+import api from '../../services/api'
+import ChatMessageBubble from './ChatMessageBubble'
+import ChatInput from './ChatInput'
+import TypingIndicator from './TypingIndicator'
+import ChannelIcon from './ChannelIcon'
+import {
+  Bot,
+  CheckCircle2,
+  UserPlus,
+  Loader2,
+  MessageSquare,
+} from 'lucide-react'
+
+export default function ChatView({ conversation, customer, user, onConversationUpdate }) {
+  const [messages, setMessages] = useState([])
+  const [agents, setAgents] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [isTyping, setIsTyping] = useState(false)
+  const [showTransfer, setShowTransfer] = useState(false)
+  const messagesEndRef = useRef(null)
+
+  const fetchMessages = useCallback(async () => {
+    if (!conversation) return
+    setLoading(true)
+    try {
+      const res = await api.get(`/chat/conversations/${conversation.id}/messages`, {
+        params: { limit: 200 },
+      })
+      setMessages(res.data || [])
+    } catch (err) {
+      console.error('Failed to fetch messages:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [conversation?.id])
+
+  useEffect(() => { fetchMessages() }, [fetchMessages])
+
+  useEffect(() => {
+    api.get('/auth/users').then((res) => setAgents(res.data || [])).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, isTyping])
+
+  // Poll for new messages every 5s
+  useEffect(() => {
+    if (!conversation) return
+    const interval = setInterval(fetchMessages, 5000)
+    return () => clearInterval(interval)
+  }, [conversation?.id, fetchMessages])
+
+  const handleSendMessage = useCallback(async (content) => {
+    if (!conversation) return
+    try {
+      const res = await api.post(`/chat/conversations/${conversation.id}/messages`, {
+        content,
+        content_type: 'text',
+      })
+      setMessages((prev) => [...prev, res.data])
+    } catch (err) {
+      console.error('Failed to send message:', err)
+    }
+  }, [conversation?.id])
+
+  const handleSendNote = useCallback(async (content) => {
+    if (!conversation) return
+    try {
+      const res = await api.post(`/chat/conversations/${conversation.id}/messages`, {
+        content,
+        content_type: 'note',
+      })
+      setMessages((prev) => [...prev, res.data])
+    } catch (err) {
+      console.error('Failed to send note:', err)
+    }
+  }, [conversation?.id])
+
+  const handleResolve = useCallback(async () => {
+    if (!conversation) return
+    try {
+      await api.put(`/chat/conversations/${conversation.id}/resolve`)
+      if (onConversationUpdate) onConversationUpdate({ ...conversation, status: 'resolved' })
+    } catch (err) {
+      console.error('Failed to resolve:', err)
+    }
+  }, [conversation, onConversationUpdate])
+
+  const handleAssign = useCallback(async (agentId) => {
+    if (!conversation) return
+    try {
+      await api.put(`/chat/conversations/${conversation.id}/assign?agent_id=${agentId}`)
+      if (onConversationUpdate) onConversationUpdate({ ...conversation, assigned_to: agentId })
+      setShowTransfer(false)
+    } catch (err) {
+      console.error('Failed to assign:', err)
+    }
+  }, [conversation, onConversationUpdate])
+
+  const handleToggleAI = useCallback(async () => {
+    if (!conversation) return
+    try {
+      const res = await api.post(`/chat/conversations/${conversation.id}/toggle-ai`)
+      if (onConversationUpdate) onConversationUpdate({ ...conversation, ...res.data })
+    } catch (err) {
+      console.error('Failed to toggle AI:', err)
+    }
+  }, [conversation, onConversationUpdate])
+
+  const getAgentName = (msg) => {
+    if (msg.sender_type !== 'agent') return null
+    const a = agents.find((ag) => ag.id === msg.sender_id)
+    return a?.name || 'Atendente'
+  }
+
+  if (!conversation) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center" style={{ color: '#52525B' }}>
+        <MessageSquare className="w-16 h-16 mb-4" style={{ color: '#3F3F46' }} />
+        <p className="text-lg font-medium">Selecione uma conversa</p>
+        <p className="text-sm mt-1">Escolha uma conversa na lista ao lado</p>
+      </div>
+    )
+  }
+
+  const contactName = customer?.name || 'Visitante'
+  const statusLabel = { open: 'Aberto', pending: 'Pendente', resolved: 'Resolvido', closed: 'Fechado' }
+
+  return (
+    <div className="flex-1 flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3"
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold"
+            style={{ background: '#E5A800', color: '#000' }}>
+            {contactName.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm" style={{ color: '#E4E4E7' }}>{contactName}</span>
+              <ChannelIcon channel={conversation.channel} size="w-3.5 h-3.5" />
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{ background: 'rgba(255,255,255,0.06)', color: '#A1A1AA' }}>
+                {statusLabel[conversation.status] || conversation.status}
+              </span>
+            </div>
+            {conversation.number && (
+              <span className="text-xs font-mono" style={{ color: '#52525B' }}>#{conversation.number}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 relative">
+          <button onClick={handleToggleAI}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer"
+            style={{
+              background: conversation.ai_enabled ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.06)',
+              color: conversation.ai_enabled ? '#34D399' : '#71717A',
+            }}
+            title={conversation.ai_enabled ? 'IA ativa' : 'IA desativada'}>
+            <Bot className="w-3.5 h-3.5" />
+            {conversation.ai_enabled ? 'IA Ativa' : 'IA Off'}
+          </button>
+
+          {conversation.status !== 'resolved' && (
+            <button onClick={handleResolve}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition cursor-pointer"
+              style={{ background: 'rgba(16,185,129,0.15)', color: '#34D399' }}>
+              <CheckCircle2 className="w-4 h-4" />
+              Resolver
+            </button>
+          )}
+
+          <div className="relative">
+            <button onClick={() => setShowTransfer(!showTransfer)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition cursor-pointer"
+              style={{ background: 'rgba(255,255,255,0.06)', color: '#A1A1AA' }}>
+              <UserPlus className="w-4 h-4" />
+              Transferir
+            </button>
+            {showTransfer && (
+              <div className="absolute right-0 top-full mt-1 w-56 rounded-lg shadow-lg z-20"
+                style={{ background: '#27272A', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div className="p-2">
+                  <p className="text-xs font-medium px-2 py-1" style={{ color: '#71717A' }}>Transferir para:</p>
+                  {agents
+                    .filter((a) => a.id !== user?.id && a.is_active)
+                    .map((a) => (
+                      <button key={a.id} onClick={() => handleAssign(a.id)}
+                        className="w-full text-left px-2 py-1.5 text-sm rounded cursor-pointer transition"
+                        style={{ color: '#E4E4E7' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        {a.name}
+                        <span className={`ml-2 text-xs ${a.status === 'online' ? 'text-green-400' : 'text-zinc-500'}`}>
+                          {a.status || 'offline'}
+                        </span>
+                      </button>
+                    ))}
+                  {agents.filter((a) => a.id !== user?.id && a.is_active).length === 0 && (
+                    <p className="text-xs px-2 py-1" style={{ color: '#52525B' }}>Nenhum outro atendente</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto py-4" style={{ background: '#18181B' }}>
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: '#52525B' }} />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full" style={{ color: '#3F3F46' }}>
+            <MessageSquare className="w-10 h-10 mb-2" />
+            <p className="text-sm">Nenhuma mensagem ainda</p>
+          </div>
+        ) : (
+          <>
+            {messages.map((msg) => (
+              <ChatMessageBubble key={msg.id} message={msg} agentName={getAgentName(msg)} />
+            ))}
+            {isTyping && <TypingIndicator />}
+          </>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <ChatInput
+        onSendMessage={handleSendMessage}
+        onSendNote={handleSendNote}
+        disabled={conversation.status === 'resolved' || conversation.status === 'closed'}
+      />
+    </div>
+  )
+}

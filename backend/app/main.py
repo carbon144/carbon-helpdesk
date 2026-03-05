@@ -10,7 +10,8 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.core.database import engine, Base, async_session
-from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta, customers, agent_analysis
+from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta, customers, agent_analysis, chat, chatbot
+from app.api.webhooks import whatsapp as wh_whatsapp, meta_dm as wh_meta_dm, tiktok as wh_tiktok
 from app.services.seed import seed_database
 from app.services.ticket_number import init_ticket_sequence
 from app.models.csat import CSATRating  # noqa: ensure table created
@@ -599,6 +600,76 @@ async def lifespan(app: FastAPI):
             "CREATE INDEX IF NOT EXISTS idx_tickets_source_created ON tickets(source, created_at DESC)",
             "CREATE INDEX IF NOT EXISTS idx_tickets_sla ON tickets(sla_deadline) WHERE sla_breached = FALSE",
             "CREATE INDEX IF NOT EXISTS idx_messages_type_created ON messages(type, created_at DESC)",
+            # Chat integration — Customer fields
+            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS shopify_data JSONB",
+            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS external_id VARCHAR(100)",
+            "CREATE INDEX IF NOT EXISTS ix_customers_external_id ON customers(external_id)",
+            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS total_conversations INTEGER DEFAULT 0",
+            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS total_value FLOAT DEFAULT 0.0",
+            "ALTER TABLE customers ALTER COLUMN email DROP NOT NULL",
+            # Chat integration — User fields
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(10) DEFAULT 'offline'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS max_concurrent_chats INTEGER DEFAULT 10",
+            # Chat integration — Conversations table
+            """CREATE TABLE IF NOT EXISTS conversations (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                number SERIAL,
+                customer_id UUID NOT NULL REFERENCES customers(id),
+                assigned_to UUID REFERENCES users(id),
+                channel VARCHAR(20) NOT NULL,
+                status VARCHAR(20) DEFAULT 'open',
+                priority VARCHAR(10) DEFAULT 'normal',
+                handler VARCHAR(10) DEFAULT 'chatbot',
+                ai_enabled BOOLEAN DEFAULT TRUE,
+                ai_attempts INTEGER DEFAULT 0,
+                subject VARCHAR(500),
+                tags JSONB,
+                last_message_at TIMESTAMPTZ,
+                metadata JSONB,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )""",
+            "CREATE INDEX IF NOT EXISTS ix_conversations_customer_id ON conversations(customer_id)",
+            "CREATE INDEX IF NOT EXISTS ix_conversations_assigned_to ON conversations(assigned_to)",
+            "CREATE INDEX IF NOT EXISTS ix_conversations_channel ON conversations(channel)",
+            "CREATE INDEX IF NOT EXISTS ix_conversations_status ON conversations(status)",
+            # Chat integration — Chat messages table
+            """CREATE TABLE IF NOT EXISTS chat_messages (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                conversation_id UUID NOT NULL REFERENCES conversations(id),
+                sender_type VARCHAR(10) NOT NULL,
+                sender_id UUID,
+                content_type VARCHAR(20) DEFAULT 'text',
+                content TEXT NOT NULL,
+                channel_message_id VARCHAR(255),
+                delivered_at TIMESTAMPTZ,
+                read_at TIMESTAMPTZ,
+                metadata JSONB,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )""",
+            "CREATE INDEX IF NOT EXISTS ix_chat_messages_conversation_id ON chat_messages(conversation_id)",
+            # Chat integration — Channel identities table
+            """CREATE TABLE IF NOT EXISTS channel_identities (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                customer_id UUID NOT NULL REFERENCES customers(id),
+                channel VARCHAR(20) NOT NULL,
+                channel_id VARCHAR(255) NOT NULL,
+                metadata JSONB,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )""",
+            "CREATE INDEX IF NOT EXISTS ix_channel_identities_customer_id ON channel_identities(customer_id)",
+            "CREATE INDEX IF NOT EXISTS ix_channel_identities_channel_id ON channel_identities(channel_id)",
+            # Chat integration — Chatbot flows table
+            """CREATE TABLE IF NOT EXISTS chatbot_flows (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name VARCHAR(255) NOT NULL,
+                trigger_type VARCHAR(20) NOT NULL,
+                trigger_config JSONB,
+                steps JSONB,
+                active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )""",
         ]
         migration_logger = logging.getLogger("migrations")
         for sql in migration_sqls:
@@ -676,6 +747,11 @@ app.include_router(rewards.router, prefix="/api")
 app.include_router(meta.router, prefix="/api")
 app.include_router(customers.router, prefix="/api")
 app.include_router(agent_analysis.router, prefix="/api")
+app.include_router(chat.router, prefix="/api")
+app.include_router(chatbot.router, prefix="/api")
+app.include_router(wh_whatsapp.router)
+app.include_router(wh_meta_dm.router)
+app.include_router(wh_tiktok.router)
 app.include_router(ws.router)
 
 # Public CSAT rating page (no auth required - customer clicks email link)

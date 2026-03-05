@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     META_PAGE_ID: str = ""
     META_INSTAGRAM_ACCOUNT_ID: str = ""
 
+    # TikTok
+    TIKTOK_ACCESS_TOKEN: str = ""
+    TIKTOK_CLIENT_SECRET: str = ""
+
     SHOPIFY_STORE: str = ""  # ex: carbon-smartwatch.myshopify.com
     SHOPIFY_ACCESS_TOKEN: str = ""  # Admin API access token
 

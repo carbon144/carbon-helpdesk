@@ -2,7 +2,7 @@ import uuid
 from typing import Optional
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Boolean, DateTime, Enum as SAEnum
+from sqlalchemy import String, Boolean, Integer, DateTime, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -22,5 +22,9 @@ class User(Base):
     specialty: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # juridico, tecnico, logistica, geral
     max_tickets: Mapped[int] = mapped_column(default=20)  # max concurrent tickets
     email_signature: Mapped[Optional[str]] = mapped_column(String(2000), nullable=True)  # HTML signature for emails
+    # Chat integration
+    status: Mapped[str] = mapped_column(String(10), default="offline")
+    max_concurrent_chats: Mapped[int] = mapped_column(default=10)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     last_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

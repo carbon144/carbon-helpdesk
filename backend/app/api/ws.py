@@ -196,3 +196,83 @@ async def notify_escalation(ticket_id: str, ticket_number: int, reason: str):
         "ticket_number": ticket_number,
         "reason": reason,
     })
+
+
+# ── Chat visitor WebSocket ──
+
+from app.services.chat_ws_manager import chat_manager
+
+
+@router.websocket("/ws/chat/{visitor_id}")
+async def ws_chat(ws: WebSocket, visitor_id: str):
+    """WebSocket for chat widget visitors. No auth — visitor_id is a session identifier."""
+    await chat_manager.connect_visitor(visitor_id, ws)
+    try:
+        while True:
+            data = await ws.receive_json()
+            event = data.get("event")
+
+            if event == "new_message":
+                conversation_id = data.get("conversation_id")
+                content = data.get("content", "")
+
+                await chat_manager.broadcast_to_agents({
+                    "event": "new_message",
+                    "conversation_id": conversation_id,
+                    "content": content,
+                    "sender_type": "contact",
+                    "sender_id": visitor_id,
+                })
+
+                if conversation_id and content:
+                    from app.core.database import async_session
+                    from app.services.message_pipeline import process_incoming_message
+                    from sqlalchemy import select as sa_select
+                    from app.models.conversation import Conversation
+                    from app.models.customer import Customer
+
+                    async with async_session() as db:
+                        conv = (await db.execute(
+                            sa_select(Conversation).where(Conversation.id == conversation_id)
+                        )).scalar_one_or_none()
+                        if conv:
+                            customer = (await db.execute(
+                                sa_select(Customer).where(Customer.id == conv.customer_id)
+                            )).scalar_one_or_none()
+                            if customer:
+                                pipeline_result = await process_incoming_message(
+                                    db, conv, customer, content, visitor_id=visitor_id,
+                                )
+                                for bot_msg in pipeline_result.get("bot_messages", []):
+                                    await chat_manager.send_to_visitor(visitor_id, {
+                                        "event": "new_message",
+                                        "conversation_id": conversation_id,
+                                        "content": bot_msg,
+                                        "sender_type": "bot",
+                                    })
+                                    await chat_manager.broadcast_to_agents({
+                                        "event": "new_message",
+                                        "conversation_id": conversation_id,
+                                        "content": bot_msg,
+                                        "sender_type": "bot",
+                                    })
+                                if pipeline_result.get("escalated"):
+                                    await chat_manager.broadcast_to_agents({
+                                        "event": "escalation",
+                                        "conversation_id": conversation_id,
+                                    })
+
+            elif event == "typing":
+                conversation_id = data.get("conversation_id")
+                await chat_manager.broadcast_to_agents({
+                    "event": "typing",
+                    "conversation_id": conversation_id,
+                    "sender_type": "contact",
+                    "sender_id": visitor_id,
+                })
+
+    except WebSocketDisconnect:
+        await chat_manager.disconnect_visitor(visitor_id)
+    except Exception as e:
+        logger.error("Chat visitor WS error for %s: %s", visitor_id, e)
+        await chat_manager.disconnect_visitor(visitor_id)

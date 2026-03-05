@@ -11,6 +11,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/dashboard', label: 'Dashboard', icon: 'fa-chart-line', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
       { to: '/tickets', label: 'Caixa de Entrada', icon: 'fa-inbox', roles: ['super_admin', 'admin', 'supervisor', 'agent'], badge: 'tickets' },
+      { to: '/chat', label: 'Chat ao Vivo', icon: 'fa-headset', roles: ['super_admin', 'admin', 'supervisor', 'agent'], badge: 'chat' },
       { to: '/canais-ia', label: 'Canais IA', icon: 'fa-comments', roles: ['super_admin', 'admin', 'supervisor'], badge: 'meta' },
       { to: '/tracking', label: 'Rastreamento', icon: 'fa-truck-fast', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
     ],
@@ -37,7 +38,7 @@ const NAV_GROUPS = [
   },
 ]
 
-export default function Sidebar({ user, onLogout, ticketCount, metaCount }) {
+export default function Sidebar({ user, onLogout, ticketCount, metaCount, chatCount }) {
   const userRole = user?.role || 'agent'
 
   return (
@@ -73,6 +74,12 @@ export default function Sidebar({ user, onLogout, ticketCount, metaCount }) {
                       <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
                         style={{ background: '#E5A800', color: '#FFFFFF' }}>
                         {ticketCount}
+                      </span>
+                    )}
+                    {item.badge === 'chat' && chatCount > 0 && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
+                        style={{ background: '#3B82F6', color: '#fff' }}>
+                        {chatCount}
                       </span>
                     )}
                     {item.badge === 'meta' && metaCount > 0 && (

@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import datetime, timezone
 
 from sqlalchemy import String, Boolean, Integer, Float, DateTime, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 
 from app.core.database import Base
@@ -14,7 +14,7 @@ class Customer(Base):
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
     name: Mapped[str] = mapped_column(String(255))
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, index=True)
     cpf: Mapped[Optional[str]] = mapped_column(String(14), nullable=True, index=True)
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     total_tickets: Mapped[int] = mapped_column(Integer, default=0)
@@ -38,6 +38,12 @@ class Customer(Base):
 
     # Meta integration
     meta_user_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+
+    # Chat integration
+    shopify_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    external_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+    total_conversations: Mapped[int] = mapped_column(Integer, default=0)
+    total_value: Mapped[float] = mapped_column(Float, default=0.0)
 
     # Merge support
     merged_into_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), nullable=True, index=True)

@@ -499,6 +499,95 @@ async def moderate_comment(
         return None
 
 
+import re as _re
+
+
+async def chat_auto_reply(
+    messages: list[dict],
+    contact_shopify_data: dict | None = None,
+    kb_articles: list[dict] | None = None,
+) -> dict:
+    """Generate an automatic reply for chat conversations with confidence assessment.
+
+    Used by the chat message pipeline.
+    Returns dict with keys: response (str), confidence (str), resolved (bool).
+    """
+    if is_credits_exhausted() or not settings.ANTHROPIC_API_KEY:
+        return {"response": "", "confidence": "none", "resolved": False}
+
+    system_prompt = (
+        "Voce e um assistente de atendimento automatico da Carbon, marca brasileira de smartwatches e acessorios. "
+        "Responda em portugues do Brasil, de forma educada, profissional e objetiva. "
+        "Use as informacoes de contexto (artigos da base de conhecimento, dados Shopify) quando disponiveis. "
+        "Se nao tiver informacao suficiente para responder com seguranca, diga que nao tem certeza e peca mais detalhes.\n\n"
+        "IMPORTANTE: Responda SEMPRE em JSON com este formato exato:\n"
+        '{"response": "sua resposta ao cliente", "confidence": "high|medium|low"}\n\n'
+        "Use 'high' se tem certeza da resposta baseada nos dados/KB.\n"
+        "Use 'medium' se a resposta e razoavel mas sem dados especificos.\n"
+        "Use 'low' se nao tem informacao suficiente para ajudar.\n"
+    )
+
+    context_parts = []
+    if contact_shopify_data:
+        context_parts.append(f"Dados Shopify do cliente:\n{json.dumps(contact_shopify_data, ensure_ascii=False, indent=2)}")
+    if kb_articles:
+        articles_text = "\n\n".join(
+            f"Artigo: {a.get('title', '')}\n{a.get('content', '')}" for a in kb_articles
+        )
+        context_parts.append(f"Artigos da base de conhecimento:\n{articles_text}")
+
+    if context_parts:
+        system_prompt += "\nContexto:\n" + "\n\n".join(context_parts)
+
+    claude_messages = []
+    for msg in messages:
+        role = "user" if msg.get("role") == "contact" else "assistant"
+        claude_messages.append({"role": role, "content": msg["content"]})
+
+    if not claude_messages or claude_messages[-1]["role"] != "user":
+        claude_messages.append({"role": "user", "content": "Responda ao cliente."})
+
+    try:
+        ai = get_client()
+        response = await _call_with_retry(
+            lambda: ai.messages.create(
+                model=settings.ANTHROPIC_MODEL,
+                max_tokens=1024,
+                system=system_prompt,
+                messages=claude_messages,
+            )
+        )
+
+        text = response.content[0].text.strip()
+
+        # Try to parse JSON response
+        try:
+            json_match = _re.search(r"\{[^}]+\}", text)
+            if json_match:
+                parsed = json.loads(json_match.group(0))
+                confidence = parsed.get("confidence", "medium")
+                if confidence not in ("high", "medium", "low"):
+                    confidence = "medium"
+                return {
+                    "response": parsed.get("response", text),
+                    "confidence": confidence,
+                    "resolved": confidence in ("high", "medium"),
+                }
+        except (json.JSONDecodeError, AttributeError):
+            pass
+
+        # Fallback: treat plain text as medium confidence
+        return {
+            "response": text,
+            "confidence": "medium",
+            "resolved": True,
+        }
+    except Exception as e:
+        _handle_credit_error(e)
+        logger.error(f"Chat auto-reply failed: {e}")
+        return {"response": "", "confidence": "none", "resolved": False}
+
+
 class CreditExhaustedError(Exception):
     """Raised when AI credits are exhausted."""
     pass
