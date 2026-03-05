@@ -12,7 +12,7 @@ from app.models.channel_identity import ChannelIdentity
 from app.models.conversation import Conversation
 from app.models.chat_message import ChatMessage
 from app.services.channels.tiktok_adapter import TikTokAdapter
-from app.services.chat_ws_manager import chat_manager
+from app.api.ws import notify_chat_event
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
@@ -62,9 +62,11 @@ async def tiktok_webhook(request: Request):
                     channel_message_id=msg.get("channel_message_id"), created_at=now,
                 ))
                 conv.last_message_at = now
-                await chat_manager.broadcast_to_agents({
-                    "event": "new_message", "channel": "tiktok", "conversation_id": conv.id,
-                    "sender_id": sender_id, "content": msg.get("content", ""),
+                await notify_chat_event({
+                    "event": "new_message", "channel": "tiktok",
+                    "conversation_id": str(conv.id),
+                    "sender_type": "contact", "sender_id": sender_id,
+                    "content": msg.get("content", ""),
                 })
                 content = msg.get("content", "")
                 if content:

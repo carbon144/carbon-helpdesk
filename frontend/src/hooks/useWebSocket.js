@@ -11,81 +11,125 @@ function getWsBase() {
   return `${proto}://${window.location.host}`
 }
 
+// Singleton WS connection shared across all hook consumers
+let _ws = null
+let _pingInterval = null
+let _reconnectTimeout = null
+let _token = null
+let _listeners = new Set()
+let _connected = false
+
+function _connect() {
+  if (!_token) return
+  if (_ws && _ws.readyState === WebSocket.OPEN) return
+
+  try {
+    const ws = new WebSocket(`${getWsBase()}/ws/${_token}`)
+
+    ws.onopen = () => {
+      _connected = true
+      _pingInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) ws.send('ping')
+      }, PING_INTERVAL_MS)
+      _listeners.forEach(fn => fn({ _type: '_connected' }))
+    }
+
+    ws.onmessage = (event) => {
+      if (event.data === 'pong') return
+      try {
+        const data = JSON.parse(event.data)
+        _listeners.forEach(fn => fn(data))
+      } catch (e) {
+        console.warn('WebSocket: failed to parse message', e)
+      }
+    }
+
+    ws.onclose = () => {
+      _connected = false
+      if (_pingInterval) clearInterval(_pingInterval)
+      if (_reconnectTimeout) clearTimeout(_reconnectTimeout)
+      _reconnectTimeout = setTimeout(_connect, AUTO_RECONNECT_MS)
+      _listeners.forEach(fn => fn({ _type: '_disconnected' }))
+    }
+
+    ws.onerror = () => ws.close()
+    _ws = ws
+  } catch (e) {
+    console.warn('WebSocket: failed to connect', e)
+  }
+}
+
+function _ensureConnection(token) {
+  if (_token !== token) {
+    _token = token
+    if (_ws) _ws.close()
+    _connect()
+  } else if (!_ws || _ws.readyState !== WebSocket.OPEN) {
+    _connect()
+  }
+}
+
+function _send(data) {
+  if (_ws && _ws.readyState === WebSocket.OPEN) {
+    _ws.send(typeof data === 'string' ? data : JSON.stringify(data))
+  }
+}
+
 export default function useWebSocket(token) {
-  const wsRef = useRef(null)
-  const pingRef = useRef(null)
-  const reconnectRef = useRef(null)
   const [notifications, setNotifications] = useState([])
   const [connected, setConnected] = useState(false)
 
-  const connect = useCallback(() => {
-    if (!token) return
-    // Prevent duplicate connections
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return
+  useEffect(() => {
+    _ensureConnection(token)
 
-    try {
-      const ws = new WebSocket(`${getWsBase()}/ws/${token}`)
+    const handler = (data) => {
+      if (data._type === '_connected') { setConnected(true); return }
+      if (data._type === '_disconnected') { setConnected(false); return }
 
-      ws.onopen = () => {
-        setConnected(true)
-        pingRef.current = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) ws.send('ping')
-        }, PING_INTERVAL_MS)
+      const notif = {
+        id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        ...data,
+        timestamp: new Date(),
+        read: false,
       }
+      setNotifications(prev => [notif, ...prev].slice(0, MAX_NOTIFICATIONS))
+    }
 
-      ws.onmessage = (event) => {
-        if (event.data === 'pong') return
-        try {
-          const data = JSON.parse(event.data)
-          const notif = {
-            id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-            ...data,
-            timestamp: new Date(),
-            read: false,
-          }
-          setNotifications(prev => [notif, ...prev].slice(0, MAX_NOTIFICATIONS))
-        } catch (e) {
-          console.warn('WebSocket: failed to parse message', e)
-        }
-      }
+    _listeners.add(handler)
+    setConnected(_connected)
 
-      ws.onclose = () => {
-        setConnected(false)
-        if (pingRef.current) clearInterval(pingRef.current)
-        // Clear previous timer before setting new one
-        if (reconnectRef.current) clearTimeout(reconnectRef.current)
-        reconnectRef.current = setTimeout(connect, AUTO_RECONNECT_MS)
-      }
-
-      ws.onerror = (e) => {
-        console.warn('WebSocket error:', e)
-        ws.close()
-      }
-
-      wsRef.current = ws
-    } catch (e) {
-      console.warn('WebSocket: failed to connect', e)
+    return () => {
+      _listeners.delete(handler)
     }
   }, [token])
-
-  useEffect(() => {
-    connect()
-    return () => {
-      if (reconnectRef.current) clearTimeout(reconnectRef.current)
-      if (pingRef.current) clearInterval(pingRef.current)
-      if (wsRef.current) wsRef.current.close()
-    }
-  }, [connect])
 
   const markRead = useCallback((id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
   }, [])
 
-  const clearAll = useCallback(() => {
-    setNotifications([])
-  }, [])
+  const clearAll = useCallback(() => setNotifications([]), [])
 
   const unreadCount = notifications.filter(n => !n.read).length
 
-  return { notifications, unreadCount, connected, markRead, clearAll }
+  return { notifications, unreadCount, connected, markRead, clearAll, send: _send }
+}
+
+/**
+ * Lightweight hook to subscribe to specific WS event types.
+ * Usage: useChatEvents(token, 'chat_event', (data) => { ... })
+ */
+export function useChatEvents(token, onChatEvent) {
+  useEffect(() => {
+    _ensureConnection(token)
+
+    const handler = (data) => {
+      if (data._type) return // internal events
+      if (data.type === 'chat_event' && onChatEvent) {
+        onChatEvent(data)
+      }
+    }
+
+    _listeners.add(handler)
+    return () => _listeners.delete(handler)
+  }, [token, onChatEvent])
 }

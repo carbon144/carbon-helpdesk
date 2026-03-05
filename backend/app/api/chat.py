@@ -158,11 +158,25 @@ async def send_message(
             "conversation_id": conv_id,
             "content": data.content,
             "sender_type": "agent",
-            "sender_id": user.id,
+            "sender_id": str(user.id),
         })
 
+    # Notify all agents via main WS (real-time)
+    from app.api.ws import notify_chat_event
+    await notify_chat_event({
+        "event": "new_message",
+        "conversation_id": conv_id,
+        "content": data.content,
+        "content_type": data.content_type,
+        "sender_type": "agent",
+        "sender_id": str(user.id),
+        "sender_name": user.name,
+        "message_id": str(msg.id),
+        "created_at": msg.created_at.isoformat(),
+    }, exclude_user=str(user.id))
+
     # Also send via channel adapter if not chat
-    if conv.channel != "chat" and visitor_id:
+    if conv.channel != "chat":
         from app.services.channels.dispatcher import dispatcher
         from app.models.channel_identity import ChannelIdentity
         ci_result = await db.execute(

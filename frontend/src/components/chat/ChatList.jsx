@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import api from '../../services/api'
+import { useChatEvents } from '../../hooks/useWebSocket'
 import ChannelIcon from './ChannelIcon'
 import { Inbox, Loader2, Search, X } from 'lucide-react'
 
@@ -45,7 +46,6 @@ export default function ChatList({ activeConversationId, onSelectConversation })
   const [channel, setChannel] = useState(null)
   const [status, setStatus] = useState('open')
   const [search, setSearch] = useState('')
-  const searchTimeout = useRef(null)
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -83,9 +83,20 @@ export default function ChatList({ activeConversationId, onSelectConversation })
     fetchConversations()
   }, [fetchConversations])
 
-  // Auto-refresh
+  // Real-time: refresh list on new conversation or new message
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('carbon_token') : null
+
+  const handleChatEvent = useCallback((data) => {
+    if (data.event === 'new_conversation' || data.event === 'new_message' || data.event === 'escalation') {
+      fetchConversations()
+    }
+  }, [fetchConversations])
+
+  useChatEvents(token, handleChatEvent)
+
+  // Fallback polling every 30s
   useEffect(() => {
-    const interval = setInterval(fetchConversations, 10000)
+    const interval = setInterval(fetchConversations, 30000)
     return () => clearInterval(interval)
   }, [fetchConversations])
 
@@ -121,7 +132,6 @@ export default function ChatList({ activeConversationId, onSelectConversation })
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.08)',
               color: '#E4E4E7',
-              focusRingColor: '#E5A800',
             }}
           />
           {search && (

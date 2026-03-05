@@ -38,7 +38,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://carbon:${POSTGRES_PASSWORD:-carbon_secret_2026}@postgres:5432/carbon_helpdesk
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET: ${JWT_SECRET:-carbon-jwt-secret-change-in-production-2026}
-      CORS_ORIGINS: http://localhost,http://143.198.20.6,https://helpdesk.brutodeverdade.com.br,http://helpdesk.brutodeverdade.com.br
+      CORS_ORIGINS: http://localhost,http://143.198.20.6,https://helpdesk.brutodeverdade.com.br,http://helpdesk.brutodeverdade.com.br,https://carbonsmartwatch.com.br,https://www.carbonsmartwatch.com.br
       ENVIRONMENT: production
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID:-}
@@ -64,6 +64,8 @@ services:
       META_WHATSAPP_PHONE_ID: ${META_WHATSAPP_PHONE_ID:-}
       META_PAGE_ID: ${META_PAGE_ID:-}
       META_INSTAGRAM_ACCOUNT_ID: ${META_INSTAGRAM_ACCOUNT_ID:-}
+      TIKTOK_ACCESS_TOKEN: ${TIKTOK_ACCESS_TOKEN:-}
+      TIKTOK_CLIENT_SECRET: ${TIKTOK_CLIENT_SECRET:-}
     volumes:
       - uploads:/app/uploads
     ports:

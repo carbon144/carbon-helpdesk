@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import api from '../../services/api'
+import { useChatEvents } from '../../hooks/useWebSocket'
 import ChatMessageBubble from './ChatMessageBubble'
 import ChatInput from './ChatInput'
 import TypingIndicator from './TypingIndicator'
@@ -19,6 +20,13 @@ export default function ChatView({ conversation, customer, user, onConversationU
   const [isTyping, setIsTyping] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
   const messagesEndRef = useRef(null)
+  const typingTimeout = useRef(null)
+  const convIdRef = useRef(null)
+
+  // Track current conversation id
+  useEffect(() => {
+    convIdRef.current = conversation?.id || null
+  }, [conversation?.id])
 
   const fetchMessages = useCallback(async () => {
     if (!conversation) return
@@ -45,10 +53,45 @@ export default function ChatView({ conversation, customer, user, onConversationU
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
-  // Poll for new messages every 5s
+  // Real-time chat events via WebSocket
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('carbon_token') : null
+
+  const handleChatEvent = useCallback((data) => {
+    if (!convIdRef.current) return
+
+    if (data.event === 'new_message' && data.conversation_id === convIdRef.current) {
+      const newMsg = {
+        id: data.message_id || `ws-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        conversation_id: data.conversation_id,
+        sender_type: data.sender_type,
+        sender_id: data.sender_id,
+        content_type: data.content_type || 'text',
+        content: data.content,
+        created_at: data.created_at || new Date().toISOString(),
+      }
+      setMessages((prev) => {
+        if (data.message_id && prev.some(m => m.id === data.message_id)) return prev
+        return [...prev, newMsg]
+      })
+
+      // Clear typing indicator on new message
+      setIsTyping(false)
+      if (typingTimeout.current) clearTimeout(typingTimeout.current)
+    }
+
+    if (data.event === 'typing' && data.conversation_id === convIdRef.current && data.sender_type === 'contact') {
+      setIsTyping(true)
+      if (typingTimeout.current) clearTimeout(typingTimeout.current)
+      typingTimeout.current = setTimeout(() => setIsTyping(false), 4000)
+    }
+  }, [])
+
+  useChatEvents(token, handleChatEvent)
+
+  // Fallback: light polling every 30s for any missed messages
   useEffect(() => {
     if (!conversation) return
-    const interval = setInterval(fetchMessages, 5000)
+    const interval = setInterval(fetchMessages, 30000)
     return () => clearInterval(interval)
   }, [conversation?.id, fetchMessages])
 

@@ -198,6 +198,14 @@ async def notify_escalation(ticket_id: str, ticket_number: int, reason: str):
     })
 
 
+# ── Chat real-time helpers ──
+
+async def notify_chat_event(data: dict, exclude_user: str | None = None):
+    """Broadcast a chat event to all connected agent WebSockets."""
+    payload = {"type": "chat_event", **data}
+    await manager.broadcast(payload, exclude_user=exclude_user)
+
+
 # ── Chat visitor WebSocket ──
 
 from app.services.chat_ws_manager import chat_manager
@@ -216,7 +224,8 @@ async def ws_chat(ws: WebSocket, visitor_id: str):
                 conversation_id = data.get("conversation_id")
                 content = data.get("content", "")
 
-                await chat_manager.broadcast_to_agents({
+                # Notify agents via main WS (real-time)
+                await notify_chat_event({
                     "event": "new_message",
                     "conversation_id": conversation_id,
                     "content": content,
@@ -250,26 +259,88 @@ async def ws_chat(ws: WebSocket, visitor_id: str):
                                         "content": bot_msg,
                                         "sender_type": "bot",
                                     })
-                                    await chat_manager.broadcast_to_agents({
+                                    await notify_chat_event({
                                         "event": "new_message",
                                         "conversation_id": conversation_id,
                                         "content": bot_msg,
                                         "sender_type": "bot",
                                     })
                                 if pipeline_result.get("escalated"):
-                                    await chat_manager.broadcast_to_agents({
+                                    await notify_chat_event({
                                         "event": "escalation",
                                         "conversation_id": conversation_id,
                                     })
 
             elif event == "typing":
                 conversation_id = data.get("conversation_id")
-                await chat_manager.broadcast_to_agents({
+                await notify_chat_event({
                     "event": "typing",
                     "conversation_id": conversation_id,
                     "sender_type": "contact",
                     "sender_id": visitor_id,
                 })
+
+            elif event == "init":
+                # Widget initialization — create or resume conversation
+                from app.core.database import async_session
+                from sqlalchemy import select as sa_select
+                from app.models.conversation import Conversation
+                from app.models.customer import Customer
+
+                visitor_name = data.get("name", "Visitante")
+                visitor_email = data.get("email")
+
+                async with async_session() as db:
+                    # Find or create customer by external_id (visitor_id)
+                    cust = (await db.execute(
+                        sa_select(Customer).where(Customer.external_id == visitor_id)
+                    )).scalar_one_or_none()
+                    if not cust:
+                        cust = Customer(
+                            name=visitor_name,
+                            email=visitor_email,
+                            external_id=visitor_id,
+                        )
+                        db.add(cust)
+                        await db.flush()
+
+                    # Find open conversation or create new one
+                    conv = (await db.execute(
+                        sa_select(Conversation).where(
+                            Conversation.customer_id == cust.id,
+                            Conversation.channel == "chat",
+                            Conversation.status.in_(["open", "pending"]),
+                        ).order_by(Conversation.created_at.desc())
+                    )).scalar_one_or_none()
+
+                    if not conv:
+                        conv = Conversation(
+                            customer_id=cust.id,
+                            channel="chat",
+                            status="open",
+                            subject=f"Chat de {visitor_name}",
+                        )
+                        db.add(conv)
+                        await db.flush()
+                        cust.total_conversations = (cust.total_conversations or 0) + 1
+
+                    await db.commit()
+                    await db.refresh(conv)
+
+                    # Send conversation info back to visitor
+                    await chat_manager.send_to_visitor(visitor_id, {
+                        "event": "init_ok",
+                        "conversation_id": str(conv.id),
+                        "status": conv.status,
+                    })
+
+                    # Notify agents about new chat
+                    await notify_chat_event({
+                        "event": "new_conversation",
+                        "conversation_id": str(conv.id),
+                        "customer_name": visitor_name,
+                        "channel": "chat",
+                    })
 
     except WebSocketDisconnect:
         await chat_manager.disconnect_visitor(visitor_id)

@@ -696,6 +696,17 @@ async def lifespan(app: FastAPI):
         async with async_session() as session:
             await seed_database(session)
 
+    # Register channel adapters for chat dispatcher
+    from app.services.channels.dispatcher import dispatcher
+    from app.services.channels.whatsapp_adapter import WhatsAppAdapter
+    from app.services.channels.instagram_adapter import InstagramAdapter
+    from app.services.channels.facebook_adapter import FacebookAdapter
+    from app.services.channels.tiktok_adapter import TikTokAdapter
+    dispatcher.register(WhatsAppAdapter())
+    dispatcher.register(InstagramAdapter())
+    dispatcher.register(FacebookAdapter())
+    dispatcher.register(TikTokAdapter())
+
     # Start background tasks
     escalation_task = asyncio.create_task(_run_escalation_loop())
     email_fetch_task = asyncio.create_task(_run_email_fetch_loop())
