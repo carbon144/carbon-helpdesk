@@ -79,13 +79,12 @@ export default function Layout({ user, onLogout }) {
     } catch (e) {
       console.error('Failed to load ticket counts', e)
     }
-    // Chat ao vivo desabilitado temporariamente
-    // try {
-    //   const chatRes = await api.get('/chat/conversations/counts')
-    //   setChatCount(chatRes.data?.open || 0)
-    // } catch (e) {
-    //   console.error('Failed to load ticket counts', e)
-    // }
+    try {
+      const chatRes = await api.get('/chat/conversations/counts')
+      setChatCount(chatRes.data?.open || 0)
+    } catch (e) {
+      console.error('Failed to load chat counts', e)
+    }
   }
 
   return (
@@ -98,9 +97,8 @@ export default function Layout({ user, onLogout }) {
           <Routes>
             <Route path="/dashboard" element={<DashboardPage user={user} />} />
             <Route path="/tickets" element={<TicketsPage user={user} />} />
-            {/* Chat ao vivo desabilitado temporariamente */}
-            {/* <Route path="/chat" element={<ChatPage user={user} />} /> */}
-            {/* <Route path="/chatbot-flows" element={<ChatbotFlowsPage />} /> */}
+            <Route path="/chat" element={<ChatPage user={user} />} />
+            <Route path="/chatbot-flows" element={<ChatbotFlowsPage />} />
             <Route path="/tickets/:id" element={<TicketDetailPage user={user} />} />
             <Route path="/kb" element={<KBPage />} />
             <Route path="/assistant" element={<AssistantPage user={user} />} />

@@ -11,7 +11,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/dashboard', label: 'Dashboard', icon: 'fa-chart-line', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
       { to: '/tickets', label: 'Caixa de Entrada', icon: 'fa-inbox', roles: ['super_admin', 'admin', 'supervisor', 'agent'], badge: 'tickets' },
-      // { to: '/chat', label: 'Chat ao Vivo', icon: 'fa-headset', roles: ['super_admin', 'admin', 'supervisor', 'agent'], badge: 'chat' },
+      { to: '/chat', label: 'Chat ao Vivo', icon: 'fa-headset', roles: ['super_admin', 'admin', 'supervisor', 'agent'], badge: 'chat' },
       { to: '/canais-ia', label: 'Canais IA', icon: 'fa-comments', roles: ['super_admin', 'admin', 'supervisor'], badge: 'meta' },
       { to: '/tracking', label: 'Rastreamento', icon: 'fa-truck-fast', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
     ],

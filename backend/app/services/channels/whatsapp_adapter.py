@@ -120,9 +120,14 @@ class WhatsAppAdapter(ChannelAdapter):
         for entry in payload.get("entry", []):
             for change in entry.get("changes", []):
                 value = change.get("value", {})
+                # Extract contact name from contacts array
+                contacts = value.get("contacts", [])
+                contact_names = {c.get("wa_id", ""): c.get("profile", {}).get("name", "") for c in contacts}
                 for msg in value.get("messages", []):
                     normalized = self._parse_message(msg)
                     if normalized:
+                        sender = normalized.get("sender_id", "")
+                        normalized["sender_name"] = contact_names.get(sender, "")
                         messages.append(normalized)
 
         return messages

@@ -15,12 +15,14 @@ from app.models.conversation import Conversation
 from app.models.chat_message import ChatMessage
 from app.services.channels.instagram_adapter import InstagramAdapter
 from app.services.channels.facebook_adapter import FacebookAdapter
+from app.services.channels.whatsapp_adapter import WhatsAppAdapter
 from app.api.ws import notify_chat_event
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 _instagram = InstagramAdapter()
 _facebook = FacebookAdapter()
+_whatsapp = WhatsAppAdapter()
 
 GRAPH_API_BASE = "https://graph.facebook.com/v21.0"
 
@@ -99,7 +101,9 @@ async def meta_webhook(request: Request):
     payload = await request.json()
     obj = payload.get("object", "")
     logger.info("Webhook received: object=%s", obj)
-    if obj == "instagram":
+    if obj == "whatsapp_business_account":
+        channel, messages = "whatsapp", await _whatsapp.process_webhook(payload)
+    elif obj == "instagram":
         channel, messages = "instagram", await _instagram.process_webhook(payload)
     elif obj == "page":
         channel, messages = "facebook", await _facebook.process_webhook(payload)
@@ -111,9 +115,76 @@ async def meta_webhook(request: Request):
         async with async_session() as db:
             for msg in messages:
                 logger.info("Processing msg from sender=%s content=%s", msg.get("sender_id", "?"), msg.get("content", "")[:50])
-                await _process_meta_message(db, msg, channel)
+                if channel == "whatsapp":
+                    await _process_whatsapp_message(db, msg)
+                else:
+                    await _process_meta_message(db, msg, channel)
             await db.commit()
     return {"status": "ok"}
+
+
+async def _process_whatsapp_message(db: AsyncSession, msg: dict):
+    """Process a WhatsApp message — uses phone number as channel_id."""
+    channel = "whatsapp"
+    sender_id = msg["sender_id"]  # phone number e.g. "5511999999999"
+
+    result = await db.execute(
+        select(ChannelIdentity).where(ChannelIdentity.channel == channel, ChannelIdentity.channel_id == sender_id)
+    )
+    identity = result.scalars().first()
+    if identity:
+        customer_id = identity.customer_id
+    else:
+        name = msg.get("sender_name") or f"WhatsApp +{sender_id}"
+        customer = Customer(name=name, phone=sender_id)
+        db.add(customer)
+        await db.flush()
+        customer_id = customer.id
+        db.add(ChannelIdentity(customer_id=customer_id, channel=channel, channel_id=sender_id))
+
+    result = await db.execute(
+        select(Conversation).where(Conversation.customer_id == customer_id, Conversation.channel == channel, Conversation.status == "open")
+    )
+    conversation = result.scalar_one_or_none()
+    if not conversation:
+        conversation = Conversation(customer_id=customer_id, channel=channel, status="open")
+        db.add(conversation)
+        await db.flush()
+
+    # Dedup by channel_message_id
+    mid = msg.get("channel_message_id")
+    if mid:
+        existing_msg = await db.execute(
+            select(ChatMessage).where(ChatMessage.channel_message_id == mid)
+        )
+        if existing_msg.scalars().first():
+            return
+
+    now = datetime.now(timezone.utc)
+    db.add(ChatMessage(
+        conversation_id=conversation.id, sender_type="contact", sender_id=customer_id,
+        content_type=msg.get("content_type", "text"), content=msg.get("content", ""),
+        channel_message_id=mid, created_at=now,
+    ))
+    conversation.last_message_at = now
+
+    await notify_chat_event({
+        "event": "new_message", "channel": channel,
+        "conversation_id": str(conversation.id),
+        "sender_type": "contact", "sender_id": sender_id,
+        "content": msg.get("content", ""),
+    })
+
+    content = msg.get("content", "")
+    if content:
+        from app.services.message_pipeline import process_incoming_message
+        cust = (await db.execute(select(Customer).where(Customer.id == customer_id))).scalar_one_or_none()
+        if cust:
+            pr = await process_incoming_message(db, conversation, cust, content)
+            if pr.get("bot_messages"):
+                from app.services.channels.dispatcher import dispatcher
+                for bot_msg in pr["bot_messages"]:
+                    await dispatcher.send(channel, sender_id, bot_msg)
 
 
 async def _process_meta_message(db: AsyncSession, msg: dict, channel: str):
