@@ -17,6 +17,21 @@ logger = logging.getLogger(__name__)
 
 MAX_AI_ATTEMPTS = 3
 
+
+def _extract_order_number(text: str) -> str | None:
+    """Extract order number from text like '#126338', '126338', 'pedido 126338'."""
+    import re
+    text = text.strip()
+    # Direct number with optional #
+    m = re.match(r'^#?(\d{4,7})$', text)
+    if m:
+        return m.group(1)
+    # "pedido 126338" or "pedido #126338"
+    m = re.search(r'pedido\s*#?(\d{4,7})', text, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    return None
+
 _chatbot_engine = ChatbotEngine()
 
 # ── Status maps (Portuguese) ──
@@ -73,6 +88,23 @@ async def process_incoming_message(
     if conversation.handler == "agent" and not conversation.ai_enabled:
         return result
 
+    # Layer 0.5: Auto order lookup if message looks like an order number
+    if conversation.handler in ("chatbot", None, "ai"):
+        order_num = _extract_order_number(message_text)
+        if order_num:
+            from app.services import shopify_service
+            order = await shopify_service.get_order_by_number(order_num)
+            if order and not order.get("error"):
+                detail_msgs = _format_order_messages(order)
+                detail_msgs.append("Precisa de mais alguma coisa? Digite *menu* para ver as opcoes.")
+                for m in detail_msgs:
+                    result["bot_messages"].append(m)
+                    await _save_bot_message(db, conversation, m)
+                result["handler"] = "chatbot"
+                conversation.handler = "chatbot"
+                await db.commit()
+                return result
+
     # Layer 1: Chatbot flows
     if conversation.handler in ("chatbot", None):
         chatbot_result = await _chatbot_engine.process_message(
@@ -83,6 +115,12 @@ async def process_incoming_message(
             responses = chatbot_result.get("responses", [])
             for resp in responses:
                 resp_type = resp.get("type")
+
+                if resp_type == "transfer_to_ai":
+                    conversation.handler = "ai"
+                    conversation.ai_enabled = True
+                    # Don't return — fall through to AI layer below
+                    break
 
                 if resp_type == "transfer_to_agent":
                     # Save collected data for the agent to see
@@ -105,9 +143,8 @@ async def process_incoming_message(
                 elif resp_type == "send_menu":
                     content = resp.get("content", "")
                     options = resp.get("options", [])
-                    # Send the text prompt as a bot message too
+                    # Only save to DB, don't send as separate bot_message (interactive includes the text)
                     if content:
-                        result["bot_messages"].append(content)
                         await _save_bot_message(db, conversation, content)
                     # Add interactive message for channel adapters
                     if options:
@@ -118,6 +155,21 @@ async def process_incoming_message(
                         })
 
                 elif resp_type == "collect_input":
+                    field = resp.get("field", "")
+                    # Auto-lookup: if collecting order_number and we have phone, try Shopify first
+                    if field in ("order_number", "pedido") and conversation.channel == "whatsapp":
+                        phone = getattr(customer, "phone", None)
+                        if phone:
+                            auto_msgs = await _auto_lookup_by_phone(customer, phone)
+                            if auto_msgs:
+                                for msg in auto_msgs:
+                                    result["bot_messages"].append(msg)
+                                    await _save_bot_message(db, conversation, msg)
+                                # Clear chatbot state so it doesn't wait for input
+                                meta = conversation.metadata_ or {}
+                                meta.pop("chatbot_state", None)
+                                conversation.metadata_ = meta
+                                continue  # skip the collect_input prompt
                     content = resp.get("content", "")
                     if content:
                         result["bot_messages"].append(content)
@@ -187,6 +239,49 @@ async def process_incoming_message(
 
 # ── Order lookup helpers ──
 
+async def _auto_lookup_by_phone(customer: Customer, phone: str) -> list[str]:
+    """Try to find recent orders by customer phone number in Shopify."""
+    from app.services import shopify_service
+
+    try:
+        result = await shopify_service.get_orders_by_phone(phone, limit=5)
+        orders = result.get("orders", [])
+        if not orders:
+            return []  # No orders found — fall back to asking
+
+        # Show most recent orders — split tracking codes into separate messages for easy copy
+        msgs = []
+        summary = "Encontrei seus pedidos pelo seu numero de WhatsApp:\n"
+        tracking_codes = []
+
+        for o in orders[:3]:
+            number = o.get("order_number", "?")
+            financial = FINANCIAL_STATUS_PT.get(o.get("financial_status", ""), o.get("financial_status", ""))
+            delivery = DELIVERY_STATUS_PT.get(o.get("delivery_status", ""), o.get("delivery_status", ""))
+            total = o.get("total_price", "0.00")
+            tracking = o.get("tracking_code", "")
+
+            line = f"\nPedido {number} — R$ {total}\nPagamento: {financial} | Entrega: {delivery}"
+            summary += line
+            if tracking:
+                tracking_codes.append(f"Rastreio pedido {number}:\n{tracking}")
+
+        summary += "\n\nPara detalhes de um pedido, envie o numero (ex: #12345)."
+        msgs.append(summary)
+
+        # Each tracking code as separate message so customer can copy
+        for tc in tracking_codes:
+            msgs.append(tc)
+
+        if tracking_codes:
+            msgs.append("Acompanhe seu rastreio em:\nhttps://carbonsmartwatch.com.br/tracking")
+
+        return msgs
+    except Exception as e:
+        logger.warning("Auto phone lookup failed: %s", e)
+        return []
+
+
 async def _handle_order_lookup(
     customer: Customer,
     collected_data: dict,
@@ -252,13 +347,22 @@ def _format_order_detail(order: dict) -> str:
     if items_text:
         msg += f"Itens:\n{items_text}\n"
 
-    if tracking:
-        msg += f"Rastreio: {tracking}"
-        if carrier:
-            msg += f" ({carrier})"
-        msg += "\n"
-
     return msg.strip()
+
+
+def _format_order_messages(order: dict) -> list[str]:
+    """Format order into multiple messages — tracking code separate for easy copy."""
+    detail = _format_order_detail(order)
+    msgs = [detail]
+    tracking = order.get("tracking_code", "")
+    if tracking:
+        carrier = order.get("carrier", "")
+        tc = tracking
+        if carrier:
+            tc += f" ({carrier})"
+        msgs.append(f"Codigo de rastreio:\n{tc}")
+        msgs.append("Acompanhe em:\nhttps://carbonsmartwatch.com.br/tracking")
+    return msgs
 
 
 def _format_orders_list(orders: list[dict]) -> str:

@@ -54,7 +54,7 @@ class ChannelAdapter(ABC):
 
         lines = [text, ""]
         for i, opt in enumerate(options, 1):
-            title = opt.get("title", f"Opcao {i}")
+            title = opt.get("title") or opt.get("label") or f"Opcao {i}"
             desc = opt.get("description", "")
             line = f"{i}. {title}"
             if desc:

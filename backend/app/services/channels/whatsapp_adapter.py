@@ -111,15 +111,18 @@ class WhatsAppAdapter(ChannelAdapter):
         }
 
         try:
+            body_text = (text or "Selecione uma opcao:")[:1024]
+
             if len(options) <= 3:
                 # Reply buttons
                 buttons = []
                 for opt in options:
+                    title = str(opt.get("title") or opt.get("label") or opt.get("id") or "")[:20]
                     buttons.append({
                         "type": "reply",
                         "reply": {
-                            "id": str(opt.get("id", opt.get("title", "")))[:256],
-                            "title": str(opt.get("title", ""))[:20],
+                            "id": str(opt.get("id") or opt.get("title") or opt.get("label") or "")[:256],
+                            "title": title,
                         },
                     })
                 payload = {
@@ -128,7 +131,7 @@ class WhatsAppAdapter(ChannelAdapter):
                     "type": "interactive",
                     "interactive": {
                         "type": "button",
-                        "body": {"text": text[:1024]},
+                        "body": {"text": body_text},
                         "action": {"buttons": buttons},
                     },
                 }
@@ -136,9 +139,10 @@ class WhatsAppAdapter(ChannelAdapter):
                 # List message
                 rows = []
                 for opt in options[:10]:  # WA max 10 rows
+                    title = str(opt.get("title") or opt.get("label") or opt.get("id") or "")[:24]
                     row = {
-                        "id": str(opt.get("id", opt.get("title", "")))[:200],
-                        "title": str(opt.get("title", ""))[:24],
+                        "id": str(opt.get("id") or opt.get("title") or opt.get("label") or "")[:200],
+                        "title": title,
                     }
                     desc = opt.get("description", "")
                     if desc:

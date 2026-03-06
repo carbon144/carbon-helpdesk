@@ -100,7 +100,7 @@ async def meta_webhook(request: Request):
             raise HTTPException(403, "Invalid signature")
     payload = await request.json()
     obj = payload.get("object", "")
-    logger.info("Webhook received: object=%s", obj)
+    print(f"[WEBHOOK] object={obj}", flush=True)
     if obj == "whatsapp_business_account":
         channel, messages = "whatsapp", await _whatsapp.process_webhook(payload)
     elif obj == "instagram":
@@ -108,13 +108,13 @@ async def meta_webhook(request: Request):
     elif obj == "page":
         channel, messages = "facebook", await _facebook.process_webhook(payload)
     else:
-        logger.info("Unknown webhook object: %s", obj)
+        print(f"[WEBHOOK] Unknown object: {obj}", flush=True)
         return {"status": "ok"}
-    logger.info("Parsed %d messages for channel=%s", len(messages), channel)
+    print(f"[WEBHOOK] Parsed {len(messages)} messages for channel={channel}", flush=True)
     if messages:
         async with async_session() as db:
             for msg in messages:
-                logger.info("Processing msg from sender=%s content=%s", msg.get("sender_id", "?"), msg.get("content", "")[:50])
+                print(f"[WEBHOOK] Processing sender={msg.get('sender_id', '?')} content={msg.get('content', '')[:50]}", flush=True)
                 if channel == "whatsapp":
                     await _process_whatsapp_message(db, msg)
                 else:

@@ -57,6 +57,10 @@ class ChatbotEngine:
         last_menu = meta.get("last_menu_options")
         if not last_menu:
             return None
+        # Normalize: "opcao 1", "opção 1", "opção1" → "1"
+        num_match = re.match(r"^op[cç][aã]o\s*(\d+)$", text_lower)
+        if num_match:
+            text_lower = num_match.group(1)
         for i, opt in enumerate(last_menu):
             opt_id = (opt.get("id") or "").lower()
             opt_label = (opt.get("label") or "").lower()
@@ -222,11 +226,11 @@ class ChatbotEngine:
         step_type = step.get("type", "send_message")
 
         if step_type == "send_message":
-            content = self._substitute_vars(step.get("content", ""), collected_data)
+            content = self._substitute_vars(step.get("content") or step.get("message") or "", collected_data)
             return {"type": "send_message", "content": content}
 
         elif step_type == "send_menu":
-            content = self._substitute_vars(step.get("content", ""), collected_data)
+            content = self._substitute_vars(step.get("content") or step.get("message") or "", collected_data)
             options = step.get("options", [])
             # Save menu options in metadata for selection routing
             if conversation and hasattr(conversation, "metadata_"):
@@ -240,8 +244,8 @@ class ChatbotEngine:
             }
 
         elif step_type == "collect_input":
-            prompt = self._substitute_vars(step.get("prompt", ""), collected_data)
-            field = step.get("field", "input")
+            prompt = self._substitute_vars(step.get("prompt") or step.get("message") or "", collected_data)
+            field = step.get("field") or step.get("variable") or "input"
             return {
                 "type": "collect_input",
                 "content": prompt,
@@ -276,6 +280,9 @@ class ChatbotEngine:
                 "message": message,
                 "collected_data": collected_data,
             }
+
+        elif step_type == "transfer_to_ai":
+            return {"type": "transfer_to_ai"}
 
         elif step_type == "condition":
             # Evaluate condition — for now just pass through

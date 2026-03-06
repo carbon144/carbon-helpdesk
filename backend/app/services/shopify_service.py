@@ -202,6 +202,44 @@ async def get_order_by_number(order_number: str) -> dict:
         return {"error": str(e)}
 
 
+async def get_orders_by_phone(phone: str, limit: int = 5) -> dict:
+    """Busca pedidos no Shopify pelo telefone do cliente.
+    Shopify aceita busca por phone no endpoint de orders."""
+    base = _shopify_base()
+    if not base or not settings.SHOPIFY_ACCESS_TOKEN:
+        return {"configured": False, "orders": []}
+
+    # Normalize: keep only digits
+    digits = "".join(c for c in phone if c.isdigit())
+    if not digits:
+        return {"configured": True, "orders": []}
+
+    try:
+        # Search customers by phone first
+        url = f"{base}/customers/search.json"
+        # Try multiple phone formats
+        phone_variants = [f"+{digits}", digits]
+        if digits.startswith("55") and len(digits) >= 12:
+            phone_variants.append(f"+{digits[:2]} {digits[2:4]} {digits[4:]}")
+
+        for phone_query in phone_variants:
+            params = {"query": f"phone:{phone_query}", "limit": 1}
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(url, headers=_shopify_headers(), params=params)
+            if resp.status_code != 200:
+                continue
+            customers = resp.json().get("customers", [])
+            if customers:
+                email = customers[0].get("email")
+                if email:
+                    return await get_orders_by_email(email, limit=limit)
+
+        return {"configured": True, "orders": []}
+    except Exception as e:
+        logger.error(f"Shopify phone lookup error for {phone}: {e}")
+        return {"configured": True, "orders": []}
+
+
 def _safe_float(value) -> float:
     """Convert value to float safely."""
     try:
