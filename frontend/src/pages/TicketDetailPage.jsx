@@ -1317,6 +1317,7 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                 <div className="flex gap-2">
                   <div className="flex-1 relative">
                     <textarea ref={textareaRef} value={reply} onChange={handleReplyChange} onKeyDown={handleKeyDown} onPaste={handlePaste} rows={5}
+                      spellCheck={true} lang="pt-BR"
                       placeholder={replyType === 'internal_note' ? 'Nota interna...' : 'Escreva sua resposta... (/ para macros)'}
                       className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-[var(--text-primary)] text-sm resize-y focus:outline-none focus:border-indigo-500" style={{ minHeight: '100px' }} />
                     {/* Slash command inline dropdown */}
@@ -1577,6 +1578,7 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
               <div>
                 <h3 className="text-[var(--text-primary)] text-sm font-medium mb-3"><i className="fas fa-industry mr-2 text-blue-400" />Notas do Fornecedor</h3>
                 <textarea value={supplierNotes} onChange={(e) => setSupplierNotes(e.target.value)} rows={4}
+                  spellCheck={true} lang="pt-BR"
                   placeholder="Registre comunicações com fornecedores..."
                   className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-[var(--text-primary)] text-sm resize-none focus:outline-none focus:border-indigo-500" />
                 <button onClick={handleSaveSupplierNotes}
@@ -2626,6 +2628,7 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
             <div className="p-4">
               <p className="text-[var(--text-secondary)] text-xs font-medium uppercase mb-3">Notas Internas</p>
               <textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={12}
+                spellCheck={true} lang="pt-BR"
                 placeholder="Anotações internas sobre este ticket..."
                 className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-[var(--text-primary)] text-sm resize-none focus:outline-none focus:border-yellow-500 leading-relaxed" />
               <button onClick={async () => {

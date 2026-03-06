@@ -53,6 +53,8 @@ export default function ChatInput({ onSendMessage, onSendNote, disabled }) {
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
+          spellCheck={true}
+          lang="pt-BR"
           placeholder={isNote ? 'Escreva uma nota interna...' : 'Escreva uma mensagem...'}
           rows={1}
           className="flex-1 bg-transparent resize-none text-sm placeholder-zinc-500 focus:outline-none max-h-32 min-h-[20px]"

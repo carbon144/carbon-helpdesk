@@ -86,6 +86,7 @@ export default function ComposeEmailModal({ open, onClose, onSuccess, toast }) {
             )}
             <label className="text-[var(--text-secondary)] text-sm font-medium block mb-1.5">Mensagem</label>
             <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Escreva sua mensagem..." rows={8}
+              spellCheck={true} lang="pt-BR"
               className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg px-3 py-2.5 text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none" />
           </div>
           <div>
