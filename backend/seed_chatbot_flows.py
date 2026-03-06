@@ -6,16 +6,16 @@ Uso: python seed_chatbot_flows.py
 import asyncio
 from sqlalchemy import select, func
 
-from app.core.database import async_engine, AsyncSessionLocal
+from app.core.database import engine, async_session
 from app.models.chatbot_flow import ChatbotFlow
 
 
 MENU_OPTIONS = [
-    {"key": "1", "label": "📦 Rastreio do meu pedido"},
-    {"key": "2", "label": "🔧 Garantia / Defeito"},
-    {"key": "3", "label": "📬 Não recebi / Reenvio"},
-    {"key": "4", "label": "💰 Financeiro (reembolso, cancelamento, NF)"},
-    {"key": "5", "label": "❓ Dúvida geral"},
+    {"id": "rastreio", "label": "Rastrear pedido", "description": "Ver status e rastreio do seu pedido"},
+    {"id": "garantia", "label": "Garantia / Defeito", "description": "Problemas com seu relogio"},
+    {"id": "reenvio", "label": "Nao recebi meu pedido", "description": "Pedido atrasado ou extraviado"},
+    {"id": "financeiro", "label": "Financeiro", "description": "Pagamento, reembolso, cancelamento"},
+    {"id": "duvida", "label": "Duvida / Outro", "description": "Outras questoes"},
 ]
 
 FLOWS = [
@@ -313,7 +313,7 @@ FLOWS = [
 
 
 async def seed():
-    async with AsyncSessionLocal() as session:
+    async with async_session() as session:
         # Verifica se ja existem flows
         result = await session.execute(
             select(func.count()).select_from(ChatbotFlow)
