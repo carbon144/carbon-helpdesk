@@ -197,10 +197,14 @@ export default function ChatList({ activeConversationId, onSelectConversation })
                   onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
                   onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}>
                   <div className="relative flex-shrink-0">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold"
-                      style={{ background: '#E5A800', color: '#000' }}>
-                      {name.charAt(0).toUpperCase()}
-                    </div>
+                    {cust?.avatar_url ? (
+                      <img src={cust.avatar_url} alt={name} className="w-10 h-10 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold"
+                        style={{ background: '#E5A800', color: '#000' }}>
+                        {name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center shadow-sm"
                       style={{ background: '#27272A' }}>
                       <ChannelIcon channel={conv.channel} size="w-3 h-3" />

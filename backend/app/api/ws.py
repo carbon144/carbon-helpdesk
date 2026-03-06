@@ -1,5 +1,6 @@
 """WebSocket endpoint for real-time notifications."""
 from __future__ import annotations
+import asyncio
 import json
 import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -132,7 +133,16 @@ async def websocket_endpoint(ws: WebSocket, token: str):
     await manager.connect(ws, user_id)
     try:
         while True:
-            raw = await ws.receive_text()
+            try:
+                raw = await asyncio.wait_for(ws.receive_text(), timeout=120)
+            except asyncio.TimeoutError:
+                # No ping received in 120s — client likely disconnected
+                logger.info(f"WS heartbeat timeout for user={user_id}, closing")
+                try:
+                    await ws.close(code=1000, reason="Heartbeat timeout")
+                except Exception:
+                    pass
+                break
             if raw == "ping":
                 await ws.send_text("pong")
                 continue
@@ -150,8 +160,10 @@ async def websocket_endpoint(ws: WebSocket, token: str):
             except (json.JSONDecodeError, KeyError):
                 pass
     except WebSocketDisconnect:
-        manager.disconnect(ws, user_id)
+        pass
     except Exception:
+        pass
+    finally:
         manager.disconnect(ws, user_id)
 
 

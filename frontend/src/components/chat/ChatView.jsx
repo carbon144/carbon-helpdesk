@@ -177,10 +177,14 @@ export default function ChatView({ conversation, customer, user, onConversationU
       <div className="flex items-center justify-between px-4 py-3"
         style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold"
-            style={{ background: '#E5A800', color: '#000' }}>
-            {contactName.charAt(0).toUpperCase()}
-          </div>
+          {customer?.avatar_url ? (
+            <img src={customer.avatar_url} alt={contactName} className="w-9 h-9 rounded-full object-cover" />
+          ) : (
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold"
+              style={{ background: '#E5A800', color: '#000' }}>
+              {contactName.charAt(0).toUpperCase()}
+            </div>
+          )}
           <div>
             <div className="flex items-center gap-2">
               <span className="font-semibold text-sm" style={{ color: '#E4E4E7' }}>{contactName}</span>

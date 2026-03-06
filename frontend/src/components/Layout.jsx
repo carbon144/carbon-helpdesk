@@ -22,6 +22,7 @@ const CanaisIAPage = lazy(() => import('../pages/CanaisIAPage'))
 const DashboardPage = lazy(() => import('../pages/DashboardPage'))
 const AgentAnalysisPage = lazy(() => import('../pages/AgentAnalysisPage'))
 const ChatPage = lazy(() => import('../pages/ChatPage'))
+const ChatbotFlowsPage = lazy(() => import('../pages/ChatbotFlowsPage'))
 
 const AUTO_REFRESH_MS = 30_000
 
@@ -78,12 +79,13 @@ export default function Layout({ user, onLogout }) {
     } catch (e) {
       console.error('Failed to load ticket counts', e)
     }
-    try {
-      const chatRes = await api.get('/chat/conversations/counts')
-      setChatCount(chatRes.data?.open || 0)
-    } catch (e) {
-      console.error('Failed to load ticket counts', e)
-    }
+    // Chat ao vivo desabilitado temporariamente
+    // try {
+    //   const chatRes = await api.get('/chat/conversations/counts')
+    //   setChatCount(chatRes.data?.open || 0)
+    // } catch (e) {
+    //   console.error('Failed to load ticket counts', e)
+    // }
   }
 
   return (
@@ -96,7 +98,9 @@ export default function Layout({ user, onLogout }) {
           <Routes>
             <Route path="/dashboard" element={<DashboardPage user={user} />} />
             <Route path="/tickets" element={<TicketsPage user={user} />} />
-            <Route path="/chat" element={<ChatPage user={user} />} />
+            {/* Chat ao vivo desabilitado temporariamente */}
+            {/* <Route path="/chat" element={<ChatPage user={user} />} /> */}
+            {/* <Route path="/chatbot-flows" element={<ChatbotFlowsPage />} /> */}
             <Route path="/tickets/:id" element={<TicketDetailPage user={user} />} />
             <Route path="/kb" element={<KBPage />} />
             <Route path="/assistant" element={<AssistantPage user={user} />} />
@@ -105,7 +109,7 @@ export default function Layout({ user, onLogout }) {
             <Route path="/leaderboard" element={<LeaderboardPage user={user} />} />
             <Route path="/tracking" element={<TrackingPage />} />
             <Route path="/canais-ia" element={<CanaisIAPage user={user} />} />
-            <Route path="/moderation" element={<ModerationPage />} />
+            {/* <Route path="/moderation" element={<ModerationPage />} /> */}
             <Route path="/agent-analysis" element={<AgentAnalysisPage user={user} />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/integrations" element={<IntegrationsPage />} />

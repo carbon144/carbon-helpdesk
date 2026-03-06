@@ -111,6 +111,7 @@ async def get_customer(
         "tags": customer.tags,
         "merged_into_id": customer.merged_into_id,
         "alternate_emails": customer.alternate_emails,
+        "avatar_url": customer.avatar_url,
         "meta_user_id": customer.meta_user_id,
         "created_at": customer.created_at.isoformat() if customer.created_at else None,
         "tickets": [
@@ -124,6 +125,12 @@ async def get_customer(
             for t in tickets
         ],
     }
+
+
+def _resolve_ticket_attr(ticket_map: dict, msg: Message, attr: str):
+    """For merged messages, prefer the original ticket info."""
+    t = ticket_map.get(msg.original_ticket_id) or ticket_map.get(msg.ticket_id)
+    return getattr(t, attr, None) if t else None
 
 
 # ── Full History ──
@@ -155,13 +162,27 @@ async def get_customer_full_history(
         return {"customer_name": customer.name, "tickets": [], "messages": []}
 
     # Get ALL messages from all tickets, ordered by created_at
+    # Also include messages that were merged away (original_ticket_id matches)
     ticket_ids = [t.id for t in tickets]
     msgs_result = await db.execute(
         select(Message)
-        .where(Message.ticket_id.in_(ticket_ids))
+        .where(
+            or_(
+                Message.ticket_id.in_(ticket_ids),
+                Message.original_ticket_id.in_(ticket_ids),
+            )
+        )
         .order_by(Message.created_at.asc())
     )
     messages = msgs_result.scalars().all()
+    # Deduplicate (a message matched by both conditions should appear once)
+    seen_ids = set()
+    unique_messages = []
+    for m in messages:
+        if m.id not in seen_ids:
+            seen_ids.add(m.id)
+            unique_messages.append(m)
+    messages = unique_messages
 
     return {
         "customer_name": customer.name,
@@ -180,8 +201,8 @@ async def get_customer_full_history(
             {
                 "id": m.id,
                 "ticket_id": m.ticket_id,
-                "ticket_number": ticket_map[m.ticket_id].number if m.ticket_id in ticket_map else None,
-                "ticket_subject": ticket_map[m.ticket_id].subject if m.ticket_id in ticket_map else None,
+                "ticket_number": _resolve_ticket_attr(ticket_map, m, "number"),
+                "ticket_subject": _resolve_ticket_attr(ticket_map, m, "subject"),
                 "type": m.type,
                 "sender_name": m.sender_name,
                 "sender_email": m.sender_email,

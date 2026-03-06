@@ -372,7 +372,14 @@ async def list_tickets(
     if sort == "sla":
         query = query.order_by(Ticket.sla_deadline.asc().nulls_last())
     elif sort == "priority":
-        query = query.order_by(Ticket.priority.desc())
+        priority_order = case(
+            (Ticket.priority == "urgent", 0),
+            (Ticket.priority == "high", 1),
+            (Ticket.priority == "medium", 2),
+            (Ticket.priority == "low", 3),
+            else_=4,
+        )
+        query = query.order_by(priority_order.asc())
     elif sort == "newest":
         query = query.order_by(effective_date.desc())
     elif sort == "updated":
@@ -745,6 +752,8 @@ async def bulk_update(body: TicketBulkUpdate, db: AsyncSession = Depends(get_db)
                 ticket.csat_sent = True
         except Exception as e:
             logger.warning(f"Failed to send CSAT email for ticket #{ticket.number}: {e}")
+    if csat_tickets:
+        await db.commit()
 
     return {"updated": len(tickets)}
 

@@ -23,7 +23,7 @@ _adapter = WhatsAppAdapter()
 def _verify_signature(payload: bytes, signature: str, secret: str) -> bool:
     if not signature.startswith("sha256="):
         return False
-    expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+    expected = hmac.HMAC(secret.encode(), payload, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature[7:])
 
 
@@ -79,11 +79,20 @@ async def _process_message(db: AsyncSession, msg: dict, channel: str):
         db.add(conversation)
         await db.flush()
 
+    # Dedup by channel_message_id
+    mid = msg.get("channel_message_id")
+    if mid:
+        existing_msg = await db.execute(
+            select(ChatMessage).where(ChatMessage.channel_message_id == mid)
+        )
+        if existing_msg.scalars().first():
+            return  # already processed
+
     now = datetime.now(timezone.utc)
     chat_msg = ChatMessage(
         conversation_id=conversation.id, sender_type="contact", sender_id=customer_id,
         content_type=msg.get("content_type", "text"), content=msg.get("content", ""),
-        channel_message_id=msg.get("channel_message_id"), created_at=now,
+        channel_message_id=mid, created_at=now,
     )
     db.add(chat_msg)
     conversation.last_message_at = now

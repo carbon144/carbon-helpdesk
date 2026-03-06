@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import logging
 from datetime import datetime, timezone
+import httpx
 from fastapi import APIRouter, Request, Query, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,12 +22,60 @@ router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 _instagram = InstagramAdapter()
 _facebook = FacebookAdapter()
 
+GRAPH_API_BASE = "https://graph.facebook.com/v21.0"
+
 
 def _verify_signature(payload: bytes, signature: str, secret: str) -> bool:
     if not signature.startswith("sha256="):
         return False
-    expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+    expected = hmac.HMAC(secret.encode(), payload, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature[7:])
+
+
+async def _fetch_ig_profile(ig_scoped_id: str) -> dict | None:
+    """Fetch Instagram username and profile pic from a scoped user ID."""
+    token = settings.META_PAGE_ACCESS_TOKEN
+    if not token:
+        return None
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{GRAPH_API_BASE}/{ig_scoped_id}",
+                params={"fields": "name,username,profile_pic", "access_token": token},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return {
+                    "name": data.get("username") or data.get("name"),
+                    "avatar_url": data.get("profile_pic"),
+                }
+    except Exception as e:
+        logger.warning("Failed to fetch IG profile for %s: %s", ig_scoped_id, e)
+    return None
+
+
+async def _fetch_fb_profile(fb_scoped_id: str) -> dict | None:
+    """Fetch Facebook user name and profile pic from a scoped user ID."""
+    token = settings.META_PAGE_ACCESS_TOKEN
+    if not token:
+        return None
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{GRAPH_API_BASE}/{fb_scoped_id}",
+                params={"fields": "name,profile_pic", "access_token": token},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return {
+                    "name": data.get("name"),
+                    "avatar_url": data.get("profile_pic"),
+                }
+    except Exception as e:
+        logger.warning("Failed to fetch FB profile for %s: %s", fb_scoped_id, e)
+    return None
 
 
 @router.get("/meta-dm")
@@ -49,15 +98,19 @@ async def meta_webhook(request: Request):
             raise HTTPException(403, "Invalid signature")
     payload = await request.json()
     obj = payload.get("object", "")
+    logger.info("Webhook received: object=%s", obj)
     if obj == "instagram":
         channel, messages = "instagram", await _instagram.process_webhook(payload)
     elif obj == "page":
         channel, messages = "facebook", await _facebook.process_webhook(payload)
     else:
+        logger.info("Unknown webhook object: %s", obj)
         return {"status": "ok"}
+    logger.info("Parsed %d messages for channel=%s", len(messages), channel)
     if messages:
         async with async_session() as db:
             for msg in messages:
+                logger.info("Processing msg from sender=%s content=%s", msg.get("sender_id", "?"), msg.get("content", "")[:50])
                 await _process_meta_message(db, msg, channel)
             await db.commit()
     return {"status": "ok"}
@@ -65,15 +118,38 @@ async def meta_webhook(request: Request):
 
 async def _process_meta_message(db: AsyncSession, msg: dict, channel: str):
     sender_id = msg["sender_id"]
+    # Ignore messages sent by our own page/IG account
+    own_ids = {settings.META_PAGE_ID, settings.META_INSTAGRAM_ACCOUNT_ID}
+    if sender_id in own_ids:
+        return
     result = await db.execute(
         select(ChannelIdentity).where(ChannelIdentity.channel == channel, ChannelIdentity.channel_id == sender_id)
     )
-    identity = result.scalar_one_or_none()
+    identity = result.scalars().first()
     if identity:
         customer_id = identity.customer_id
+        # Update name/avatar if still generic
+        cust_res = await db.execute(select(Customer).where(Customer.id == customer_id))
+        existing = cust_res.scalars().first()
+        if existing and existing.name and existing.name.startswith(("Instagram ", "Facebook ")):
+            profile = await _fetch_ig_profile(sender_id) if channel == "instagram" else await _fetch_fb_profile(sender_id)
+            if profile:
+                if profile.get("name"):
+                    existing.name = f"@{profile['name']}" if channel == "instagram" else profile["name"]
+                if profile.get("avatar_url"):
+                    existing.avatar_url = profile["avatar_url"]
+        elif existing and not existing.avatar_url:
+            profile = await _fetch_ig_profile(sender_id) if channel == "instagram" else await _fetch_fb_profile(sender_id)
+            if profile and profile.get("avatar_url"):
+                existing.avatar_url = profile["avatar_url"]
     else:
-        label = "Instagram" if channel == "instagram" else "Facebook"
-        customer = Customer(name=f"{label} {sender_id}")
+        profile = await _fetch_ig_profile(sender_id) if channel == "instagram" else await _fetch_fb_profile(sender_id)
+        if profile and profile.get("name"):
+            name = f"@{profile['name']}" if channel == "instagram" else profile["name"]
+        else:
+            name = f"Instagram {sender_id[:8]}" if channel == "instagram" else f"Facebook {sender_id[:8]}"
+        avatar_url = profile.get("avatar_url") if profile else None
+        customer = Customer(name=name, avatar_url=avatar_url)
         db.add(customer)
         await db.flush()
         customer_id = customer.id
@@ -88,11 +164,20 @@ async def _process_meta_message(db: AsyncSession, msg: dict, channel: str):
         db.add(conversation)
         await db.flush()
 
+    # Dedup by channel_message_id
+    mid = msg.get("channel_message_id")
+    if mid:
+        existing_msg = await db.execute(
+            select(ChatMessage).where(ChatMessage.channel_message_id == mid)
+        )
+        if existing_msg.scalars().first():
+            return  # already processed
+
     now = datetime.now(timezone.utc)
     db.add(ChatMessage(
         conversation_id=conversation.id, sender_type="contact", sender_id=customer_id,
         content_type=msg.get("content_type", "text"), content=msg.get("content", ""),
-        channel_message_id=msg.get("channel_message_id"), created_at=now,
+        channel_message_id=mid, created_at=now,
     ))
     conversation.last_message_at = now
 

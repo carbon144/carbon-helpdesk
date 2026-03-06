@@ -86,6 +86,13 @@ async def _run_scheduled_email_loop():
                             msg.is_scheduled = False
                             continue
 
+                        # Give up after 1 hour of retries
+                        from datetime import timedelta as td
+                        if msg.scheduled_at and (now - msg.scheduled_at) > td(hours=1):
+                            msg.is_scheduled = False
+                            logger.error(f"Scheduled email {msg.id} gave up after 1h of retries")
+                            continue
+
                         sent = False
                         if ticket.source == "gmail" and ticket.customer:
                             # Find gmail thread info
@@ -229,9 +236,10 @@ async def _run_email_fetch_loop():
                                 )
                                 db.add(msg)
                                 was_resolved = existing_ticket.status == "resolved"
-                                if existing_ticket.status in ("resolved", "waiting", "waiting_supplier", "waiting_resend"):
+                                was_closed = existing_ticket.status == "closed"
+                                if existing_ticket.status in ("resolved", "closed", "waiting", "waiting_supplier", "waiting_resend"):
                                     existing_ticket.status = "open"
-                                if was_resolved:
+                                if was_resolved or was_closed:
                                     existing_ticket.resolved_at = None
                                 now = datetime.now(timezone.utc)
                                 from app.core.sla_config import get_sla_for_ticket
@@ -670,6 +678,7 @@ async def lifespan(app: FastAPI):
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )""",
+            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS avatar_url TEXT",
         ]
         migration_logger = logging.getLogger("migrations")
         for sql in migration_sqls:

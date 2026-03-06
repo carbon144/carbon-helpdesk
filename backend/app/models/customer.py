@@ -45,6 +45,9 @@ class Customer(Base):
     total_conversations: Mapped[int] = mapped_column(Integer, default=0)
     total_value: Mapped[float] = mapped_column(Float, default=0.0)
 
+    # Avatar
+    avatar_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # Merge support
     merged_into_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), nullable=True, index=True)
     alternate_emails: Mapped[Optional[list]] = mapped_column(ARRAY(String), nullable=True)

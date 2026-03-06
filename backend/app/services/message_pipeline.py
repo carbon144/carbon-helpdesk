@@ -83,7 +83,7 @@ async def process_incoming_message(
         except Exception:
             logger.warning("KB search failed, continuing without KB context")
 
-        messages_history = _build_history(conversation)
+        messages_history = await _build_history(db, conversation)
         messages_history.append({"role": "contact", "content": message_text})
 
         shopify_data = getattr(customer, "shopify_data", None)
@@ -164,11 +164,15 @@ async def _save_bot_message(db: AsyncSession, conversation: Conversation, conten
     conversation.last_message_at = now
 
 
-def _build_history(conversation: Conversation) -> list[dict]:
+async def _build_history(db: AsyncSession, conversation: Conversation) -> list[dict]:
+    result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.conversation_id == conversation.id, ChatMessage.content_type != "note")
+        .order_by(ChatMessage.created_at.asc())
+        .limit(20)
+    )
     history = []
-    for msg in (conversation.chat_messages or []):
-        if msg.content_type == "note":
-            continue
+    for msg in result.scalars().all():
         role = "contact" if msg.sender_type == "contact" else "agent"
         history.append({"role": role, "content": msg.content})
     return history

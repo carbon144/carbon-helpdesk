@@ -50,53 +50,55 @@ function ChatBubble({ msg, isLast, isLastInbound }) {
   const isNote = msg.type === 'internal_note'
 
   return (
-    <div className={`flex ${isInbound ? 'justify-start' : 'justify-end'} ${isLast ? '' : ''}`}>
-      <div className={`max-w-[80%] ${isNote ? '' : ''}`}>
+    <div className={`chat-bubble flex ${isInbound ? 'justify-start' : 'justify-end'}`}>
+      <div className="max-w-[78%]">
         {/* Sender + time */}
-        <div className={`flex items-center gap-2 mb-1 ${isInbound ? '' : 'justify-end'}`}>
+        <div className={`flex items-center gap-2 mb-1.5 ${isInbound ? '' : 'justify-end'}`}>
           {isInbound && (
-            <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center shrink-0">
-              <i className="fas fa-user text-[10px] text-[var(--text-tertiary)]" />
+            <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}>
+              <i className="fas fa-user text-[9px] text-[var(--text-tertiary)]" />
             </div>
           )}
-          <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-            {isNote && <i className="fas fa-sticky-note mr-1 text-yellow-500" />}
+          <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
+            {isNote && <i className="fas fa-sticky-note mr-1 text-green-500" />}
             {msg.sender_name || msg.sender_email || 'Sistema'}
             {msg.sender_name === 'Carbon IA' && (
-              <span className="ml-1.5 text-[9px] bg-emerald-500/15 text-emerald-400 px-1 py-0.5 rounded">IA</span>
+              <span className="ml-1.5 text-[9px] bg-emerald-500/12 text-emerald-500 px-1.5 py-0.5 rounded-full font-bold">IA</span>
             )}
           </span>
-          <span className="text-[10px] text-[var(--text-tertiary)]">
+          <span className="text-[10px] text-[var(--text-tertiary)] tabular-nums">
             {new Date(msg.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
           </span>
           {msg.is_scheduled && (
-            <span className="text-[9px] bg-purple-500/15 text-purple-400 px-1.5 py-0.5 rounded">
+            <span className="text-[9px] bg-purple-500/12 text-purple-500 px-1.5 py-0.5 rounded-full font-semibold">
               <i className="fas fa-clock mr-0.5" />Programado
             </span>
           )}
           {!isInbound && !isNote && (
-            <div className="w-6 h-6 rounded-full bg-indigo-600/20 flex items-center justify-center shrink-0">
-              <i className="fas fa-headset text-[10px] text-indigo-400" />
+            <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: 'var(--accent-soft)', border: '1px solid rgba(229,168,0,0.15)' }}>
+              <i className="fas fa-headset text-[9px]" style={{ color: 'var(--accent)' }} />
             </div>
           )}
         </div>
         {/* Bubble */}
-        <div className={`rounded-2xl px-4 py-2.5 ${
-          isNote ? 'bg-yellow-500/8 border border-yellow-500/20 rounded-tr-md' :
+        <div className={`rounded-2xl px-4 py-3 ${
+          isNote ? 'border-l-4 border-l-green-500 rounded-tr-sm' :
           isInbound
-            ? `bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-tl-md ${isLastInbound ? 'ring-1 ring-indigo-500/30' : ''}`
-            : 'bg-indigo-600/15 border border-indigo-500/20 rounded-tr-md'
-        }`}>
+            ? `bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-tl-sm shadow-[var(--shadow-xs)] ${isLastInbound ? 'ring-1 ring-[var(--accent)]/20 border-[var(--accent)]/20' : ''}`
+            : 'bg-[var(--accent-soft)] border border-[var(--accent)]/10 rounded-tr-sm'
+        }`} style={isNote ? { background: 'rgba(34,197,94,0.15)' } : undefined}>
           {isLastInbound && isInbound && (
-            <div className="flex items-center gap-1 mb-1.5">
-              <span className="text-[9px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded">NOVO</span>
+            <div className="flex items-center gap-1 mb-2">
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--accent-soft)', color: 'var(--accent-muted)' }}>NOVO</span>
             </div>
           )}
-          {msg.cc && <div className="text-[var(--text-tertiary)] text-[10px] mb-1">CC: {msg.cc}</div>}
-          <p className="text-[var(--text-primary)] text-sm whitespace-pre-wrap leading-relaxed break-words">{showFull ? msg.body_text : clean}</p>
+          {msg.cc && <div className="text-[var(--text-tertiary)] text-[10px] mb-1.5">CC: {msg.cc}</div>}
+          <p className="text-[var(--text-primary)] text-[13.5px] whitespace-pre-wrap leading-[1.65] break-words">{showFull ? msg.body_text : clean}</p>
           {hasMore && (
             <button onClick={() => setShowFull(!showFull)}
-              className="text-[10px] text-indigo-400 hover:text-indigo-300 mt-1.5 transition">
+              className="text-[10px] text-[var(--accent-muted)] hover:text-[var(--accent)] mt-2 transition font-medium">
               <i className={`fas fa-chevron-${showFull ? 'up' : 'down'} mr-1`} />
               {showFull ? 'Ocultar original' : 'Ver email completo'}
             </button>
@@ -745,6 +747,7 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
       setSelectedMergeSources({})
       setSameCustomerTickets(prev => prev.filter(t => !sourceIds.includes(t.id)))
       loadedTicketRef.current = null  // force customer history reload
+      setFullHistory(null)  // force full history reload after merge
       loadTicket()
       onTicketUpdate?.()
     } catch (e) {
@@ -1115,16 +1118,16 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                             <div className={`flex ${msg.type === 'outbound' ? 'justify-end' : 'justify-start'} px-4 py-1`}>
                               <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${msg.type === 'internal_note' ? 'border-l-4' : ''}`}
                                 style={{
-                                  background: msg.type === 'outbound' ? 'var(--accent)' :
-                                    msg.type === 'internal_note' ? 'rgba(234,179,8,0.08)' : 'var(--bg-tertiary)',
-                                  color: msg.type === 'outbound' ? 'var(--accent-text)' : 'var(--text-primary)',
-                                  borderColor: msg.type === 'internal_note' ? '#ca8a04' : undefined,
+                                  background: msg.type === 'outbound' ? 'rgba(99,102,241,0.15)' :
+                                    msg.type === 'internal_note' ? 'rgba(34,197,94,0.2)' : 'var(--bg-tertiary)',
+                                  color: 'var(--text-primary)',
+                                  borderColor: msg.type === 'internal_note' ? '#22c55e' : undefined,
                                   opacity: isCurrentTicket ? 1 : 0.7,
                                 }}>
                                 <div className="flex items-center gap-2 mb-0.5">
                                   <span className="text-[11px] font-semibold" style={{
-                                    color: msg.type === 'outbound' ? 'var(--accent-text)' :
-                                      msg.type === 'internal_note' ? '#ca8a04' : 'var(--text-secondary)',
+                                    color: msg.type === 'outbound' ? '#818cf8' :
+                                      msg.type === 'internal_note' ? '#22c55e' : 'var(--text-secondary)',
                                   }}>
                                     {msg.type === 'internal_note' && <i className="fas fa-sticky-note mr-1" />}
                                     {msg.sender_name || msg.sender_email || 'Sistema'}
@@ -1135,7 +1138,7 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                                     </span>
                                   )}
                                   <span className="text-[10px]" style={{
-                                    color: msg.type === 'outbound' ? 'rgba(255,255,255,0.6)' : 'var(--text-tertiary)',
+                                    color: 'var(--text-tertiary)',
                                   }}>
                                     {new Date(msg.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                                   </span>
@@ -1216,7 +1219,8 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                 )}
                 <div className="flex items-center gap-3 mb-2">
                   <button onClick={() => setReplyType('outbound')}
-                    className={`text-xs px-3 py-1 rounded-full transition ${replyType === 'outbound' ? 'bg-indigo-600 text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
+                    className="text-xs px-3 py-1 rounded-full transition"
+                    style={replyType === 'outbound' ? { background: '#6366f1', color: '#fff' } : { color: 'var(--text-secondary)' }}>
                     <i className="fas fa-reply mr-1" />Responder
                   </button>
                   <button onClick={() => setReplyType('internal_note')}
@@ -1369,13 +1373,13 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                   <div className="relative">
                     <div className="flex">
                       <button onClick={() => handleSend()} disabled={!reply.trim() || sending}
-                        className={`px-4 py-2.5 rounded-l-xl text-xs font-medium text-white transition disabled:opacity-40 ${
-                          replyType === 'internal_note' ? 'bg-yellow-600 hover:bg-yellow-500' : 'bg-indigo-600 hover:bg-indigo-500'}`}>
+                        className="px-4 py-2.5 rounded-l-xl text-xs font-medium text-white transition disabled:opacity-40"
+                        style={{ background: replyType === 'internal_note' ? '#ca8a04' : '#6366f1' }}>
                         <i className="fas fa-paper-plane mr-1.5" />Enviar
                       </button>
                       <button onClick={() => setShowSendMenu(!showSendMenu)}
-                        className={`px-2 py-2.5 rounded-r-xl text-xs text-white transition border-l border-white/20 ${
-                          replyType === 'internal_note' ? 'bg-yellow-600 hover:bg-yellow-500' : 'bg-indigo-600 hover:bg-indigo-500'}`}>
+                        className="px-2 py-2.5 rounded-r-xl text-xs text-white transition border-l border-white/20"
+                        style={{ background: replyType === 'internal_note' ? '#ca8a04' : '#6366f1' }}>
                         <i className={`fas fa-chevron-${showSendMenu ? 'up' : 'down'} text-[9px]`} />
                       </button>
                     </div>
