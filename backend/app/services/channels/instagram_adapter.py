@@ -21,7 +21,7 @@ class InstagramAdapter(ChannelAdapter):
         text: str,
         media_url: str | None = None,
     ) -> dict | None:
-        """Send a message to an Instagram user via Messenger Platform."""
+        """Send a message to an Instagram user via Instagram Messaging API."""
         url = f"{GRAPH_API_BASE}/{settings.META_PAGE_ID}/messages"
         headers = {
             "Authorization": f"Bearer {settings.META_PAGE_ACCESS_TOKEN}",
@@ -44,6 +44,8 @@ class InstagramAdapter(ChannelAdapter):
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.post(url, json=payload, headers=headers, timeout=15)
+                if resp.status_code != 200:
+                    logger.error("Instagram send error %s: %s", resp.status_code, resp.text)
                 resp.raise_for_status()
                 data = resp.json()
                 logger.info("Instagram message sent to %s", recipient_id)
