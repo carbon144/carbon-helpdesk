@@ -10,6 +10,8 @@ const TRIGGER_TYPES = [
 
 const STEP_TYPES = [
   { value: 'send_message', label: 'Enviar mensagem', icon: 'fa-comment' },
+  { value: 'send_menu', label: 'Menu interativo', icon: 'fa-list' },
+  { value: 'collect_input', label: 'Coletar dado', icon: 'fa-keyboard' },
   { value: 'wait_response', label: 'Aguardar resposta', icon: 'fa-clock' },
   { value: 'lookup_order', label: 'Buscar pedido', icon: 'fa-search' },
   { value: 'suggest_article', label: 'Sugerir artigo KB', icon: 'fa-book' },
@@ -117,6 +119,51 @@ function StepEditor({ step, index, total, onChange, onRemove, onMove }) {
           placeholder="Mensagem ao sugerir artigo..." className="w-full text-xs rounded-lg px-3 py-2 outline-none"
           style={{ background: '#27272A', color: '#E4E4E7', border: '1px solid rgba(255,255,255,0.06)' }} />
       )}
+      {step.type === 'send_menu' && (
+        <div className="space-y-2">
+          <textarea value={step.content || ''} onChange={e => onChange({ ...step, content: e.target.value })}
+            placeholder="Mensagem do menu (ex: Escolha uma opcao)..." rows={2}
+            className="w-full text-xs rounded-lg px-3 py-2 resize-none outline-none"
+            style={{ background: '#27272A', color: '#E4E4E7', border: '1px solid rgba(255,255,255,0.06)' }} />
+          <label className="text-[10px] font-medium block" style={{ color: '#71717A' }}>Opcoes do menu</label>
+          {(step.options || []).map((opt, oi) => (
+            <div key={oi} className="flex items-center gap-1.5">
+              <input value={opt.id || ''} onChange={e => { const opts = [...(step.options || [])]; opts[oi] = { ...opts[oi], id: e.target.value }; onChange({ ...step, options: opts }) }}
+                placeholder="ID" className="w-16 text-[11px] rounded px-2 py-1 outline-none"
+                style={{ background: '#27272A', color: '#E4E4E7', border: '1px solid rgba(255,255,255,0.06)' }} />
+              <input value={opt.label || ''} onChange={e => { const opts = [...(step.options || [])]; opts[oi] = { ...opts[oi], label: e.target.value }; onChange({ ...step, options: opts }) }}
+                placeholder="Label" className="flex-1 text-[11px] rounded px-2 py-1 outline-none"
+                style={{ background: '#27272A', color: '#E4E4E7', border: '1px solid rgba(255,255,255,0.06)' }} />
+              <input value={opt.description || ''} onChange={e => { const opts = [...(step.options || [])]; opts[oi] = { ...opts[oi], description: e.target.value }; onChange({ ...step, options: opts }) }}
+                placeholder="Descricao" className="flex-1 text-[11px] rounded px-2 py-1 outline-none"
+                style={{ background: '#27272A', color: '#E4E4E7', border: '1px solid rgba(255,255,255,0.06)' }} />
+              <button onClick={() => { const opts = (step.options || []).filter((_, j) => j !== oi); onChange({ ...step, options: opts }) }}
+                className="w-5 h-5 rounded flex items-center justify-center text-[10px] shrink-0" style={{ color: '#ef4444' }}>
+                <i className="fas fa-times" />
+              </button>
+            </div>
+          ))}
+          <button onClick={() => onChange({ ...step, options: [...(step.options || []), { id: '', label: '', description: '' }] })}
+            className="text-[10px] px-2 py-1 rounded border transition-colors hover:border-[#E5A800]/40"
+            style={{ background: '#27272A', color: '#A1A1AA', borderColor: 'rgba(255,255,255,0.06)' }}>
+            <i className="fas fa-plus mr-1" />Adicionar opcao
+          </button>
+        </div>
+      )}
+      {step.type === 'collect_input' && (
+        <div className="space-y-2">
+          <textarea value={step.content || ''} onChange={e => onChange({ ...step, content: e.target.value })}
+            placeholder="Mensagem de prompt (ex: Qual seu numero de pedido?)..." rows={2}
+            className="w-full text-xs rounded-lg px-3 py-2 resize-none outline-none"
+            style={{ background: '#27272A', color: '#E4E4E7', border: '1px solid rgba(255,255,255,0.06)' }} />
+          <div>
+            <label className="text-[10px] font-medium mb-1 block" style={{ color: '#71717A' }}>Nome do campo (variavel)</label>
+            <input value={step.field || ''} onChange={e => onChange({ ...step, field: e.target.value })}
+              placeholder="Ex: order_number, modelo, problema" className="w-full text-xs rounded-lg px-3 py-2 outline-none"
+              style={{ background: '#27272A', color: '#E4E4E7', border: '1px solid rgba(255,255,255,0.06)' }} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -131,7 +178,10 @@ function FlowEditor({ flow, onSave, onCancel }) {
   const [saving, setSaving] = useState(false)
 
   const addStep = (type) => {
-    setSteps([...steps, { type, content: '', message: '', prompt: '' }])
+    const defaults = { type, content: '', message: '', prompt: '' }
+    if (type === 'send_menu') { defaults.options = [] }
+    if (type === 'collect_input') { defaults.field = '' }
+    setSteps([...steps, defaults])
   }
 
   const updateStep = (index, updated) => {
@@ -284,6 +334,45 @@ function FlowEditor({ flow, onSave, onCancel }) {
                     <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: '#27272A', color: '#71717A' }}>
                       <i className="fas fa-book mr-1" />Sugere artigo
                     </span>
+                  </div>
+                )
+              }
+              if (step.type === 'send_menu') {
+                return (
+                  <div key={i} className="flex items-start gap-2 justify-end">
+                    <div>
+                      <div className="rounded-lg px-3 py-1.5 text-xs mb-1" style={{ background: '#E5A800', color: '#000' }}>
+                        {step.content || 'Escolha uma opcao:'}
+                      </div>
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        {(step.options || []).map((opt, oi) => (
+                          <span key={oi} className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: '#27272A', color: '#E5A800', border: '1px solid rgba(229,168,0,0.3)' }}>
+                            {opt.label || opt.id || `Opcao ${oi + 1}`}
+                          </span>
+                        ))}
+                        {(!step.options || step.options.length === 0) && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: '#27272A', color: '#52525B' }}>Sem opcoes</span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] shrink-0" style={{ background: '#E5A800', color: '#000' }}>B</span>
+                  </div>
+                )
+              }
+              if (step.type === 'collect_input') {
+                return (
+                  <div key={i}>
+                    <div className="flex items-start gap-2 justify-end mb-1">
+                      <div className="rounded-lg px-3 py-1.5 text-xs" style={{ background: '#E5A800', color: '#000' }}>
+                        {step.content || 'Qual o dado?'}
+                      </div>
+                      <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] shrink-0" style={{ background: '#E5A800', color: '#000' }}>B</span>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: '#27272A', color: '#71717A' }}>
+                        <i className="fas fa-keyboard mr-1" />Aguarda input: <span style={{ color: '#E5A800' }}>{step.field || '...'}</span>
+                      </span>
+                    </div>
                   </div>
                 )
               }

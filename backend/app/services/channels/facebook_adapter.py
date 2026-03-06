@@ -88,24 +88,54 @@ class FacebookAdapter(ChannelAdapter):
             logger.error("Failed to send Facebook media to %s: %s", recipient_id, e)
             return None
 
-    async def process_webhook(self, payload: dict) -> list[dict]:
-        """Parse Facebook Messenger webhook payload into normalized messages.
+    async def send_interactive(
+        self,
+        recipient_id: str,
+        text: str,
+        options: list[dict],
+    ) -> dict | None:
+        """Send interactive message with quick_replies via Facebook Messenger API.
 
-        Expected payload shape (object == "page"):
-        {
-          "entry": [{
-            "messaging": [{
-              "sender": {"id": "..."},
-              "recipient": {"id": "..."},
-              "timestamp": 1234567890,
-              "message": {
-                "mid": "m_xxx",
-                "text": "Hello"
-              }
-            }]
-          }]
-        }
+        Facebook supports up to 13 quick replies, title max 20 chars.
         """
+        if not options:
+            return await self.send_message(recipient_id, text)
+
+        url = f"{GRAPH_API_BASE}/me/messages"
+        headers = {
+            "Authorization": f"Bearer {settings.META_PAGE_ACCESS_TOKEN}",
+            "Content-Type": "application/json",
+        }
+
+        quick_replies = []
+        for opt in options[:13]:  # FB max 13 quick replies
+            quick_replies.append({
+                "content_type": "text",
+                "title": str(opt.get("title", ""))[:20],
+                "payload": str(opt.get("id", opt.get("title", "")))[:1000],
+            })
+
+        payload = {
+            "recipient": {"id": recipient_id},
+            "message": {
+                "text": text,
+                "quick_replies": quick_replies,
+            },
+        }
+
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(url, json=payload, headers=headers, timeout=15)
+                resp.raise_for_status()
+                data = resp.json()
+                logger.info("Facebook interactive sent to %s (%d options)", recipient_id, len(options))
+                return data
+        except httpx.HTTPError as e:
+            logger.error("Facebook interactive failed for %s: %s — falling back to text", recipient_id, e)
+            return await super().send_interactive(recipient_id, text, options)
+
+    async def process_webhook(self, payload: dict) -> list[dict]:
+        """Parse Facebook Messenger webhook payload into normalized messages."""
         messages: list[dict] = []
 
         for entry in payload.get("entry", []):
@@ -117,6 +147,9 @@ class FacebookAdapter(ChannelAdapter):
                 sender_id = event.get("sender", {}).get("id", "")
                 timestamp = str(event.get("timestamp", ""))
                 channel_message_id = msg_data.get("mid", "")
+
+                # Check for quick_reply payload
+                quick_reply = msg_data.get("quick_reply")
 
                 # Check for attachments
                 attachments = msg_data.get("attachments", [])
@@ -133,12 +166,15 @@ class FacebookAdapter(ChannelAdapter):
                         "timestamp": timestamp,
                     })
                 elif msg_data.get("text"):
-                    messages.append({
+                    normalized = {
                         "sender_id": sender_id,
                         "content": msg_data["text"],
                         "content_type": "text",
                         "channel_message_id": channel_message_id,
                         "timestamp": timestamp,
-                    })
+                    }
+                    if quick_reply:
+                        normalized["interactive_reply_id"] = quick_reply.get("payload", "")
+                    messages.append(normalized)
 
         return messages

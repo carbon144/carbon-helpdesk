@@ -115,3 +115,9 @@ async def _process_message(db: AsyncSession, msg: dict, channel: str):
                 from app.services.channels.dispatcher import dispatcher
                 for bot_msg in pipeline_result["bot_messages"]:
                     await dispatcher.send(channel, sender_id, bot_msg)
+            for im in pipeline_result.get("interactive_messages", []):
+                if im.get("type") == "menu":
+                    from app.services.channels.dispatcher import dispatcher
+                    await dispatcher.send_interactive(
+                        channel, sender_id, im["content"], im["options"],
+                    )

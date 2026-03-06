@@ -185,6 +185,12 @@ async def _process_whatsapp_message(db: AsyncSession, msg: dict):
                 from app.services.channels.dispatcher import dispatcher
                 for bot_msg in pr["bot_messages"]:
                     await dispatcher.send(channel, sender_id, bot_msg)
+            for im in pr.get("interactive_messages", []):
+                if im.get("type") == "menu":
+                    from app.services.channels.dispatcher import dispatcher
+                    await dispatcher.send_interactive(
+                        channel, sender_id, im["content"], im["options"],
+                    )
 
 
 async def _process_meta_message(db: AsyncSession, msg: dict, channel: str):
@@ -269,3 +275,9 @@ async def _process_meta_message(db: AsyncSession, msg: dict, channel: str):
                 from app.services.channels.dispatcher import dispatcher
                 for bot_msg in pr["bot_messages"]:
                     await dispatcher.send(channel, sender_id, bot_msg)
+            for im in pr.get("interactive_messages", []):
+                if im.get("type") == "menu":
+                    from app.services.channels.dispatcher import dispatcher
+                    await dispatcher.send_interactive(
+                        channel, sender_id, im["content"], im["options"],
+                    )

@@ -277,6 +277,24 @@ async def ws_chat(ws: WebSocket, visitor_id: str):
                                         "content": bot_msg,
                                         "sender_type": "bot",
                                     })
+                                for im in pipeline_result.get("interactive_messages", []):
+                                    if im.get("type") == "menu":
+                                        await chat_manager.send_to_visitor(visitor_id, {
+                                            "event": "interactive",
+                                            "conversation_id": conversation_id,
+                                            "interactive_type": "menu",
+                                            "content": im["content"],
+                                            "options": im["options"],
+                                            "sender_type": "bot",
+                                        })
+                                        await notify_chat_event({
+                                            "event": "interactive",
+                                            "conversation_id": conversation_id,
+                                            "interactive_type": "menu",
+                                            "content": im["content"],
+                                            "options": im["options"],
+                                            "sender_type": "bot",
+                                        })
                                 if pipeline_result.get("escalated"):
                                     await notify_chat_event({
                                         "event": "escalation",

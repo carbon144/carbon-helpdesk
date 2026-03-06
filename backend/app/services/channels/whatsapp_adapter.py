@@ -29,7 +29,6 @@ class WhatsAppAdapter(ChannelAdapter):
         }
 
         if media_url:
-            # Send as image with caption
             payload = {
                 "messaging_product": "whatsapp",
                 "to": recipient_id,
@@ -64,17 +63,13 @@ class WhatsAppAdapter(ChannelAdapter):
         media_url: str,
         media_type: str,
     ) -> dict | None:
-        """Send a standalone media message via WhatsApp Cloud API.
-
-        Supported media_type values: image, document, video, audio.
-        """
+        """Send a standalone media message via WhatsApp Cloud API."""
         url = f"{GRAPH_API_BASE}/{settings.META_WHATSAPP_PHONE_ID}/messages"
         headers = {
             "Authorization": f"Bearer {settings.META_WHATSAPP_TOKEN}",
             "Content-Type": "application/json",
         }
 
-        # Map generic types to WhatsApp API types
         wa_type = media_type if media_type in ("image", "document", "video", "audio") else "document"
 
         payload = {
@@ -95,32 +90,92 @@ class WhatsAppAdapter(ChannelAdapter):
             logger.error("Failed to send WhatsApp media to %s: %s", recipient_id, e)
             return None
 
-    async def process_webhook(self, payload: dict) -> list[dict]:
-        """Parse WhatsApp Cloud API webhook payload into normalized messages.
+    async def send_interactive(
+        self,
+        recipient_id: str,
+        text: str,
+        options: list[dict],
+    ) -> dict | None:
+        """Send interactive message via WhatsApp Cloud API.
 
-        Expected payload shape:
-        {
-          "entry": [{
-            "changes": [{
-              "value": {
-                "messages": [{
-                  "from": "5511999...",
-                  "id": "wamid.xxx",
-                  "timestamp": "1234567890",
-                  "type": "text",
-                  "text": {"body": "Hello"}
-                }]
-              }
-            }]
-          }]
-        }
+        - 3 or fewer options: reply buttons (type=button)
+        - More than 3 options: list message (type=list)
         """
+        if not options:
+            return await self.send_message(recipient_id, text)
+
+        url = f"{GRAPH_API_BASE}/{settings.META_WHATSAPP_PHONE_ID}/messages"
+        headers = {
+            "Authorization": f"Bearer {settings.META_WHATSAPP_TOKEN}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            if len(options) <= 3:
+                # Reply buttons
+                buttons = []
+                for opt in options:
+                    buttons.append({
+                        "type": "reply",
+                        "reply": {
+                            "id": str(opt.get("id", opt.get("title", "")))[:256],
+                            "title": str(opt.get("title", ""))[:20],
+                        },
+                    })
+                payload = {
+                    "messaging_product": "whatsapp",
+                    "to": recipient_id,
+                    "type": "interactive",
+                    "interactive": {
+                        "type": "button",
+                        "body": {"text": text[:1024]},
+                        "action": {"buttons": buttons},
+                    },
+                }
+            else:
+                # List message
+                rows = []
+                for opt in options[:10]:  # WA max 10 rows
+                    row = {
+                        "id": str(opt.get("id", opt.get("title", "")))[:200],
+                        "title": str(opt.get("title", ""))[:24],
+                    }
+                    desc = opt.get("description", "")
+                    if desc:
+                        row["description"] = str(desc)[:72]
+                    rows.append(row)
+                payload = {
+                    "messaging_product": "whatsapp",
+                    "to": recipient_id,
+                    "type": "interactive",
+                    "interactive": {
+                        "type": "list",
+                        "body": {"text": text[:1024]},
+                        "action": {
+                            "button": "Selecionar",
+                            "sections": [{"title": "Opcoes", "rows": rows}],
+                        },
+                    },
+                }
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(url, json=payload, headers=headers, timeout=15)
+                resp.raise_for_status()
+                data = resp.json()
+                logger.info("WhatsApp interactive sent to %s (%d options)", recipient_id, len(options))
+                return data
+        except httpx.HTTPError as e:
+            logger.error("WhatsApp interactive failed for %s: %s — falling back to text", recipient_id, e)
+            # Fallback to numbered text
+            return await super().send_interactive(recipient_id, text, options)
+
+    async def process_webhook(self, payload: dict) -> list[dict]:
+        """Parse WhatsApp Cloud API webhook payload into normalized messages."""
         messages: list[dict] = []
 
         for entry in payload.get("entry", []):
             for change in entry.get("changes", []):
                 value = change.get("value", {})
-                # Extract contact name from contacts array
                 contacts = value.get("contacts", [])
                 contact_names = {c.get("wa_id", ""): c.get("profile", {}).get("name", "") for c in contacts}
                 for msg in value.get("messages", []):
@@ -147,13 +202,38 @@ class WhatsAppAdapter(ChannelAdapter):
                 "channel_message_id": channel_message_id,
                 "timestamp": timestamp,
             }
+        elif msg_type == "interactive":
+            # Handle interactive replies (button_reply or list_reply)
+            interactive = msg.get("interactive", {})
+            interactive_type = interactive.get("type", "")
+            if interactive_type == "button_reply":
+                reply = interactive.get("button_reply", {})
+                return {
+                    "sender_id": sender_id,
+                    "content": reply.get("title", ""),
+                    "content_type": "text",
+                    "channel_message_id": channel_message_id,
+                    "timestamp": timestamp,
+                    "interactive_reply_id": reply.get("id", ""),
+                }
+            elif interactive_type == "list_reply":
+                reply = interactive.get("list_reply", {})
+                return {
+                    "sender_id": sender_id,
+                    "content": reply.get("title", ""),
+                    "content_type": "text",
+                    "channel_message_id": channel_message_id,
+                    "timestamp": timestamp,
+                    "interactive_reply_id": reply.get("id", ""),
+                }
+            return None
         elif msg_type in ("image", "video", "audio", "document"):
             media_data = msg.get(msg_type, {})
             return {
                 "sender_id": sender_id,
                 "content": media_data.get("caption", ""),
                 "content_type": msg_type,
-                "media_url": media_data.get("id", ""),  # WhatsApp uses media IDs
+                "media_url": media_data.get("id", ""),
                 "media_type": media_data.get("mime_type", ""),
                 "channel_message_id": channel_message_id,
                 "timestamp": timestamp,

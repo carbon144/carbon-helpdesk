@@ -1,15 +1,17 @@
+"""Chatbot engine with multi-step flow state tracking."""
+
+import logging
+import re
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.chatbot_flow import ChatbotFlow
 
-
-# In-memory flow state storage (could be replaced with Redis)
-_flow_states: dict[str, dict] = {}
+logger = logging.getLogger(__name__)
 
 
 class ChatbotEngine:
-    """Engine that processes messages against chatbot flows."""
+    """Engine that processes messages against chatbot flows with multi-step state."""
 
     async def process_message(
         self,
@@ -18,39 +20,49 @@ class ChatbotEngine:
         message_text: str,
         visitor_id: Optional[str] = None,
     ) -> Optional[dict]:
-        """Check active ChatbotFlows for matching trigger and execute flow.
+        """Check for active flow state first (resume), otherwise match new flow.
         Returns action result dict or None if no flow matched."""
+
+        text_lower = message_text.lower().strip()
+
+        # Allow user to reset to main menu anytime
+        if text_lower in ("menu", "voltar", "inicio", "início", "0"):
+            self._clear_state(conversation)
+            flow = await self.match_flow(db, "oi", trigger_type="greeting")
+            if flow:
+                return await self._execute_flow(db, conversation, flow, message_text, visitor_id)
+
+        # Check if there's an active flow state to resume
+        state = self._get_state(conversation)
+        if state:
+            return await self._resume_flow(db, conversation, message_text, state)
+
+        # Check if this is a menu option selection (by number, id, or label)
+        meta = getattr(conversation, "metadata_", None) or {}
+        menu_target = self._resolve_menu_selection(text_lower, meta)
+        if menu_target:
+            flow = await self.match_flow(db, menu_target)
+            if flow:
+                return await self._execute_flow(db, conversation, flow, menu_target, visitor_id)
+
+        # No active state — try to match a new flow
         flow = await self.match_flow(db, message_text)
         if not flow:
             return None
 
-        context = {
-            "conversation": conversation,
-            "message_text": message_text,
-            "visitor_id": visitor_id,
-            "flow_id": flow.id,
-            "responses": [],
-        }
+        return await self._execute_flow(db, conversation, flow, message_text, visitor_id)
 
-        # Track state for multi-step flows
-        state_key = visitor_id or (getattr(conversation, "id", None) or "unknown")
-        _flow_states[state_key] = {"flow_id": flow.id, "step_index": 0}
-
-        steps = flow.steps or []
-        for step in steps:
-            result = self.execute_step(step, context)
-            context["responses"].append(result)
-            if result.get("type") == "transfer_to_agent":
-                break  # stop after transfer
-            if result.get("type") == "wait_response":
-                break  # pause and wait for next message
-
-        return {
-            "flow_id": flow.id,
-            "flow_name": flow.name,
-            "responses": context["responses"],
-            "matched": True,
-        }
+    def _resolve_menu_selection(self, text_lower: str, meta: dict) -> Optional[str]:
+        """Check if text matches a menu option and return the option id for flow matching."""
+        last_menu = meta.get("last_menu_options")
+        if not last_menu:
+            return None
+        for i, opt in enumerate(last_menu):
+            opt_id = (opt.get("id") or "").lower()
+            opt_label = (opt.get("label") or "").lower()
+            if text_lower == opt_id or text_lower == opt_label or text_lower == str(i + 1):
+                return opt_id
+        return None
 
     async def match_flow(
         self,
@@ -58,7 +70,7 @@ class ChatbotEngine:
         message_text: str,
         trigger_type: Optional[str] = None,
     ) -> Optional[ChatbotFlow]:
-        """Find matching active flow by keyword/trigger."""
+        """Find matching active flow by trigger type with priority: exact > keyword > greeting > any."""
         query = select(ChatbotFlow).where(ChatbotFlow.active.is_(True))
         if trigger_type:
             query = query.where(ChatbotFlow.trigger_type == trigger_type)
@@ -68,64 +80,242 @@ class ChatbotEngine:
 
         text_lower = message_text.lower().strip()
 
+        # Group by priority
+        exact_matches = []
+        keyword_matches = []
+        greeting_matches = []
+        any_matches = []
+
         for flow in flows:
-            if flow.trigger_type == "keyword":
+            if flow.trigger_type == "exact":
+                exact_text = (flow.trigger_config or {}).get("text", "")
+                if exact_text.lower() == text_lower:
+                    exact_matches.append(flow)
+            elif flow.trigger_type == "keyword":
                 keywords = (flow.trigger_config or {}).get("keywords", [])
                 for kw in keywords:
                     if kw.lower() in text_lower:
-                        return flow
-            elif flow.trigger_type == "exact":
-                exact = (flow.trigger_config or {}).get("text", "")
-                if exact.lower() == text_lower:
-                    return flow
+                        keyword_matches.append(flow)
+                        break
             elif flow.trigger_type == "greeting":
-                greetings = ["oi", "ola", "olá", "bom dia", "boa tarde", "boa noite", "hello", "hi"]
+                greetings = ["oi", "ola", "olá", "bom dia", "boa tarde", "boa noite", "hello", "hi", "hey"]
                 if text_lower in greetings:
-                    return flow
+                    greeting_matches.append(flow)
             elif flow.trigger_type == "any":
-                return flow
+                any_matches.append(flow)
+
+        # Return first match in priority order
+        for group in (exact_matches, keyword_matches, greeting_matches, any_matches):
+            if group:
+                return group[0]
 
         return None
 
-    def execute_step(self, step: dict, context: dict) -> dict:
+    async def _execute_flow(
+        self,
+        db: AsyncSession,
+        conversation: object,
+        flow: ChatbotFlow,
+        message_text: str,
+        visitor_id: Optional[str] = None,
+    ) -> dict:
+        """Execute a flow from the beginning, stopping at wait points."""
+        steps = flow.steps or []
+        responses: list[dict] = []
+        collected_data: dict = {}
+
+        for i, step in enumerate(steps):
+            result = self._process_step(step, collected_data, message_text, conversation)
+            responses.append(result)
+
+            step_type = result.get("type")
+
+            if step_type == "transfer_to_agent":
+                self._clear_state(conversation)
+                break
+
+            if step_type in ("wait_response", "collect_input"):
+                # Save state and pause — next message will resume
+                self._save_state(conversation, {
+                    "flow_id": str(flow.id),
+                    "step_index": i + 1,
+                    "collected_data": collected_data,
+                    "expecting_field": result.get("field"),
+                })
+                break
+
+            if step_type == "condition":
+                # Condition steps don't produce visible output; just continue
+                continue
+
+        return {
+            "flow_id": str(flow.id),
+            "flow_name": flow.name,
+            "responses": responses,
+            "matched": True,
+        }
+
+    async def _resume_flow(
+        self,
+        db: AsyncSession,
+        conversation: object,
+        message_text: str,
+        state: dict,
+    ) -> Optional[dict]:
+        """Resume a flow from saved state, storing user input."""
+        flow_id = state.get("flow_id")
+        step_index = state.get("step_index", 0)
+        collected_data = state.get("collected_data", {})
+        expecting_field = state.get("expecting_field")
+
+        # Load flow from DB
+        result = await db.execute(
+            select(ChatbotFlow).where(ChatbotFlow.id == flow_id)
+        )
+        flow = result.scalar_one_or_none()
+        if not flow:
+            self._clear_state(conversation)
+            return None
+
+        # Store user input in the expected field
+        if expecting_field:
+            collected_data[expecting_field] = message_text.strip()
+
+        steps = flow.steps or []
+        responses: list[dict] = []
+
+        for i in range(step_index, len(steps)):
+            step = steps[i]
+            r = self._process_step(step, collected_data, message_text, conversation)
+            responses.append(r)
+
+            step_type = r.get("type")
+
+            if step_type == "transfer_to_agent":
+                self._clear_state(conversation)
+                break
+
+            if step_type in ("wait_response", "collect_input"):
+                self._save_state(conversation, {
+                    "flow_id": str(flow.id),
+                    "step_index": i + 1,
+                    "collected_data": collected_data,
+                    "expecting_field": r.get("field"),
+                })
+                break
+
+            if step_type == "condition":
+                continue
+        else:
+            # Reached end of flow
+            self._clear_state(conversation)
+
+        return {
+            "flow_id": str(flow.id),
+            "flow_name": flow.name,
+            "responses": responses,
+            "matched": True,
+        }
+
+    def _process_step(self, step: dict, collected_data: dict, message_text: str, conversation: object = None) -> dict:
         """Execute a single flow step and return result."""
         step_type = step.get("type", "send_message")
 
         if step_type == "send_message":
+            content = self._substitute_vars(step.get("content", ""), collected_data)
+            return {"type": "send_message", "content": content}
+
+        elif step_type == "send_menu":
+            content = self._substitute_vars(step.get("content", ""), collected_data)
+            options = step.get("options", [])
+            # Save menu options in metadata for selection routing
+            if conversation and hasattr(conversation, "metadata_"):
+                meta = getattr(conversation, "metadata_", None) or {}
+                meta["last_menu_options"] = options
+                conversation.metadata_ = meta
             return {
-                "type": "send_message",
-                "content": step.get("content", ""),
+                "type": "send_menu",
+                "content": content,
+                "options": options,
             }
+
+        elif step_type == "collect_input":
+            prompt = self._substitute_vars(step.get("prompt", ""), collected_data)
+            field = step.get("field", "input")
+            return {
+                "type": "collect_input",
+                "content": prompt,
+                "field": field,
+            }
+
         elif step_type == "wait_response":
-            return {
-                "type": "wait_response",
-                "prompt": step.get("prompt", ""),
-            }
+            prompt = self._substitute_vars(step.get("prompt", ""), collected_data)
+            return {"type": "wait_response", "prompt": prompt}
+
         elif step_type == "lookup_order":
             return {
                 "type": "lookup_order",
                 "order_field": step.get("order_field", "order_number"),
+                "collected_data": collected_data,
                 "message": step.get("message", "Buscando informacoes do pedido..."),
             }
+
         elif step_type == "suggest_article":
             return {
                 "type": "suggest_article",
-                "query": context.get("message_text", ""),
+                "query": message_text,
                 "message": step.get("message", "Encontrei estes artigos que podem ajudar:"),
             }
+
         elif step_type == "transfer_to_agent":
+            message = self._substitute_vars(
+                step.get("message", "Transferindo para um atendente..."), collected_data,
+            )
             return {
                 "type": "transfer_to_agent",
-                "message": step.get("message", "Transferindo para um atendente..."),
+                "message": message,
+                "collected_data": collected_data,
             }
+
+        elif step_type == "condition":
+            # Evaluate condition — for now just pass through
+            return {"type": "condition", "step": step}
+
         else:
-            return {
-                "type": "unknown",
-                "step": step,
-            }
+            return {"type": "unknown", "step": step}
+
+    def _substitute_vars(self, text: str, collected_data: dict) -> str:
+        """Replace {{field_name}} placeholders with collected_data values."""
+        if not text or not collected_data:
+            return text
+
+        def replacer(match):
+            key = match.group(1).strip()
+            return collected_data.get(key, match.group(0))
+
+        return re.sub(r"\{\{(\w+)\}\}", replacer, text)
+
+    # ── State helpers ──
+
+    def _get_state(self, conversation: object) -> Optional[dict]:
+        """Read chatbot_state from conversation.metadata_."""
+        meta = getattr(conversation, "metadata_", None) or {}
+        return meta.get("chatbot_state")
+
+    def _save_state(self, conversation: object, state: dict):
+        """Save chatbot_state into conversation.metadata_."""
+        meta = getattr(conversation, "metadata_", None) or {}
+        meta["chatbot_state"] = state
+        conversation.metadata_ = meta
+
+    def _clear_state(self, conversation: object):
+        """Remove chatbot_state from conversation.metadata_."""
+        meta = getattr(conversation, "metadata_", None) or {}
+        meta.pop("chatbot_state", None)
+        conversation.metadata_ = meta
 
 
-# CRUD helpers for flows
+# ── CRUD helpers for flows (unchanged) ──
 
 async def list_flows(db: AsyncSession) -> list[ChatbotFlow]:
     result = await db.execute(

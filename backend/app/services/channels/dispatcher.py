@@ -42,6 +42,19 @@ class ChannelDispatcher:
         logger.warning("No adapter registered for channel: %s", channel)
         return None
 
+    async def send_interactive(
+        self,
+        channel: str,
+        recipient_id: str,
+        text: str,
+        options: list[dict],
+    ) -> dict | None:
+        adapter = self.adapters.get(channel)
+        if adapter:
+            return await adapter.send_interactive(recipient_id, text, options)
+        logger.warning("No adapter registered for channel: %s", channel)
+        return None
+
     async def process_webhook(self, channel: str, payload: dict) -> list[dict]:
         adapter = self.adapters.get(channel)
         if adapter:

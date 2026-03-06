@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit:*)",
+      "Bash(python3:*)",
+      "Bash(open:*)",
+      "WebSearch",
+      "Bash(docker port:*)",
+      "Bash(lsof:*)",
+      "Bash(docker stop:*)",
+      "Bash(cd /Users/pedrocastro/Desktop/carbon-helpdesk/backend && .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload 2>&1)",
+      "Bash(grep:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(/Users/pedrocastro/Desktop/carbon-helpdesk/backend/.venv/bin/pip install:*)",
+      "Bash(curl:*)",
+      "Bash(docker exec:*)",
+      "Bash(cd /Users/pedrocastro/Desktop/carbon-helpdesk/frontend && npm install 2>&1)",
+      "Bash(npx vite:*)",
+      "Bash(cd:*)",
+      "Bash(git add:*)",
+      "Bash(git remote:*)",
+      "Bash(git push:*)",
+      "Bash(git restore:*)",
+      "Bash(sshpass:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjNjcxZTQ1Yy0xOTA2LTQ1MjEtYmY3My00YmY4ZTM2YjRlMTAiLCJyb2xlIjoiYWRtaW4iLCJleHAiOjE3NzE5MDc1NDJ9.PlK0IW8SQL7b_ieVpQHUfbZH30E4ntAHO_iD9q2FUAQ\" && curl -s -H \"Authorization: Bearer $TOKEN\" \"http://143.198.20.6/api/tickets/sent-messages?page=1&per_page=5\" 2>&1)",
+      "Bash(claude mcp:*)"
+    ]
+  }
+}
