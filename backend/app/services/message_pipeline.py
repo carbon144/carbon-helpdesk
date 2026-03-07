@@ -481,6 +481,7 @@ def _verify_invoice_owner(invoice: dict, customer_phone: str) -> bool:
 async def _auto_lookup_by_phone(customer: Customer, phone: str) -> list[str]:
     """Try to find recent orders by customer phone number in Shopify."""
     from app.services import shopify_service
+    from app.services.tracking_service import track_package
 
     try:
         result = await shopify_service.get_orders_by_phone(phone, limit=5)
@@ -488,63 +489,17 @@ async def _auto_lookup_by_phone(customer: Customer, phone: str) -> list[str]:
         if not orders:
             return []  # No orders found — fall back to asking
 
-        # Show most recent orders — split tracking codes into separate messages for easy copy
         msgs = []
-        summary = "Encontrei seus pedidos pelo seu número de WhatsApp:\n"
-        tracking_entries = []  # (order_number, tracking_code)
 
+        # For each order, show full details with live tracking
         for o in orders[:3]:
-            number = o.get("order_number", "?")
-            financial = FINANCIAL_STATUS_PT.get(o.get("financial_status", ""), o.get("financial_status", ""))
-            delivery = DELIVERY_STATUS_PT.get(o.get("delivery_status", ""), o.get("delivery_status", ""))
-            total = o.get("total_price", "0.00")
-            tracking = o.get("tracking_code", "")
+            order_msgs = await _format_order_messages(o)
+            msgs.extend(order_msgs)
 
-            line = f"\nPedido {number} — R$ {total}\nPagamento: {financial} | Entrega: {delivery}"
-            summary += line
-            if tracking:
-                tracking_entries.append((number, tracking))
+        if len(orders) > 3:
+            msgs.append(f"Você tem mais {len(orders) - 3} pedido(s). Envie o número pra ver detalhes (ex: #12345).")
 
-        summary += "\n\nPara detalhes de um pedido, envie o número (ex: #12345)."
-        msgs.append(summary)
-
-        # Query tracking status for each code and show
-        from app.services.tracking_service import track_package
-        for order_num, code in tracking_entries:
-            try:
-                track_result = await track_package(code)
-                status = track_result.get("status", "")
-                location = track_result.get("location", "")
-                last_update = track_result.get("last_update", "")
-                events = track_result.get("events", [])
-
-                track_msg = f"Rastreio pedido #{order_num}:\n{code}\n"
-                if events and status:
-                    track_msg += f"\n*Status:* {status}"
-                    if location:
-                        track_msg += f"\n*Local:* {location}"
-                    if last_update:
-                        track_msg += f"\n*Atualização:* {last_update}"
-                    # Show last 3 events
-                    if len(events) > 1:
-                        track_msg += "\n\n_Últimas movimentações:_"
-                        for ev in events[:3]:
-                            ev_date = ev.get("date", "")
-                            ev_status = ev.get("status", "")
-                            ev_loc = ev.get("location", "")
-                            track_msg += f"\n• {ev_date} — {ev_status}"
-                            if ev_loc:
-                                track_msg += f" ({ev_loc})"
-                else:
-                    track_msg += f"\n_Rastreio registrado, aguardando atualização da transportadora._"
-                msgs.append(track_msg)
-            except Exception as e:
-                logger.warning("Tracking lookup failed for %s: %s", code, e)
-                msgs.append(f"Rastreio pedido #{order_num}:\n{code}")
-
-        if tracking_entries:
-            msgs.append("Acompanhe seu rastreio em:\nhttps://carbonsmartwatch.com.br/tracking")
-
+        msgs.append("Precisa de mais alguma coisa? Digite *menu* para ver as opções.")
         return msgs
     except Exception as e:
         logger.warning("Auto phone lookup failed: %s", e)
@@ -587,16 +542,32 @@ async def _handle_order_lookup(
     return messages
 
 
-def _format_order_detail(order: dict) -> str:
-    """Format a single order into a readable message."""
+def _format_date_br(dt_str: str) -> str:
+    """Convert datetime string to Brazilian format (DD/MM HH:MM)."""
+    if not dt_str:
+        return ""
+    try:
+        # Handle "2026-03-05 14:24:34" or "2026-03-05T14:24:34"
+        dt_str = dt_str.replace("T", " ")[:19]
+        from datetime import datetime
+        dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
+        return dt.strftime("%d/%m %H:%M")
+    except Exception:
+        return dt_str[:16] if len(dt_str) > 16 else dt_str
+
+
+async def _format_order_messages(order: dict) -> list[str]:
+    """Format order into a single rich message with live tracking timeline."""
+    from app.services.tracking_service import track_package
+
     number = order.get("order_number", "?")
     financial = FINANCIAL_STATUS_PT.get(order.get("financial_status", ""), order.get("financial_status", ""))
     delivery = DELIVERY_STATUS_PT.get(order.get("delivery_status", ""), order.get("delivery_status", ""))
     total = order.get("total_price", "0.00")
     tracking = order.get("tracking_code", "")
-    carrier = order.get("carrier", "")
-
     items_list = order.get("items", [])
+
+    # Build items text
     items_text = ""
     if items_list:
         lines = []
@@ -604,59 +575,68 @@ def _format_order_detail(order: dict) -> str:
             qty = item.get("quantity", 1)
             title = item.get("title", "")
             variant = item.get("variant_title", "")
-            line = f"  - {qty}x {title}"
+            line = f"  • {qty}x {title}"
             if variant:
                 line += f" ({variant})"
             lines.append(line)
         items_text = "\n".join(lines)
 
-    msg = f"Pedido {number}\n"
+    # Start building message
+    msg = f"*Pedido {number}* — R$ {total}\n"
     msg += f"Pagamento: {financial}\n"
-    msg += f"Entrega: {delivery}\n"
-    msg += f"Valor: R$ {total}\n"
-
     if items_text:
-        msg += f"Itens:\n{items_text}\n"
+        msg += f"\n{items_text}\n"
 
-    return msg.strip()
+    msgs = []
 
-
-async def _format_order_messages(order: dict) -> list[str]:
-    """Format order into multiple messages — tracking code with live status."""
-    detail = _format_order_detail(order)
-    msgs = [detail]
-    tracking = order.get("tracking_code", "")
     if tracking:
-        from app.services.tracking_service import track_package
         try:
             track_result = await track_package(tracking)
-            status = track_result.get("status", "")
-            location = track_result.get("location", "")
-            last_update = track_result.get("last_update", "")
             events = track_result.get("events", [])
+            eta = track_result.get("estimated_delivery", "")
 
-            track_msg = f"Código de rastreio:\n{tracking}\n"
-            if events and status:
-                track_msg += f"\n*Status:* {status}"
-                if location:
-                    track_msg += f"\n*Local:* {location}"
-                if last_update:
-                    track_msg += f"\n*Atualização:* {last_update}"
-                if len(events) > 1:
-                    track_msg += "\n\n_Últimas movimentações:_"
-                    for ev in events[:3]:
-                        ev_date = ev.get("date", "")
-                        ev_status = ev.get("status", "")
-                        ev_loc = ev.get("location", "")
-                        track_msg += f"\n• {ev_date} — {ev_status}"
-                        if ev_loc:
-                            track_msg += f" ({ev_loc})"
+            if events:
+                last_event = events[0]
+                last_status = last_event.get("status", "")
+                last_location = last_event.get("location", "")
+                is_delivered = track_result.get("delivered", False)
+
+                # Status header with emoji-like markers
+                if is_delivered:
+                    msg += f"\n*ENTREGUE*"
+                else:
+                    msg += f"\n*Status:* {last_status}"
+                if last_location:
+                    msg += f"\n*Local:* {last_location}"
+                if eta and not is_delivered:
+                    msg += f"\n*Previsão de entrega:* {eta}"
+
+                # Timeline
+                msg += f"\n\n*Rastreio:* {tracking}\n"
+                for ev in events[:5]:
+                    ev_date = _format_date_br(ev.get("date", ""))
+                    ev_status = ev.get("status", "")
+                    ev_loc = ev.get("location", "")
+                    line = f"  {ev_date} — {ev_status}"
+                    if ev_loc:
+                        line += f" ({ev_loc})"
+                    msg += f"\n{line}"
             else:
-                track_msg += f"\n_Rastreio registrado, aguardando atualização da transportadora._"
-            msgs.append(track_msg)
-        except Exception:
-            msgs.append(f"Código de rastreio:\n{tracking}")
-        msgs.append("Acompanhe em:\nhttps://carbonsmartwatch.com.br/tracking")
+                # Tracking code exists but no events yet
+                msg += f"\n*Rastreio:* {tracking}"
+                msg += f"\n_Pacote registrado, aguardando movimentação da transportadora._"
+
+        except Exception as e:
+            logger.warning("Tracking lookup failed for %s: %s", tracking, e)
+            msg += f"\n*Rastreio:* {tracking}"
+
+    else:
+        # No tracking code
+        msg += f"\nEntrega: {delivery}"
+        if delivery in ("Pendente", "pending"):
+            msg += "\n_Seu pedido está sendo preparado. O código de rastreio será enviado assim que for despachado._"
+
+    msgs.append(msg.strip())
     return msgs
 
 
