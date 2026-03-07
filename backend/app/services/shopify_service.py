@@ -79,6 +79,7 @@ async def get_orders_by_email(email: str, limit: int = 10) -> dict:
             "email": email,
             "status": "any",
             "limit": limit,
+            "created_at_min": "2024-01-01T00:00:00-03:00",
             "fields": "id,name,email,created_at,updated_at,financial_status,fulfillment_status,"
                        "total_price,currency,line_items,shipping_address,fulfillments,"
                        "shipping_lines,note,tags,cancelled_at,closed_at,confirmed",
@@ -220,7 +221,9 @@ async def get_order_by_number(order_number: str) -> dict:
 
     try:
         url = f"{base}/orders.json"
-        params = {"name": number, "status": "any", "limit": 1}
+        # Shopify REST API limits name search to ~60 days by default
+        # Use created_at_min to search older orders too
+        params = {"name": number, "status": "any", "limit": 1, "created_at_min": "2024-01-01T00:00:00-03:00"}
 
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(url, headers=_shopify_headers(), params=params)
