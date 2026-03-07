@@ -20,6 +20,7 @@ class ChatAdapter(ChannelAdapter):
         recipient_id: str,
         text: str,
         media_url: str | None = None,
+        **kwargs,
     ) -> dict | None:
         payload: dict = {
             "event": "new_message",
@@ -39,6 +40,7 @@ class ChatAdapter(ChannelAdapter):
         recipient_id: str,
         media_url: str,
         media_type: str,
+        **kwargs,
     ) -> dict | None:
         payload = {
             "event": "new_message",

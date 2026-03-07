@@ -187,7 +187,13 @@ async def send_message(
         )
         ci = ci_result.scalar_one_or_none()
         if ci:
-            await dispatcher.send(conv.channel, ci.channel_id, data.content)
+            # For WhatsApp, use the same phone number that received the conversation
+            send_kwargs = {}
+            if conv.channel == "whatsapp" and conv.metadata_:
+                pid = conv.metadata_.get("phone_number_id")
+                if pid:
+                    send_kwargs["phone_number_id"] = pid
+            await dispatcher.send(conv.channel, ci.channel_id, data.content, **send_kwargs)
 
     return msg
 

@@ -20,6 +20,7 @@ class FacebookAdapter(ChannelAdapter):
         recipient_id: str,
         text: str,
         media_url: str | None = None,
+        **kwargs,
     ) -> dict | None:
         """Send a message to a Facebook user via Messenger."""
         url = f"{GRAPH_API_BASE}/me/messages"
@@ -59,6 +60,7 @@ class FacebookAdapter(ChannelAdapter):
         recipient_id: str,
         media_url: str,
         media_type: str,
+        **kwargs,
     ) -> dict | None:
         """Send a standalone media message to a Facebook user."""
         url = f"{GRAPH_API_BASE}/me/messages"
@@ -95,6 +97,7 @@ class FacebookAdapter(ChannelAdapter):
         recipient_id: str,
         text: str,
         options: list[dict],
+        **kwargs,
     ) -> dict | None:
         """Send interactive message with quick_replies via Facebook Messenger API.
 

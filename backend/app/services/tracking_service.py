@@ -333,19 +333,177 @@ def _get_carrier_name(carrier_code: int) -> str:
     return carrier_names.get(carrier_code, f"carrier_{carrier_code}")
 
 
+async def track_wonca(code: str) -> dict:
+    """Track via Wonca Labs API (Correios + Cainiao). $0.0021/req, 1000 free/month."""
+    api_key = getattr(settings, 'WONCA_API_KEY', '') or ''
+    if not api_key:
+        return {"carrier": detect_carrier(code), "code": code, "status": "", "events": [], "delivered": False}
+
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                "https://api-labs.wonca.com.br/wonca.labs.v1.LabsService/Track",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Apikey {api_key}",
+                },
+                json={"code": code},
+            )
+
+            if resp.status_code != 200:
+                logger.warning(f"Wonca API error for {code}: HTTP {resp.status_code} {resp.text[:200]}")
+                return {"carrier": detect_carrier(code), "code": code, "status": "", "events": [], "delivered": False}
+
+            data = resp.json()
+
+            # Parse the inner JSON string
+            import json
+            inner = json.loads(data.get("json", "{}"))
+            carrier_raw = data.get("carrier", "")
+
+            eventos = inner.get("eventos", [])
+            if not eventos:
+                return {"carrier": detect_carrier(code), "code": code, "status": "Sem informação", "events": [], "delivered": False}
+
+            # Parse events
+            events = []
+            for ev in eventos:
+                dt_info = ev.get("dtHrCriado", {})
+                dt_str = dt_info.get("date", "")[:19] if isinstance(dt_info, dict) else ""
+                descricao = ev.get("descricao", "")
+                detalhe = ev.get("detalhe", "")
+                # Location from unidade
+                unidade = ev.get("unidade", {}) or {}
+                endereco = unidade.get("endereco", {}) or {}
+                cidade = endereco.get("cidade", "") or ""
+                uf = endereco.get("uf", "") or ""
+                location = f"{cidade}/{uf}" if cidade and uf else cidade or uf or ""
+                # Destination
+                destino = ev.get("unidadeDestino")
+                if destino:
+                    dest_end = (destino.get("endereco") or {})
+                    dest_cidade = dest_end.get("cidade", "") or ""
+                    dest_uf = dest_end.get("uf", "") or ""
+                    if dest_cidade:
+                        location += f" → {dest_cidade}/{dest_uf}" if dest_uf else f" → {dest_cidade}"
+
+                status_text = descricao
+                if detalhe:
+                    status_text += f" ({detalhe})"
+
+                events.append({
+                    "date": dt_str,
+                    "status": descricao,
+                    "detail": detalhe,
+                    "location": location,
+                })
+
+            # Most recent event first (API returns newest first already)
+            last = eventos[0]
+            last_descricao = last.get("descricao", "")
+            is_delivered = last.get("codigo") == "BDE" or "entregue" in last_descricao.lower()
+
+            # Carrier name
+            carrier_map = {
+                "CARRIER_CORREIOS": "Correios",
+                "CARRIER_CAINIAO": "Cainiao",
+            }
+            carrier_name = carrier_map.get(carrier_raw, carrier_raw or detect_carrier(code))
+
+            # Predicted delivery date
+            dt_prevista = inner.get("dtPrevista", "")
+
+            return {
+                "carrier": carrier_name,
+                "code": code,
+                "status": last_descricao,
+                "last_update": events[0]["date"] if events else "",
+                "location": events[0].get("location", "") if events else "",
+                "events": events[:20],
+                "delivered": is_delivered,
+                "estimated_delivery": dt_prevista,
+            }
+
+    except Exception as e:
+        logger.error(f"Wonca error for {code}: {e}")
+        return {"carrier": detect_carrier(code), "code": code, "status": "", "events": [], "delivered": False}
+
+
 async def track_correios(code: str) -> dict:
-    """Track via Correios — uses 17track as it covers Correios too."""
-    return await track_17track(code)
+    """Track via Correios — uses Wonca first, then 17track."""
+    return await track_wonca(code)
+
+
+async def track_linketrack(code: str) -> dict:
+    """Track via Linketrack API (free, Correios-only)."""
+    user = getattr(settings, 'LINKETRACK_USER', '') or ''
+    token = getattr(settings, 'LINKETRACK_TOKEN', '') or ''
+    if not user or not token:
+        return {"carrier": "correios", "code": code, "status": "Configure LINKETRACK_USER/TOKEN no .env", "events": [], "delivered": False}
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                f"https://api.linketrack.com/track/json?user={user}&token={token}&codigo={code}",
+            )
+            if resp.status_code != 200:
+                return {"carrier": "correios", "code": code, "status": f"Erro API: HTTP {resp.status_code}", "events": [], "delivered": False}
+
+            data = resp.json()
+            eventos = data.get("eventos", [])
+            if not eventos:
+                return {"carrier": "correios", "code": code, "status": "Sem informação", "events": [], "delivered": False}
+
+            events = []
+            for ev in eventos:
+                events.append({
+                    "date": ev.get("data", "") + " " + ev.get("hora", ""),
+                    "status": ev.get("status", ""),
+                    "location": ev.get("local", ""),
+                    "detail": ev.get("subStatus", [None])[0] if ev.get("subStatus") else "",
+                })
+
+            last = eventos[0]
+            status_text = last.get("status", "Sem informação")
+            is_delivered = "entregue" in status_text.lower()
+
+            return {
+                "carrier": "correios",
+                "code": code,
+                "status": status_text,
+                "location": last.get("local", ""),
+                "last_update": last.get("data", "") + " " + last.get("hora", ""),
+                "events": events[:20],
+                "delivered": is_delivered,
+            }
+    except Exception as e:
+        logger.error(f"Linketrack error for {code}: {e}")
+        return {"carrier": "correios", "code": code, "status": f"Erro: {str(e)[:100]}", "events": [], "delivered": False}
 
 
 async def track_package(code: str) -> dict:
-    """Main entry point: track any package via 17track."""
+    """Main entry point: track any package.
+    Priority: Wonca (Correios+Cainiao, cheap) → 17track (international fallback)."""
     code = code.strip()
     if not code:
         return {"carrier": "unknown", "code": code, "status": "Código vazio", "events": [], "delivered": False}
 
-    # Use 17track for everything (it supports Correios, Cainiao, and 1000+ carriers)
-    return await track_17track(code)
+    carrier = detect_carrier(code.upper())
+
+    # 1. Wonca Labs — covers Correios + Cainiao ($0.0021/req, 1000 free/month)
+    wonca_key = getattr(settings, 'WONCA_API_KEY', '') or ''
+    if wonca_key:
+        result = await track_wonca(code)
+        if result.get("events"):
+            return result
+
+    # 2. 17track fallback (international codes or if Wonca had no data)
+    api_key = getattr(settings, 'TRACK17_API_KEY', '') or ''
+    if api_key:
+        return await track_17track(code)
+
+    # No API configured
+    return {"carrier": carrier, "code": code, "status": "Nenhuma API de rastreio configurada", "events": [], "delivered": False}
 
 
 async def track_and_update_ticket(db, ticket) -> dict:

@@ -22,10 +22,11 @@ class ChannelDispatcher:
         recipient_id: str,
         text: str,
         media_url: str | None = None,
+        **kwargs,
     ) -> dict | None:
         adapter = self.adapters.get(channel)
         if adapter:
-            return await adapter.send_message(recipient_id, text, media_url)
+            return await adapter.send_message(recipient_id, text, media_url, **kwargs)
         logger.warning("No adapter registered for channel: %s", channel)
         return None
 
@@ -35,10 +36,11 @@ class ChannelDispatcher:
         recipient_id: str,
         media_url: str,
         media_type: str,
+        **kwargs,
     ) -> dict | None:
         adapter = self.adapters.get(channel)
         if adapter:
-            return await adapter.send_media(recipient_id, media_url, media_type)
+            return await adapter.send_media(recipient_id, media_url, media_type, **kwargs)
         logger.warning("No adapter registered for channel: %s", channel)
         return None
 
@@ -49,13 +51,14 @@ class ChannelDispatcher:
         document_url: str,
         filename: str = "document.pdf",
         caption: str = "",
+        **kwargs,
     ) -> dict | None:
         adapter = self.adapters.get(channel)
         if adapter and hasattr(adapter, "send_document"):
-            return await adapter.send_document(recipient_id, document_url, filename, caption)
+            return await adapter.send_document(recipient_id, document_url, filename, caption, **kwargs)
         # Fallback: send as regular media
         if adapter:
-            return await adapter.send_media(recipient_id, document_url, "document")
+            return await adapter.send_media(recipient_id, document_url, "document", **kwargs)
         logger.warning("No adapter registered for channel: %s", channel)
         return None
 
@@ -65,10 +68,11 @@ class ChannelDispatcher:
         recipient_id: str,
         text: str,
         options: list[dict],
+        **kwargs,
     ) -> dict | None:
         adapter = self.adapters.get(channel)
         if adapter:
-            return await adapter.send_interactive(recipient_id, text, options)
+            return await adapter.send_interactive(recipient_id, text, options, **kwargs)
         logger.warning("No adapter registered for channel: %s", channel)
         return None
 

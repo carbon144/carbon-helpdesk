@@ -17,6 +17,7 @@ class ChannelAdapter(ABC):
         recipient_id: str,
         text: str,
         media_url: str | None = None,
+        **kwargs,
     ) -> dict | None:
         pass
 
@@ -26,6 +27,7 @@ class ChannelAdapter(ABC):
         recipient_id: str,
         media_url: str,
         media_type: str,
+        **kwargs,
     ) -> dict | None:
         pass
 
@@ -38,19 +40,15 @@ class ChannelAdapter(ABC):
         recipient_id: str,
         text: str,
         options: list[dict],
+        **kwargs,
     ) -> dict | None:
         """Send an interactive message with selectable options.
 
         Default implementation: falls back to a plain text message with numbered options.
         Subclasses can override for native interactive messages (buttons, lists, quick replies).
-
-        Args:
-            recipient_id: Channel-specific recipient identifier.
-            text: Header/body text for the message.
-            options: List of dicts with keys: id, title, description (optional).
         """
         if not options:
-            return await self.send_message(recipient_id, text)
+            return await self.send_message(recipient_id, text, **kwargs)
 
         lines = [text, ""]
         for i, opt in enumerate(options, 1):
@@ -66,4 +64,4 @@ class ChannelAdapter(ABC):
             "%s: send_interactive fallback to text for %s (%d options)",
             self.channel_name, recipient_id, len(options),
         )
-        return await self.send_message(recipient_id, fallback_text)
+        return await self.send_message(recipient_id, fallback_text, **kwargs)

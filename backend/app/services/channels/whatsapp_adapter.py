@@ -15,14 +15,28 @@ class WhatsAppAdapter(ChannelAdapter):
 
     channel_name: str = "whatsapp"
 
+    def _get_phone_id(self, phone_number_id: str | None = None) -> str:
+        """Return the phone_number_id to use for sending. Falls back to config default."""
+        return phone_number_id or settings.META_WHATSAPP_PHONE_ID
+
+    @staticmethod
+    def _format_text_options(text: str, options: list[dict]) -> str:
+        lines = [text, ""]
+        for i, opt in enumerate(options, 1):
+            title = opt.get("title") or opt.get("label") or f"Opcao {i}"
+            lines.append(f"{i}. {title}")
+        return "\n".join(lines)
+
     async def send_message(
         self,
         recipient_id: str,
         text: str,
         media_url: str | None = None,
+        phone_number_id: str | None = None,
     ) -> dict | None:
         """Send a text message (optionally with media) to a WhatsApp number."""
-        url = f"{GRAPH_API_BASE}/{settings.META_WHATSAPP_PHONE_ID}/messages"
+        pid = self._get_phone_id(phone_number_id)
+        url = f"{GRAPH_API_BASE}/{pid}/messages"
         headers = {
             "Authorization": f"Bearer {settings.META_WHATSAPP_TOKEN}",
             "Content-Type": "application/json",
@@ -62,9 +76,11 @@ class WhatsAppAdapter(ChannelAdapter):
         recipient_id: str,
         media_url: str,
         media_type: str,
+        phone_number_id: str | None = None,
     ) -> dict | None:
         """Send a standalone media message via WhatsApp Cloud API."""
-        url = f"{GRAPH_API_BASE}/{settings.META_WHATSAPP_PHONE_ID}/messages"
+        pid = self._get_phone_id(phone_number_id)
+        url = f"{GRAPH_API_BASE}/{pid}/messages"
         headers = {
             "Authorization": f"Bearer {settings.META_WHATSAPP_TOKEN}",
             "Content-Type": "application/json",
@@ -96,9 +112,11 @@ class WhatsAppAdapter(ChannelAdapter):
         document_url: str,
         filename: str = "document.pdf",
         caption: str = "",
+        phone_number_id: str | None = None,
     ) -> dict | None:
         """Send a document (PDF) via WhatsApp Cloud API with filename and caption."""
-        url = f"{GRAPH_API_BASE}/{settings.META_WHATSAPP_PHONE_ID}/messages"
+        pid = self._get_phone_id(phone_number_id)
+        url = f"{GRAPH_API_BASE}/{pid}/messages"
         headers = {
             "Authorization": f"Bearer {settings.META_WHATSAPP_TOKEN}",
             "Content-Type": "application/json",
@@ -131,6 +149,7 @@ class WhatsAppAdapter(ChannelAdapter):
         recipient_id: str,
         text: str,
         options: list[dict],
+        phone_number_id: str | None = None,
     ) -> dict | None:
         """Send interactive message via WhatsApp Cloud API.
 
@@ -138,9 +157,10 @@ class WhatsAppAdapter(ChannelAdapter):
         - More than 3 options: list message (type=list)
         """
         if not options:
-            return await self.send_message(recipient_id, text)
+            return await self.send_message(recipient_id, text, phone_number_id=phone_number_id)
 
-        url = f"{GRAPH_API_BASE}/{settings.META_WHATSAPP_PHONE_ID}/messages"
+        pid = self._get_phone_id(phone_number_id)
+        url = f"{GRAPH_API_BASE}/{pid}/messages"
         headers = {
             "Authorization": f"Bearer {settings.META_WHATSAPP_TOKEN}",
             "Content-Type": "application/json",
@@ -207,7 +227,7 @@ class WhatsAppAdapter(ChannelAdapter):
         except httpx.HTTPError as e:
             logger.error("WhatsApp interactive failed for %s: %s — falling back to text", recipient_id, e)
             # Fallback to numbered text
-            return await super().send_interactive(recipient_id, text, options)
+            return await self.send_message(recipient_id, self._format_text_options(text, options), phone_number_id=phone_number_id)
 
     async def process_webhook(self, payload: dict) -> list[dict]:
         """Parse WhatsApp Cloud API webhook payload into normalized messages."""
@@ -216,6 +236,8 @@ class WhatsAppAdapter(ChannelAdapter):
         for entry in payload.get("entry", []):
             for change in entry.get("changes", []):
                 value = change.get("value", {})
+                # Extract which of our phone numbers received this message
+                wa_phone_number_id = value.get("metadata", {}).get("phone_number_id", "")
                 contacts = value.get("contacts", [])
                 contact_names = {c.get("wa_id", ""): c.get("profile", {}).get("name", "") for c in contacts}
                 for msg in value.get("messages", []):
@@ -223,6 +245,7 @@ class WhatsAppAdapter(ChannelAdapter):
                     if normalized:
                         sender = normalized.get("sender_id", "")
                         normalized["sender_name"] = contact_names.get(sender, "")
+                        normalized["phone_number_id"] = wa_phone_number_id
                         messages.append(normalized)
 
         return messages

@@ -140,7 +140,7 @@ async def process_incoming_message(
             from app.services import shopify_service
             order = await shopify_service.get_order_by_number(order_num)
             if order and not order.get("error"):
-                detail_msgs = _format_order_messages(order)
+                detail_msgs = await _format_order_messages(order)
                 detail_msgs.append("Precisa de mais alguma coisa? Digite *menu* para ver as opções.")
                 for m in detail_msgs:
                     result["bot_messages"].append(m)
@@ -491,7 +491,7 @@ async def _auto_lookup_by_phone(customer: Customer, phone: str) -> list[str]:
         # Show most recent orders — split tracking codes into separate messages for easy copy
         msgs = []
         summary = "Encontrei seus pedidos pelo seu número de WhatsApp:\n"
-        tracking_codes = []
+        tracking_entries = []  # (order_number, tracking_code)
 
         for o in orders[:3]:
             number = o.get("order_number", "?")
@@ -503,16 +503,46 @@ async def _auto_lookup_by_phone(customer: Customer, phone: str) -> list[str]:
             line = f"\nPedido {number} — R$ {total}\nPagamento: {financial} | Entrega: {delivery}"
             summary += line
             if tracking:
-                tracking_codes.append(f"Rastreio pedido {number}:\n{tracking}")
+                tracking_entries.append((number, tracking))
 
         summary += "\n\nPara detalhes de um pedido, envie o número (ex: #12345)."
         msgs.append(summary)
 
-        # Each tracking code as separate message so customer can copy
-        for tc in tracking_codes:
-            msgs.append(tc)
+        # Query tracking status for each code and show
+        from app.services.tracking_service import track_package
+        for order_num, code in tracking_entries:
+            try:
+                track_result = await track_package(code)
+                status = track_result.get("status", "")
+                location = track_result.get("location", "")
+                last_update = track_result.get("last_update", "")
+                events = track_result.get("events", [])
 
-        if tracking_codes:
+                track_msg = f"Rastreio pedido #{order_num}:\n{code}\n"
+                if events and status:
+                    track_msg += f"\n*Status:* {status}"
+                    if location:
+                        track_msg += f"\n*Local:* {location}"
+                    if last_update:
+                        track_msg += f"\n*Atualização:* {last_update}"
+                    # Show last 3 events
+                    if len(events) > 1:
+                        track_msg += "\n\n_Últimas movimentações:_"
+                        for ev in events[:3]:
+                            ev_date = ev.get("date", "")
+                            ev_status = ev.get("status", "")
+                            ev_loc = ev.get("location", "")
+                            track_msg += f"\n• {ev_date} — {ev_status}"
+                            if ev_loc:
+                                track_msg += f" ({ev_loc})"
+                else:
+                    track_msg += f"\n_Rastreio registrado, aguardando atualização da transportadora._"
+                msgs.append(track_msg)
+            except Exception as e:
+                logger.warning("Tracking lookup failed for %s: %s", code, e)
+                msgs.append(f"Rastreio pedido #{order_num}:\n{code}")
+
+        if tracking_entries:
             msgs.append("Acompanhe seu rastreio em:\nhttps://carbonsmartwatch.com.br/tracking")
 
         return msgs
@@ -536,7 +566,9 @@ async def _handle_order_lookup(
     if order_number:
         order = await shopify_service.get_order_by_number(order_number)
         if order and not order.get("error"):
-            messages.append(_format_order_detail(order))
+            # Use _format_order_messages to include live tracking from 17track
+            msgs = await _format_order_messages(order)
+            messages.extend(msgs)
             return messages
         elif order and order.get("error"):
             messages.append(f"Não encontrei o pedido {order_number}. Verifique o número e tente novamente.")
@@ -589,17 +621,41 @@ def _format_order_detail(order: dict) -> str:
     return msg.strip()
 
 
-def _format_order_messages(order: dict) -> list[str]:
-    """Format order into multiple messages — tracking code separate for easy copy."""
+async def _format_order_messages(order: dict) -> list[str]:
+    """Format order into multiple messages — tracking code with live status."""
     detail = _format_order_detail(order)
     msgs = [detail]
     tracking = order.get("tracking_code", "")
     if tracking:
-        carrier = order.get("carrier", "")
-        tc = tracking
-        if carrier:
-            tc += f" ({carrier})"
-        msgs.append(f"Código de rastreio:\n{tc}")
+        from app.services.tracking_service import track_package
+        try:
+            track_result = await track_package(tracking)
+            status = track_result.get("status", "")
+            location = track_result.get("location", "")
+            last_update = track_result.get("last_update", "")
+            events = track_result.get("events", [])
+
+            track_msg = f"Código de rastreio:\n{tracking}\n"
+            if events and status:
+                track_msg += f"\n*Status:* {status}"
+                if location:
+                    track_msg += f"\n*Local:* {location}"
+                if last_update:
+                    track_msg += f"\n*Atualização:* {last_update}"
+                if len(events) > 1:
+                    track_msg += "\n\n_Últimas movimentações:_"
+                    for ev in events[:3]:
+                        ev_date = ev.get("date", "")
+                        ev_status = ev.get("status", "")
+                        ev_loc = ev.get("location", "")
+                        track_msg += f"\n• {ev_date} — {ev_status}"
+                        if ev_loc:
+                            track_msg += f" ({ev_loc})"
+            else:
+                track_msg += f"\n_Rastreio registrado, aguardando atualização da transportadora._"
+            msgs.append(track_msg)
+        except Exception:
+            msgs.append(f"Código de rastreio:\n{tracking}")
         msgs.append("Acompanhe em:\nhttps://carbonsmartwatch.com.br/tracking")
     return msgs
 

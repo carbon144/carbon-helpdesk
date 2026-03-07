@@ -70,13 +70,21 @@ async def _process_message(db: AsyncSession, msg: dict, channel: str):
         customer_id = customer.id
         db.add(ChannelIdentity(customer_id=customer_id, channel=channel, channel_id=sender_id))
 
+    phone_number_id = msg.get("phone_number_id", "")
+
     result = await db.execute(
         select(Conversation).where(Conversation.customer_id == customer_id, Conversation.channel == channel, Conversation.status == "open")
     )
     conversation = result.scalar_one_or_none()
     if not conversation:
-        conversation = Conversation(customer_id=customer_id, channel=channel, status="open")
+        conversation = Conversation(customer_id=customer_id, channel=channel, status="open",
+                                     metadata_={"phone_number_id": phone_number_id} if phone_number_id else None)
         db.add(conversation)
+    elif phone_number_id:
+        meta = conversation.metadata_ or {}
+        if meta.get("phone_number_id") != phone_number_id:
+            meta["phone_number_id"] = phone_number_id
+            conversation.metadata_ = meta
         await db.flush()
 
     # Dedup by channel_message_id
@@ -104,6 +112,8 @@ async def _process_message(db: AsyncSession, msg: dict, channel: str):
         "content": msg.get("content", ""),
     })
 
+    wa_kwargs = {"phone_number_id": phone_number_id} if phone_number_id else {}
+
     content = msg.get("content", "")
     if content:
         from app.services.message_pipeline import process_incoming_message
@@ -114,10 +124,10 @@ async def _process_message(db: AsyncSession, msg: dict, channel: str):
             if pipeline_result.get("bot_messages"):
                 from app.services.channels.dispatcher import dispatcher
                 for bot_msg in pipeline_result["bot_messages"]:
-                    await dispatcher.send(channel, sender_id, bot_msg)
+                    await dispatcher.send(channel, sender_id, bot_msg, **wa_kwargs)
             for im in pipeline_result.get("interactive_messages", []):
                 if im.get("type") == "menu":
                     from app.services.channels.dispatcher import dispatcher
                     await dispatcher.send_interactive(
-                        channel, sender_id, im["content"], im["options"],
+                        channel, sender_id, im["content"], im["options"], **wa_kwargs,
                     )

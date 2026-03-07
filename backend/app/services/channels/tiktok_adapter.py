@@ -20,6 +20,7 @@ class TikTokAdapter(ChannelAdapter):
         recipient_id: str,
         text: str,
         media_url: str | None = None,
+        **kwargs,
     ) -> dict | None:
         """Send a text message to a TikTok user via Business API."""
         url = f"{TIKTOK_API_BASE}/im/send_message/"
@@ -54,6 +55,7 @@ class TikTokAdapter(ChannelAdapter):
         recipient_id: str,
         media_url: str,
         media_type: str,
+        **kwargs,
     ) -> dict | None:
         """Send a media message to a TikTok user."""
         url = f"{TIKTOK_API_BASE}/im/send_message/"

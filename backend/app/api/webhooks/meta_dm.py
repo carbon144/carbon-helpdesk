@@ -127,6 +127,7 @@ async def _process_whatsapp_message(db: AsyncSession, msg: dict):
     """Process a WhatsApp message — uses phone number as channel_id."""
     channel = "whatsapp"
     sender_id = msg["sender_id"]  # phone number e.g. "5511999999999"
+    phone_number_id = msg.get("phone_number_id", "")  # which of OUR numbers received this
 
     result = await db.execute(
         select(ChannelIdentity).where(ChannelIdentity.channel == channel, ChannelIdentity.channel_id == sender_id)
@@ -147,9 +148,16 @@ async def _process_whatsapp_message(db: AsyncSession, msg: dict):
     )
     conversation = result.scalar_one_or_none()
     if not conversation:
-        conversation = Conversation(customer_id=customer_id, channel=channel, status="open")
+        conversation = Conversation(customer_id=customer_id, channel=channel, status="open",
+                                     metadata_={"phone_number_id": phone_number_id} if phone_number_id else None)
         db.add(conversation)
         await db.flush()
+    elif phone_number_id:
+        # Update phone_number_id if conversation exists (customer may message a different number)
+        meta = conversation.metadata_ or {}
+        if meta.get("phone_number_id") != phone_number_id:
+            meta["phone_number_id"] = phone_number_id
+            conversation.metadata_ = meta
 
     # Dedup by channel_message_id
     mid = msg.get("channel_message_id")
@@ -175,6 +183,9 @@ async def _process_whatsapp_message(db: AsyncSession, msg: dict):
         "content": msg.get("content", ""),
     })
 
+    # kwargs to route replies through the same phone number
+    wa_kwargs = {"phone_number_id": phone_number_id} if phone_number_id else {}
+
     content = msg.get("content", "")
     if content:
         from app.services.message_pipeline import process_incoming_message
@@ -184,18 +195,18 @@ async def _process_whatsapp_message(db: AsyncSession, msg: dict):
             if pr.get("bot_messages"):
                 from app.services.channels.dispatcher import dispatcher
                 for bot_msg in pr["bot_messages"]:
-                    await dispatcher.send(channel, sender_id, bot_msg)
+                    await dispatcher.send(channel, sender_id, bot_msg, **wa_kwargs)
             for im in pr.get("interactive_messages", []):
                 if im.get("type") == "menu":
                     from app.services.channels.dispatcher import dispatcher
                     await dispatcher.send_interactive(
-                        channel, sender_id, im["content"], im["options"],
+                        channel, sender_id, im["content"], im["options"], **wa_kwargs,
                     )
             for doc in pr.get("document_messages", []):
                 from app.services.channels.dispatcher import dispatcher
                 await dispatcher.send_document(
                     channel, sender_id,
-                    doc["url"], doc.get("filename", "document.pdf"), doc.get("caption", ""),
+                    doc["url"], doc.get("filename", "document.pdf"), doc.get("caption", ""), **wa_kwargs,
                 )
 
 

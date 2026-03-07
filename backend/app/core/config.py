@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     LINKETRACK_USER: str = ""
     LINKETRACK_TOKEN: str = ""
     TRACK17_API_KEY: str = ""
+    WONCA_API_KEY: str = ""
 
     NOTION_TOKEN: str = ""
     NOTION_DATABASE_ID: str = ""  # Auto-created if empty
