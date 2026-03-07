@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime, timezone
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, case, literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.conversation import Conversation
@@ -57,14 +57,43 @@ FINANCIAL_STATUS_PT = {
 
 
 async def _search_kb(db: AsyncSession, query: str, limit: int = 3) -> list[KBArticle]:
-    pattern = f"%{query}%"
+    import re as _re
+    # Extract meaningful words (3+ chars, skip stopwords)
+    stopwords = {
+        "que", "para", "com", "por", "uma", "uns", "dos", "das", "nos", "nas",
+        "seu", "sua", "meu", "minha", "como", "mais", "muito", "está", "esse",
+        "esta", "isso", "ele", "ela", "não", "nao", "sim", "tem", "ter", "ser",
+        "foi", "são", "era", "vai", "vou", "pode", "quero", "preciso", "estou",
+        "sobre", "ainda", "também", "qual", "quando", "onde", "aqui",
+    }
+    words = [w for w in _re.findall(r"[a-záéíóúâêôãõç]+", query.lower()) if len(w) >= 3 and w not in stopwords]
+    if not words:
+        words = [w for w in _re.findall(r"[a-záéíóúâêôãõç]+", query.lower()) if len(w) >= 2]
+    if not words:
+        return []
+
+    # Build conditions: each word must match title OR content — rank by number of matching words
+    word_scores = []
+    conditions = []
+    for word in words[:6]:  # Max 6 words to avoid query explosion
+        pattern = f"%{word}%"
+        word_match = or_(KBArticle.title.ilike(pattern), KBArticle.content.ilike(pattern))
+        conditions.append(word_match)
+        # Title matches score higher
+        word_scores.append(
+            case((KBArticle.title.ilike(pattern), literal(2)), else_=literal(0))
+            + case((KBArticle.content.ilike(pattern), literal(1)), else_=literal(0))
+        )
+
+    # Must match at least one word
+    relevance = sum(word_scores)
     result = await db.execute(
         select(KBArticle)
         .where(
             KBArticle.is_published.is_(True),
-            or_(KBArticle.title.ilike(pattern), KBArticle.content.ilike(pattern)),
+            or_(*conditions),
         )
-        .order_by(KBArticle.created_at.desc())
+        .order_by(relevance.desc())
         .limit(limit)
     )
     return list(result.scalars().all())

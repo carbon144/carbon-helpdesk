@@ -52,7 +52,7 @@ class ChatbotFlowResponse(BaseModel):
     name: str
     trigger_type: str
     trigger_config: Optional[dict] = None
-    steps: Optional[dict] = None
+    steps: Optional[list] = None
     active: bool
     created_at: datetime
     updated_at: datetime
@@ -64,5 +64,5 @@ class ChatbotFlowCreate(BaseModel):
     name: str
     trigger_type: str
     trigger_config: Optional[dict] = None
-    steps: Optional[dict] = None
+    steps: Optional[list] = None
     active: bool = True

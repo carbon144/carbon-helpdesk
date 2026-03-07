@@ -105,7 +105,7 @@ FLOWS = [
                 "rastreio", "rastrear", "rastreamento", "entrega", "chegou",
                 "onde está", "cadê", "tracking", "código de rastreio",
                 "encomenda", "correios", "transportadora", "prazo",
-                "previsão", "status", "exceção", "devolvido",
+                "previsão", "status", "exceção",
             ]
         },
         "steps": [
@@ -267,7 +267,7 @@ FLOWS = [
         "trigger_config": {
             "keywords": [
                 "garantia", "troca", "trocar", "devolução", "devolver",
-                "arrependimento", "produto errado",
+                "arrependimento",
             ]
         },
         "steps": [
@@ -308,7 +308,7 @@ FLOWS = [
                 "variable": "modelo",
                 "message": (
                     "Qual o modelo do seu relógio?\n"
-                    "Carbon Raptor, Atlas, One Max, Aurora ou Quartz?"
+                    "Carbon Raptor, Atlas, One Max ou Aurora?"
                 ),
             },
             {
@@ -447,8 +447,8 @@ FLOWS = [
         "trigger_type": "keyword",
         "trigger_config": {
             "keywords": [
-                "financeiro", "reembolso", "estorno", "pix", "boleto",
-                "pagamento", "paguei", "cobrado", "valor", "parcela",
+                "financeiro", "pix", "boleto",
+                "pagamento", "paguei", "cobrado", "parcela",
                 "cartão", "cobrança", "fatura",
             ]
         },
@@ -536,12 +536,15 @@ FLOWS = [
                 "type": "send_message",
                 "message": (
                     "Vou te ajudar com o suporte técnico.\n\n"
-                    "Antes de tudo, tente o reset de fábrica:\n"
+                    "Primeiro, confira se está usando o app correto:\n"
+                    "- *Raptor* ou *Atlas*: use o app *GloryFitPro*\n"
+                    "- *One Max* ou *Aurora*: use o app *DaFit*\n\n"
+                    "Se o problema persistir, tente o reset de fábrica:\n"
                     "1. Vá em Configurações no relógio\n"
                     "2. Selecione 'Restaurar padrão de fábrica'\n"
                     "3. Confirme e aguarde reiniciar\n"
-                    "4. Reconecte pelo app no celular\n\n"
-                    "Se o problema persistir após o reset, vou transferir para a equipe."
+                    "4. Reconecte pelo app correto no celular\n\n"
+                    "Se mesmo assim não resolver, vou transferir para a equipe."
                 ),
             },
             {
@@ -572,7 +575,7 @@ FLOWS = [
         "trigger_config": {
             "keywords": [
                 "dúvida", "duvida", "pergunta", "informação", "quero saber",
-                "como funciona", "como usar", "preço", "comprar",
+                "como funciona", "como usar",
                 "à prova d'água", "resistente", "modelo", "diferença",
                 "duvida_geral", "dúvida geral",
             ]
