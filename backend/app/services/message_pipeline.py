@@ -176,27 +176,35 @@ async def process_incoming_message(
         "escalated": False,
     }
 
-    # Layer -1: Check if we're waiting for email to complete escalation
+    # Layer -2: Check if we're waiting for observation after email
     _conv_meta_pre = getattr(conversation, "metadata_", None)
     if not isinstance(_conv_meta_pre, dict):
         _conv_meta_pre = {}
+    pending_obs = _conv_meta_pre.get("pending_observation")
+    if pending_obs and conversation.handler == "agent":
+        return await _handle_pending_observation(db, conversation, customer, message_text, result, pending_obs)
+
+    # Layer -1: Check if we're waiting for email to complete escalation
     pending_esc = _conv_meta_pre.get("pending_escalation")
     if pending_esc and conversation.handler == "agent":
         return await _handle_pending_email(db, conversation, customer, message_text, result, pending_esc)
 
-    # Layer 0: Allow "menu" to reset back to chatbot even from agent handler
+    # Layer 0: Allow "menu/voltar" to reset back to chatbot even from agent/resolved
     _text_lower = message_text.strip().lower()
-    if _text_lower in ("menu", "voltar", "inicio", "início", "0") and conversation.handler == "agent":
+    _menu_words = ("menu", "voltar", "inicio", "início", "0", "oi", "olá", "ola", "meni", "memu")
+    if _text_lower in _menu_words and conversation.handler in ("agent", "chatbot", None):
         conversation.handler = "chatbot"
-        conversation.ai_enabled = False
-        # Clear any pending escalation state
+        conversation.ai_enabled = True
+        conversation.status = "open"
+        # Clear any pending state
         _meta_reset = dict(getattr(conversation, "metadata_", None) or {})
         _meta_reset.pop("pending_escalation", None)
+        _meta_reset.pop("pending_observation", None)
         _meta_reset.pop("chatbot_state", None)
         conversation.metadata_ = _meta_reset
-        # Fall through to chatbot layer below (don't return)
+        # Fall through to chatbot layer below
 
-    # Layer 0: If agent is in control and AI is off, skip everything
+    # Layer 0: If agent handler — keep AI available for follow-up questions
     elif conversation.handler == "agent" and not conversation.ai_enabled:
         return result
 
@@ -843,20 +851,20 @@ async def _handle_pending_email(
             customer.email = found_email
             meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
             meta.pop("pending_escalation", None)
+            # Transition to pending_observation
+            meta["pending_observation"] = {
+                "email": found_email,
+                "asked_at": datetime.now(timezone.utc).isoformat(),
+            }
             conversation.metadata_ = meta
-            ticket_number = await _create_ticket_from_conversation(db, conversation)
-            masked = _mask_email(found_email)
-            if ticket_number:
-                msg = (
-                    f"Criei o chamado *#{ticket_number}* para você.\n"
-                    f"Nosso time vai responder no e-mail: *{masked}*\n\n"
-                    f"Horário de atendimento: *segunda a sexta, 9h às 18h*.\n"
-                    f"Sua mensagem será respondida assim que possível."
-                )
-            else:
-                msg = f"Registrado! Nosso time vai responder no e-mail *{masked}*."
+            msg = (
+                "Quer adicionar alguma observação ou detalhe sobre o seu problema?\n\n"
+                "Se não quiser, é só aguardar que já vamos encaminhar."
+            )
             result["bot_messages"].append(msg)
             await _save_bot_message(db, conversation, msg)
+            # Schedule auto-finalize in 15 min
+            _schedule_observation_timeout(conversation.id)
             await db.commit()
             result["handler"] = "agent"
             return result
@@ -884,29 +892,21 @@ async def _handle_pending_email(
     if re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', text):
         # Save email to customer
         customer.email = text
-        # Clear pending state
+        # Transition to pending_observation
         meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
         meta.pop("pending_escalation", None)
+        meta["pending_observation"] = {
+            "email": text,
+            "asked_at": datetime.now(timezone.utc).isoformat(),
+        }
         conversation.metadata_ = meta
-
-        # Now create the ticket
-        ticket_number = await _create_ticket_from_conversation(db, conversation)
-        masked = _mask_email(text)
-        if ticket_number:
-            msg = (
-                f"Obrigado! Criei o chamado *#{ticket_number}* para você.\n"
-                f"Nosso time vai responder no e-mail: *{masked}*\n\n"
-                f"Horário de atendimento: *segunda a sexta, 9h às 18h*.\n"
-                f"Sua mensagem será respondida assim que possível."
-            )
-        else:
-            msg = (
-                f"Obrigado! Registrei seu e-mail *{masked}*.\n"
-                f"Nosso time vai entrar em contato por lá.\n\n"
-                f"Horário de atendimento: *segunda a sexta, 9h às 18h*."
-            )
+        msg = (
+            "Obrigado! Quer adicionar alguma observação ou detalhe sobre o seu problema?\n\n"
+            "Se não quiser, é só aguardar que já vamos encaminhar."
+        )
         result["bot_messages"].append(msg)
         await _save_bot_message(db, conversation, msg)
+        _schedule_observation_timeout(conversation.id)
         await db.commit()
         result["handler"] = "agent"
         return result
@@ -921,6 +921,149 @@ async def _handle_pending_email(
 
 # ── Escalation + helpers ──
 
+async def _handle_pending_observation(
+    db: AsyncSession, conversation: Conversation, customer: Customer,
+    message_text: str, result: dict, pending_obs: dict,
+) -> dict:
+    """Handle observation input after email was provided."""
+    text = message_text.strip()
+    email = pending_obs.get("email", "")
+    observation = pending_obs.get("observation")
+
+    # Skip if they just say "nao", "não", "n" — finalize without observation
+    text_lower = text.lower()
+    if text_lower in ("nao", "não", "n", "nenhuma", "sem observação", "sem observacao", "não tenho", "nao tenho"):
+        text = None  # No observation
+
+    # Clear pending state
+    meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
+    meta.pop("pending_observation", None)
+    conversation.metadata_ = meta
+
+    # Save observation in conversation metadata for the agent
+    if text and text_lower not in ("nao", "não", "n", "nenhuma", "sem observação", "sem observacao", "não tenho", "nao tenho"):
+        obs_meta = dict(getattr(conversation, "metadata_", None) or {})
+        obs_meta["customer_observation"] = text
+        conversation.metadata_ = obs_meta
+
+    # Create ticket
+    ticket_number = await _create_ticket_from_conversation(db, conversation)
+    masked = _mask_email(email)
+    is_open, hours_msg = _is_business_hours()
+
+    if ticket_number:
+        msg = (
+            f"Sua solicitação foi enviada para nossa equipe! Chamado *#{ticket_number}*.\n\n"
+            f"O retorno será feito pelo e-mail *{masked}* em até *48 horas úteis*.\n"
+            f"Fique de olho na sua caixa de entrada e na pasta de *spam*.\n\n"
+        )
+        if not is_open:
+            msg += hours_msg + "\n\n"
+        msg += "Se precisar de algo mais, é só mandar um *oi* a qualquer momento!"
+    else:
+        msg = (
+            f"Registrado! Nosso time vai responder no e-mail *{masked}* em até *48 horas úteis*.\n"
+            f"Fique de olho na caixa de entrada e no *spam*.\n\n"
+            f"Se precisar de algo mais, é só mandar um *oi* a qualquer momento!"
+        )
+    result["bot_messages"].append(msg)
+    await _save_bot_message(db, conversation, msg)
+
+    # Resolve conversation (don't leave in queue)
+    conversation.status = "resolved"
+    await db.commit()
+    result["handler"] = "agent"
+    return result
+
+
+def _schedule_observation_timeout(conversation_id):
+    """Schedule auto-finalize if customer doesn't respond in 15 min."""
+    import asyncio
+
+    async def _auto_finalize():
+        await asyncio.sleep(15 * 60)  # 15 minutes
+        await _finalize_observation_timeout(conversation_id)
+
+    try:
+        loop = asyncio.get_event_loop()
+        loop.create_task(_auto_finalize())
+    except RuntimeError:
+        pass  # No event loop — skip (won't happen in prod)
+
+
+async def _finalize_observation_timeout(conversation_id):
+    """Auto-finalize escalation after 15min timeout on observation."""
+    from app.core.database import AsyncSessionLocal
+    from app.services.channels.dispatcher import dispatcher
+    from app.models.channel_identity import ChannelIdentity
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(Conversation).where(Conversation.id == conversation_id)
+            )
+            conversation = result.scalar_one_or_none()
+            if not conversation:
+                return
+
+            meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
+            pending = meta.get("pending_observation")
+            if not pending:
+                return  # Already handled by customer response
+
+            email = pending.get("email", "")
+            meta.pop("pending_observation", None)
+            conversation.metadata_ = meta
+
+            ticket_number = await _create_ticket_from_conversation(db, conversation)
+            masked = _mask_email(email)
+
+            msg = "Sua solicitação foi enviada para nossa equipe!"
+            if ticket_number:
+                msg += f" Chamado *#{ticket_number}*."
+            msg += (
+                f"\n\nO retorno será feito pelo e-mail *{masked}* em até *48 horas úteis*.\n"
+                f"Fique de olho na sua caixa de entrada e na pasta de *spam*.\n\n"
+                f"Se precisar de algo mais, é só mandar um *oi* a qualquer momento!"
+            )
+
+            bot_msg = ChatMessage(
+                conversation_id=conversation.id,
+                sender_type="bot",
+                sender_id=None,
+                content_type="text",
+                content=msg,
+                created_at=datetime.now(timezone.utc),
+            )
+            db.add(bot_msg)
+            conversation.last_message_at = datetime.now(timezone.utc)
+            conversation.status = "resolved"
+            await db.commit()
+
+            # Send via channel adapter — find recipient from ChannelIdentity
+            try:
+                channel = conversation.channel or "whatsapp"
+                ci_result = await db.execute(
+                    select(ChannelIdentity).where(
+                        ChannelIdentity.customer_id == conversation.customer_id,
+                        ChannelIdentity.channel == channel,
+                    )
+                )
+                ci = ci_result.scalar_one_or_none()
+                if ci:
+                    kwargs = {}
+                    phone_number_id = meta.get("phone_number_id")
+                    if phone_number_id:
+                        kwargs["phone_number_id"] = phone_number_id
+                    await dispatcher.send(channel, ci.channel_id, msg, **kwargs)
+            except Exception as e:
+                logger.warning("[OBS-TIMEOUT] Failed to send timeout message: %s", e)
+
+            logger.info("[OBS-TIMEOUT] Auto-finalized conversation %s after 15min", conversation_id)
+    except Exception as e:
+        logger.error("[OBS-TIMEOUT] Error: %s", e)
+
+
 async def _escalate_to_agent(
     db: AsyncSession,
     conversation: Conversation,
@@ -928,7 +1071,7 @@ async def _escalate_to_agent(
     escalation_message: str = "Vou transferir você para um de nossos atendentes. Um momento, por favor.",
 ) -> dict:
     conversation.handler = "agent"
-    conversation.ai_enabled = False
+    conversation.ai_enabled = True  # Keep AI in standby — agent responds via email, AI handles follow-ups
     conversation.ai_attempts = 0
 
     # Check business hours and inform customer

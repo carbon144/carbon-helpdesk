@@ -443,6 +443,93 @@ async def _run_weekly_analysis():
         await asyncio.sleep(3600)
 
 
+async def _run_chat_inactivity_loop():
+    """Background task: auto-close chat conversations inactive for 15+ minutes."""
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import select, and_
+    from app.models.conversation import Conversation
+    from app.models.chat_message import ChatMessage
+    from app.models.channel_identity import ChannelIdentity
+    from app.services.channels.dispatcher import dispatcher
+
+    ilogger = logging.getLogger("chat_inactivity")
+    await asyncio.sleep(60)  # Wait for startup
+
+    while True:
+        try:
+            async with AsyncSessionLocal() as db:
+                cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
+
+                # Find open conversations with last activity > 15min ago
+                result = await db.execute(
+                    select(Conversation).where(
+                        and_(
+                            Conversation.status == "open",
+                            Conversation.channel.in_(["whatsapp", "instagram", "facebook"]),
+                            Conversation.last_message_at < cutoff,
+                            Conversation.last_message_at.isnot(None),
+                        )
+                    )
+                )
+                stale_convs = list(result.scalars().all())
+
+                for conv in stale_convs:
+                    try:
+                        # Skip if pending observation (has its own timer)
+                        meta = conv.metadata_ if isinstance(conv.metadata_, dict) else {}
+                        if meta.get("pending_observation") or meta.get("pending_escalation"):
+                            continue
+
+                        msg = (
+                            "Como não houve novas mensagens, vou encerrar este atendimento.\n\n"
+                            "Se precisar de algo mais, é só mandar um *oi* a qualquer momento! "
+                            "Estaremos aqui pra te ajudar."
+                        )
+
+                        bot_msg = ChatMessage(
+                            conversation_id=conv.id,
+                            sender_type="bot",
+                            sender_id=None,
+                            content_type="text",
+                            content=msg,
+                            created_at=datetime.now(timezone.utc),
+                        )
+                        db.add(bot_msg)
+                        conv.status = "resolved"
+                        conv.last_message_at = datetime.now(timezone.utc)
+
+                        # Send via channel
+                        ci_result = await db.execute(
+                            select(ChannelIdentity).where(
+                                ChannelIdentity.customer_id == conv.customer_id,
+                                ChannelIdentity.channel == conv.channel,
+                            )
+                        )
+                        ci = ci_result.scalar_one_or_none()
+                        if ci:
+                            kwargs = {}
+                            phone_number_id = meta.get("phone_number_id")
+                            if phone_number_id:
+                                kwargs["phone_number_id"] = phone_number_id
+                            try:
+                                await dispatcher.send(conv.channel, ci.channel_id, msg, **kwargs)
+                            except Exception as e:
+                                ilogger.warning("Failed to send inactivity msg for conv %s: %s", conv.id, e)
+
+                        ilogger.info("Auto-closed inactive conversation %s (%s)", conv.id, conv.channel)
+                    except Exception as e:
+                        ilogger.error("Error closing conv %s: %s", conv.id, e)
+
+                if stale_convs:
+                    await db.commit()
+                    ilogger.info("Auto-closed %d inactive conversations", len(stale_convs))
+
+        except Exception as e:
+            ilogger.error("Chat inactivity loop error: %s", e)
+
+        await asyncio.sleep(120)  # Check every 2 minutes
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create tables
@@ -723,6 +810,7 @@ async def lifespan(app: FastAPI):
     email_fetch_task = asyncio.create_task(_run_email_fetch_loop())
     scheduled_email_task = asyncio.create_task(_run_scheduled_email_loop())
     weekly_analysis_task = asyncio.create_task(_run_weekly_analysis())
+    chat_inactivity_task = asyncio.create_task(_run_chat_inactivity_loop())
 
     yield
 
@@ -730,6 +818,7 @@ async def lifespan(app: FastAPI):
     email_fetch_task.cancel()
     scheduled_email_task.cancel()
     weekly_analysis_task.cancel()
+    chat_inactivity_task.cancel()
 
 
 app = FastAPI(
