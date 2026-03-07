@@ -16,6 +16,47 @@ def _shopify_headers():
     }
 
 
+def _format_order_from_shopify(o: dict) -> dict:
+    """Quick format a raw Shopify order dict into our standard order shape."""
+    fulfillments = o.get("fulfillments", [])
+    tracking_code = ""
+    delivery_status = "pending"
+    carrier = ""
+
+    if fulfillments:
+        last_f = fulfillments[0]
+        tracking_code = (last_f.get("tracking_numbers") or [""])[0]
+        carrier = last_f.get("tracking_company", "")
+        shipment_status = last_f.get("shipment_status") or ""
+        if shipment_status == "delivered" or o.get("fulfillment_status") == "fulfilled":
+            delivery_status = "delivered"
+        elif shipment_status in ("in_transit", "out_for_delivery"):
+            delivery_status = shipment_status
+        elif shipment_status == "confirmed" or last_f.get("status") == "success":
+            delivery_status = "shipped"
+
+    shipping_lines = o.get("shipping_lines", [])
+    if not carrier and shipping_lines:
+        carrier = shipping_lines[0].get("title", "")
+
+    items = [{"title": li.get("title"), "variant_title": li.get("variant_title"),
+              "quantity": li.get("quantity"), "price": li.get("price")}
+             for li in o.get("line_items", [])]
+
+    return {
+        "order_id": o.get("id"),
+        "order_number": o.get("name"),
+        "email": o.get("email"),
+        "financial_status": o.get("financial_status"),
+        "total_price": o.get("total_price"),
+        "delivery_status": delivery_status,
+        "tracking_code": tracking_code,
+        "carrier": carrier,
+        "items": items,
+        "created_at": o.get("created_at"),
+    }
+
+
 def _shopify_base():
     store = settings.SHOPIFY_STORE.rstrip("/")
     if not store:
@@ -215,13 +256,20 @@ async def get_orders_by_phone(phone: str, limit: int = 5) -> dict:
         return {"configured": True, "orders": []}
 
     try:
-        # Search customers by phone first
-        url = f"{base}/customers/search.json"
-        # Try multiple phone formats
+        # Build phone variants to try (Shopify stores phones in various formats)
         phone_variants = [f"+{digits}", digits]
         if digits.startswith("55") and len(digits) >= 12:
+            # +55 11 961720761
             phone_variants.append(f"+{digits[:2]} {digits[2:4]} {digits[4:]}")
+            # Without country code: 11961720761
+            phone_variants.append(digits[2:])
+            # +55 (11) 96172-0761
+            local = digits[4:]
+            if len(local) >= 8:
+                phone_variants.append(f"+{digits[:2]} ({digits[2:4]}) {local[:-4]}-{local[-4:]}")
 
+        # Strategy 1: Search customers by phone
+        url = f"{base}/customers/search.json"
         for phone_query in phone_variants:
             params = {"query": f"phone:{phone_query}", "limit": 1}
             async with httpx.AsyncClient(timeout=15) as client:
@@ -233,6 +281,24 @@ async def get_orders_by_phone(phone: str, limit: int = 5) -> dict:
                 email = customers[0].get("email")
                 if email:
                     return await get_orders_by_email(email, limit=limit)
+
+        # Strategy 2: Search orders directly by phone
+        orders_url = f"{base}/orders.json"
+        for phone_query in phone_variants:
+            params = {"phone": phone_query, "limit": limit, "status": "any",
+                      "fields": "id,name,order_number,email,phone,financial_status,fulfillment_status,total_price,created_at,fulfillments,line_items,customer"}
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(orders_url, headers=_shopify_headers(), params=params)
+            if resp.status_code != 200:
+                continue
+            orders = resp.json().get("orders", [])
+            if orders:
+                # Found via orders — also try to get email for future lookups
+                email = orders[0].get("email") or (orders[0].get("customer") or {}).get("email")
+                if email:
+                    return await get_orders_by_email(email, limit=limit)
+                # No email but we have orders — format them directly
+                return {"configured": True, "orders": [_format_order_from_shopify(o) for o in orders]}
 
         return {"configured": True, "orders": []}
     except Exception as e:

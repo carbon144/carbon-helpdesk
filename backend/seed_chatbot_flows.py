@@ -638,8 +638,9 @@ FLOWS = [
             {
                 "type": "transfer_to_agent",
                 "message": (
-                    "PRIORIDADE ALTA — Transferindo para atendimento imediato.\n"
-                    "Um responsável vai entrar em contato o mais rápido possível."
+                    "PRIORIDADE ALTA — Vamos abrir um chamado prioritário para você.\n"
+                    "Nosso time vai analisar e responder pelo seu e-mail.\n\n"
+                    "Horário de atendimento: segunda a sexta, 9h às 18h."
                 ),
                 "department": "jurídico",
             },
