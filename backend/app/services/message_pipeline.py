@@ -32,6 +32,37 @@ def _extract_order_number(text: str) -> str | None:
         return m.group(1)
     return None
 
+
+def _extract_email(text: str) -> str | None:
+    """Extract email address from message text."""
+    import re
+    text = text.strip()
+    m = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', text)
+    if m:
+        return m.group(0).lower()
+    return None
+
+
+def _is_bot_looping(conversation, new_message: str, threshold: int = 2) -> bool:
+    """Detect if bot is repeating the same message (loop). Returns True if looping."""
+    meta = getattr(conversation, "metadata_", None) or {}
+    recent = meta.get("_recent_bot_msgs", [])
+    # Count how many of the last N messages are identical to this one
+    count = sum(1 for m in recent[-3:] if m == new_message)
+    return count >= threshold
+
+
+def _track_bot_message(conversation, message: str):
+    """Track bot message in metadata for loop detection."""
+    from sqlalchemy.orm.attributes import flag_modified
+    meta = dict(getattr(conversation, "metadata_", None) or {})
+    recent = meta.get("_recent_bot_msgs", [])
+    recent.append(message)
+    # Keep only last 5
+    meta["_recent_bot_msgs"] = recent[-5:]
+    conversation.metadata_ = meta
+    flag_modified(conversation, "metadata_")
+
 _chatbot_engine = ChatbotEngine()
 
 # ── Status maps (Portuguese) ──
@@ -132,10 +163,12 @@ async def process_incoming_message(
         _conv_meta = {}
     _has_active_flow = bool(_conv_meta.get("chatbot_state"))
 
-    # Layer 0.5: Auto order lookup if message looks like an order number
+    # Layer 0.5: Auto order lookup if message looks like an order number or email
     # Skip if chatbot is waiting for input (e.g., NF flow collecting order number)
     if not _has_active_flow and conversation.handler in ("chatbot", None, "ai"):
         order_num = _extract_order_number(message_text)
+        email_input = _extract_email(message_text) if not order_num else None
+
         if order_num:
             from app.services import shopify_service
             order = await shopify_service.get_order_by_number(order_num)
@@ -145,6 +178,64 @@ async def process_incoming_message(
                 for m in detail_msgs:
                     result["bot_messages"].append(m)
                     await _save_bot_message(db, conversation, m)
+                result["handler"] = "chatbot"
+                conversation.handler = "chatbot"
+                await db.commit()
+                return result
+            else:
+                # Order not found — give helpful message instead of falling to chatbot "nao entendi"
+                msg = (
+                    f"Não encontrei o pedido *#{order_num}* no sistema.\n\n"
+                    f"Isso pode acontecer se o pedido foi feito antes de março/2025 (plataforma antiga).\n"
+                    f"Tente enviar o *e-mail* cadastrado no pedido que busco por lá.\n\n"
+                    f"Ou digite *menu* para ver outras opções."
+                )
+                result["bot_messages"].append(msg)
+                await _save_bot_message(db, conversation, msg)
+                result["handler"] = "chatbot"
+                conversation.handler = "chatbot"
+                await db.commit()
+                return result
+
+        elif email_input:
+            # Search orders by email in Shopify + Yampi
+            from app.services import shopify_service
+            shopify_result = await shopify_service.get_orders_by_email(email_input, limit=5)
+            orders = shopify_result.get("orders", [])
+
+            # Fallback: try Yampi for older orders
+            if not orders:
+                try:
+                    from app.services import yampi_service
+                    yampi_result = await yampi_service.get_orders_by_email(email_input, limit=5)
+                    orders = yampi_result.get("orders", [])
+                except Exception as e:
+                    logger.warning("Yampi email lookup failed: %s", e)
+
+            if orders:
+                msgs = []
+                for o in orders[:3]:
+                    order_msgs = await _format_order_messages(o)
+                    msgs.extend(order_msgs)
+                if len(orders) > 3:
+                    msgs.append(f"Você tem mais {len(orders) - 3} pedido(s). Envie o número pra ver detalhes (ex: #12345).")
+                msgs.append("Precisa de mais alguma coisa? Digite *menu* para ver as opções.")
+                for m in msgs:
+                    result["bot_messages"].append(m)
+                    await _save_bot_message(db, conversation, m)
+                result["handler"] = "chatbot"
+                conversation.handler = "chatbot"
+                await db.commit()
+                return result
+            else:
+                msg = (
+                    f"Não encontrei pedidos com o e-mail *{email_input}*.\n\n"
+                    f"Verifique se é o mesmo e-mail usado na compra.\n"
+                    f"Ou envie o *número do pedido* (ex: #12345).\n\n"
+                    f"Digite *menu* para ver outras opções."
+                )
+                result["bot_messages"].append(msg)
+                await _save_bot_message(db, conversation, msg)
                 result["handler"] = "chatbot"
                 conversation.handler = "chatbot"
                 await db.commit()
@@ -313,6 +404,16 @@ async def process_incoming_message(
                         )
 
             if result["bot_messages"] or result["interactive_messages"] or result["document_messages"]:
+                # Anti-loop: check if bot is repeating itself
+                if result["bot_messages"] and _is_bot_looping(conversation, result["bot_messages"][0]):
+                    logger.warning("[ANTI-LOOP] Bot repeating for conversation %s, escalating", conversation.id)
+                    result["bot_messages"] = [
+                        "Parece que não estou conseguindo te ajudar direito. "
+                        "Vou transferir para um atendente humano."
+                    ]
+                    await _save_bot_message(db, conversation, result["bot_messages"][0])
+                    return await _escalate_to_agent(db, conversation, result)
+
                 result["handler"] = "chatbot"
                 await db.commit()
                 return result
@@ -519,21 +620,35 @@ async def _handle_order_lookup(
     # Try by order number first (from collected data)
     order_number = collected_data.get(order_field) or collected_data.get("order_number") or collected_data.get("pedido")
     if order_number:
-        order = await shopify_service.get_order_by_number(order_number)
+        # Clean the order number
+        clean_num = order_number.strip().lstrip("#")
+        order = await shopify_service.get_order_by_number(clean_num)
         if order and not order.get("error"):
             # Use _format_order_messages to include live tracking from 17track
             msgs = await _format_order_messages(order)
             messages.extend(msgs)
             return messages
-        elif order and order.get("error"):
-            messages.append(f"Não encontrei o pedido {order_number}. Verifique o número e tente novamente.")
+        else:
+            # Not found in Shopify — helpful message about old orders
+            messages.append(
+                f"Não encontrei o pedido *#{clean_num}* no sistema.\n\n"
+                f"Se foi feito antes de março/2025, pode estar na plataforma antiga.\n"
+                f"Tente enviar o *e-mail* cadastrado no pedido que busco por lá."
+            )
             return messages
 
-    # Fallback: try by customer email
+    # Fallback: try by customer email (Shopify + Yampi)
     email = getattr(customer, "email", None)
     if email:
         result = await shopify_service.get_orders_by_email(email, limit=5)
         orders = result.get("orders", [])
+        if not orders:
+            try:
+                from app.services import yampi_service
+                yampi_result = await yampi_service.get_orders_by_email(email, limit=5)
+                orders = yampi_result.get("orders", [])
+            except Exception as e:
+                logger.warning("Yampi fallback failed: %s", e)
         if orders:
             messages.append(_format_orders_list(orders))
             return messages
@@ -978,6 +1093,7 @@ async def _save_bot_message(db: AsyncSession, conversation: Conversation, conten
     )
     db.add(msg)
     conversation.last_message_at = now
+    _track_bot_message(conversation, content)
 
 
 async def _build_history(db: AsyncSession, conversation: Conversation) -> list[dict]:
