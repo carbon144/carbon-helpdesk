@@ -85,6 +85,14 @@ async def process_incoming_message(
         "escalated": False,
     }
 
+    # Layer -1: Check if we're waiting for email to complete escalation
+    _conv_meta_pre = getattr(conversation, "metadata_", None)
+    if not isinstance(_conv_meta_pre, dict):
+        _conv_meta_pre = {}
+    pending_esc = _conv_meta_pre.get("pending_escalation")
+    if pending_esc and conversation.handler == "agent":
+        return await _handle_pending_email(db, conversation, customer, message_text, result, pending_esc)
+
     # Layer 0: If agent is in control and AI is off, skip everything
     if conversation.handler == "agent" and not conversation.ai_enabled:
         return result
@@ -580,6 +588,114 @@ def _format_orders_list(orders: list[dict]) -> str:
     return "\n".join(lines)
 
 
+# ── Email lookup + pending escalation ──
+
+async def _find_email_by_phone(phone: str) -> str | None:
+    """Try to find customer email via Shopify orders by phone."""
+    from app.services import shopify_service
+    try:
+        result = await shopify_service.get_orders_by_phone(phone, limit=1)
+        orders = result.get("orders", [])
+        if orders:
+            email = orders[0].get("email") or orders[0].get("customer_email")
+            if email:
+                return email
+    except Exception as e:
+        logger.warning("Email lookup by phone failed: %s", e)
+    return None
+
+
+async def _handle_pending_email(
+    db: AsyncSession, conversation: Conversation, customer: Customer,
+    message_text: str, result: dict, pending_esc: dict,
+) -> dict:
+    """Handle email input/confirmation after bot asked during escalation."""
+    import re
+    text = message_text.strip().lower()
+    found_email = pending_esc.get("found_email")
+
+    # Handle confirmation of Shopify email
+    if found_email:
+        if text in ("sim", "sim, usar esse", "confirm_email_yes", "s", "1"):
+            customer.email = found_email
+            meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
+            meta.pop("pending_escalation", None)
+            conversation.metadata_ = meta
+            ticket_number = await _create_ticket_from_conversation(db, conversation)
+            masked = _mask_email(found_email)
+            if ticket_number:
+                msg = (
+                    f"Criei o chamado *#{ticket_number}* para você.\n"
+                    f"Nosso time vai responder no e-mail: *{masked}*\n\n"
+                    f"Horário de atendimento: *segunda a sexta, 9h às 18h*.\n"
+                    f"Sua mensagem será respondida assim que possível."
+                )
+            else:
+                msg = f"Registrado! Nosso time vai responder no e-mail *{masked}*."
+            result["bot_messages"].append(msg)
+            await _save_bot_message(db, conversation, msg)
+            await db.commit()
+            result["handler"] = "agent"
+            return result
+        elif text in ("não", "nao", "não, usar outro", "confirm_email_no", "n", "2"):
+            # Clear found_email, ask for new one
+            meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
+            meta["pending_escalation"] = {"escalation_message": pending_esc.get("escalation_message", "")}
+            conversation.metadata_ = meta
+            msg = "Sem problema! Digite o e-mail que deseja usar:"
+            result["bot_messages"].append(msg)
+            await _save_bot_message(db, conversation, msg)
+            await db.commit()
+            result["handler"] = "agent"
+            return result
+        else:
+            msg = "Por favor, responda *Sim* ou *Não*:"
+            result["bot_messages"].append(msg)
+            await _save_bot_message(db, conversation, msg)
+            await db.commit()
+            result["handler"] = "agent"
+            return result
+
+    # Handle typed email
+    text = message_text.strip()  # Use original case for email
+    if re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', text):
+        # Save email to customer
+        customer.email = text
+        # Clear pending state
+        meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
+        meta.pop("pending_escalation", None)
+        conversation.metadata_ = meta
+
+        # Now create the ticket
+        ticket_number = await _create_ticket_from_conversation(db, conversation)
+        masked = _mask_email(text)
+        if ticket_number:
+            msg = (
+                f"Obrigado! Criei o chamado *#{ticket_number}* para você.\n"
+                f"Nosso time vai responder no e-mail: *{masked}*\n\n"
+                f"Horário de atendimento: *segunda a sexta, 9h às 18h*.\n"
+                f"Sua mensagem será respondida assim que possível."
+            )
+        else:
+            msg = (
+                f"Obrigado! Registrei seu e-mail *{masked}*.\n"
+                f"Nosso time vai entrar em contato por lá.\n\n"
+                f"Horário de atendimento: *segunda a sexta, 9h às 18h*."
+            )
+        result["bot_messages"].append(msg)
+        await _save_bot_message(db, conversation, msg)
+        await db.commit()
+        result["handler"] = "agent"
+        return result
+    else:
+        msg = "Não reconheci um e-mail válido. Por favor, digite seu e-mail (ex: nome@email.com):"
+        result["bot_messages"].append(msg)
+        await _save_bot_message(db, conversation, msg)
+        await db.commit()
+        result["handler"] = "agent"
+        return result
+
+
 # ── Escalation + helpers ──
 
 async def _escalate_to_agent(
@@ -606,28 +722,72 @@ async def _escalate_to_agent(
     result["bot_messages"].append(escalation_message)
     await _save_bot_message(db, conversation, escalation_message)
 
+    # Try to find/enrich customer email before creating ticket
+    customer = conversation.customer
+    customer_email = getattr(customer, "email", None) if customer else None
+
+    if not customer_email and customer:
+        # Try Shopify lookup by phone
+        phone = getattr(customer, "phone", None)
+        if phone:
+            found_email = await _find_email_by_phone(phone)
+            if found_email:
+                logger.info("[ESCALATE] Found email %s via Shopify for phone %s", found_email, phone)
+                # Ask customer to confirm the email
+                meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
+                meta["pending_escalation"] = {
+                    "escalation_message": escalation_message,
+                    "found_email": found_email,
+                }
+                conversation.metadata_ = meta
+                masked = _mask_email(found_email)
+                confirm_msg = f"Encontrei o e-mail *{masked}* no seu cadastro.\nPosso usar esse e-mail para abrir seu chamado?"
+                result["bot_messages"].append(confirm_msg)
+                await _save_bot_message(db, conversation, confirm_msg)
+                result["interactive_messages"].append({
+                    "type": "menu",
+                    "content": confirm_msg,
+                    "options": [
+                        {"id": "confirm_email_yes", "label": "Sim, usar esse"},
+                        {"id": "confirm_email_no", "label": "Não, usar outro"},
+                    ],
+                })
+                await db.commit()
+                result["handler"] = "agent"
+                result["escalated"] = True
+                return result
+
+    if not customer_email:
+        # Ask for email — save state so we can resume after they reply
+        meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
+        meta["pending_escalation"] = {
+            "escalation_message": escalation_message,
+        }
+        conversation.metadata_ = meta
+        # Keep handler as agent but flag we need email
+        ask_msg = (
+            "Para abrir seu chamado, preciso do seu e-mail.\n"
+            "Nosso time vai responder por lá.\n\n"
+            "Por favor, digite seu e-mail:"
+        )
+        result["bot_messages"].append(ask_msg)
+        await _save_bot_message(db, conversation, ask_msg)
+        await db.commit()
+        result["handler"] = "agent"
+        result["escalated"] = True
+        return result
+
     # Create email ticket from chat conversation
     ticket_number = await _create_ticket_from_conversation(db, conversation)
 
+    masked = _mask_email(customer_email)
     if ticket_number:
-        # Check if customer has email
-        customer_email = getattr(conversation.customer, "email", None) if conversation.customer else None
-        if customer_email:
-            masked = _mask_email(customer_email)
-            ticket_msg = (
-                f"Criei o chamado *#{ticket_number}* para você.\n"
-                f"Nosso time vai responder pelo e-mail cadastrado: *{masked}*\n\n"
-                f"Horário de atendimento: *segunda a sexta, 9h às 18h*.\n"
-                f"Sua mensagem será respondida assim que possível."
-            )
-        else:
-            ticket_msg = (
-                f"Criei o chamado *#{ticket_number}* para você.\n"
-                f"Nosso time vai entrar em contato por e-mail.\n\n"
-                f"Se preferir, envie um e-mail para:\n"
-                f"*atendimento@carbonsmartwatch.com.br*\n\n"
-                f"Horário de atendimento: *segunda a sexta, 9h às 18h*."
-            )
+        ticket_msg = (
+            f"Criei o chamado *#{ticket_number}* para você.\n"
+            f"Nosso time vai responder pelo e-mail: *{masked}*\n\n"
+            f"Horário de atendimento: *segunda a sexta, 9h às 18h*.\n"
+            f"Sua mensagem será respondida assim que possível."
+        )
     else:
         ticket_msg = (
             "Nosso horário de atendimento é *segunda a sexta, 9h às 18h*.\n\n"
