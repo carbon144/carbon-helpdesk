@@ -63,6 +63,37 @@ def _track_bot_message(conversation, message: str):
     conversation.metadata_ = meta
     flag_modified(conversation, "metadata_")
 
+def _is_business_hours() -> tuple[bool, str]:
+    """Check if current time is within business hours (Mon-Fri 9h-18h BRT).
+    Returns (is_open, message)."""
+    from datetime import timezone, timedelta
+    BRT = timezone(timedelta(hours=-3))
+    now = datetime.now(BRT)
+    weekday = now.weekday()  # 0=Mon, 6=Sun
+    hour = now.hour
+
+    if weekday >= 5:  # Saturday or Sunday
+        day_name = "sábado" if weekday == 5 else "domingo"
+        return False, (
+            f"Hoje é {day_name}, estamos fora do horário de atendimento.\n"
+            f"Nosso time atende de *segunda a sexta, das 9h às 18h*.\n\n"
+            f"Sua mensagem ficou registrada e será respondida no próximo dia útil."
+        )
+    elif hour < 9:
+        return False, (
+            f"Nosso atendimento começa às *9h* (faltam {9 - hour}h).\n"
+            f"Horário: *segunda a sexta, 9h às 18h*.\n\n"
+            f"Sua mensagem ficou registrada e será respondida assim que abrirmos."
+        )
+    elif hour >= 18:
+        return False, (
+            f"Nosso atendimento encerrou às *18h*.\n"
+            f"Horário: *segunda a sexta, 9h às 18h*.\n\n"
+            f"Sua mensagem ficou registrada e será respondida amanhã."
+        )
+    return True, ""
+
+
 _chatbot_engine = ChatbotEngine()
 
 # ── Status maps (Portuguese) ──
@@ -153,8 +184,20 @@ async def process_incoming_message(
     if pending_esc and conversation.handler == "agent":
         return await _handle_pending_email(db, conversation, customer, message_text, result, pending_esc)
 
+    # Layer 0: Allow "menu" to reset back to chatbot even from agent handler
+    _text_lower = message_text.strip().lower()
+    if _text_lower in ("menu", "voltar", "inicio", "início", "0") and conversation.handler == "agent":
+        conversation.handler = "chatbot"
+        conversation.ai_enabled = False
+        # Clear any pending escalation state
+        _meta_reset = dict(getattr(conversation, "metadata_", None) or {})
+        _meta_reset.pop("pending_escalation", None)
+        _meta_reset.pop("chatbot_state", None)
+        conversation.metadata_ = _meta_reset
+        # Fall through to chatbot layer below (don't return)
+
     # Layer 0: If agent is in control and AI is off, skip everything
-    if conversation.handler == "agent" and not conversation.ai_enabled:
+    elif conversation.handler == "agent" and not conversation.ai_enabled:
         return result
 
     # Check if chatbot has active state (waiting for input) — skip auto-lookups
@@ -888,6 +931,9 @@ async def _escalate_to_agent(
     conversation.ai_enabled = False
     conversation.ai_attempts = 0
 
+    # Check business hours and inform customer
+    is_open, hours_msg = _is_business_hours()
+
     await routing_service.auto_assign(db, conversation)
 
     system_msg = ChatMessage(
@@ -899,8 +945,13 @@ async def _escalate_to_agent(
     )
     db.add(system_msg)
 
-    result["bot_messages"].append(escalation_message)
-    await _save_bot_message(db, conversation, escalation_message)
+    if is_open:
+        result["bot_messages"].append(escalation_message)
+        await _save_bot_message(db, conversation, escalation_message)
+    else:
+        # Outside business hours — inform and keep the message
+        result["bot_messages"].append(hours_msg)
+        await _save_bot_message(db, conversation, hours_msg)
 
     # Try to find/enrich customer email before creating ticket
     customer = conversation.customer
