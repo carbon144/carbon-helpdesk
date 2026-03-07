@@ -360,13 +360,9 @@ async def list_tickets(
         )
         query = query.where(or_(*search_filters))
 
-    import time as _time
-    _t0 = _time.monotonic()
-
     count_q = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_q)
     total = total_result.scalar()
-    _t1 = _time.monotonic()
 
     effective_date = func.coalesce(Ticket.received_at, Ticket.created_at)
     if sort == "sla":
@@ -391,7 +387,6 @@ async def list_tickets(
     query = query.options(joinedload(Ticket.customer), joinedload(Ticket.agent))
     result = await db.execute(query)
     tickets = result.unique().scalars().all()
-    _t2 = _time.monotonic()
 
     # Compute is_unread for each ticket
     ticket_ids = [t.id for t in tickets]
@@ -406,8 +401,6 @@ async def list_tickets(
             view_time = viewed_map.get(t.id)
             if view_time is None or t.updated_at > view_time:
                 unread_set.add(t.id)
-    _t3 = _time.monotonic()
-    logger.info(f"PERF list_tickets: count={_t1-_t0:.3f}s query={_t2-_t1:.3f}s unread={_t3-_t2:.3f}s total={_t3-_t0:.3f}s")
 
     return TicketListResponse(
         tickets=[_ticket_to_response(t, is_unread=(t.id in unread_set)) for t in tickets],
