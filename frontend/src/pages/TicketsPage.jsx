@@ -152,7 +152,7 @@ export default function TicketsPage({ user }) {
         category: filterCategory || undefined,
         tag: filterTag || undefined,
         source: filterSource || undefined,
-        exclude_sources: 'whatsapp,instagram,facebook',
+        // No longer exclude chat sources — escalated tickets from WA/IG/FB should appear
         sort: sort || undefined,
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
