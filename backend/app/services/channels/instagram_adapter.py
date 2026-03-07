@@ -111,10 +111,11 @@ class InstagramAdapter(ChannelAdapter):
 
         quick_replies = []
         for opt in options[:13]:  # IG max 13 quick replies
+            title = str(opt.get("title") or opt.get("label") or opt.get("id") or "")[:20]
             quick_replies.append({
                 "content_type": "text",
-                "title": str(opt.get("title", ""))[:20],
-                "payload": str(opt.get("id", opt.get("title", "")))[:1000],
+                "title": title,
+                "payload": str(opt.get("id") or opt.get("title") or opt.get("label") or "")[:1000],
             })
 
         payload = {
