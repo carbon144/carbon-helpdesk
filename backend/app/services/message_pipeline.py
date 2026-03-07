@@ -202,11 +202,25 @@ async def process_incoming_message(
                     # Clean order number
                     clean_num = order_num.strip().lstrip("#")
                     invoice = await _lookup_invoice(clean_num)
+
+                    # Auto-generate NF if not found
+                    if not invoice:
+                        logger.info("[NF-AUTO] NF not found for order %s, attempting auto-generation", clean_num)
+                        gen_result = await _generate_invoice(clean_num)
+                        if gen_result and gen_result.get("found"):
+                            invoice = gen_result
+                            if gen_result.get("generated"):
+                                logger.info("[NF-AUTO] NF generated for order %s", clean_num)
+                            elif gen_result.get("already_exists"):
+                                logger.info("[NF-AUTO] NF already existed for order %s", clean_num)
+                        elif gen_result:
+                            logger.warning("[NF-AUTO] Failed to generate NF for order %s: %s", clean_num, gen_result.get("error"))
+
                     if invoice:
                         # LGPD: verify customer identity before sending NF
                         customer_phone = getattr(customer, "phone", "") or ""
                         is_owner = _verify_invoice_owner(invoice, customer_phone)
-                        print(f"[NF-LGPD] order={clean_num} customer_phone={customer_phone} invoice_phone={invoice.get('customer_phone','')} is_owner={is_owner}", flush=True)
+                        logger.info("[NF-LGPD] order=%s customer_phone=%s invoice_phone=%s is_owner=%s", clean_num, customer_phone, invoice.get('customer_phone',''), is_owner)
                         if not is_owner:
                             # Send NF to the order email instead, and inform the customer
                             inv_email = invoice.get("customer_email", "") or ""
@@ -236,20 +250,30 @@ async def process_incoming_message(
                             nfse_num = str(invoice.get("nfse_number", ""))
                             valor = str(invoice.get("valor_servico", ""))
                             link = invoice.get("link_pdf", "") or ""
-                            msg = (
-                                f"Sua Nota Fiscal de Serviço:\n\n"
-                                f"NFS-e: *{nfse_num}*\n"
-                                f"Valor: R$ {valor}\n"
-                            )
+                            was_generated = invoice.get("generated", False)
+                            msg = f"Sua Nota Fiscal de Serviço:\n\n"
+                            if was_generated:
+                                msg = f"Gerei sua Nota Fiscal de Serviço agora mesmo!\n\n"
+                            msg += f"NFS-e: *{nfse_num}*\n"
+                            msg += f"Valor: R$ {valor}\n"
                             if link:
                                 msg += f"\nLink para visualização:\n{link}\n"
                                 msg += "\n_O link pode demorar alguns segundos para carregar (servidor da prefeitura)._"
                             result["bot_messages"].append(msg)
                             await _save_bot_message(db, conversation, msg)
                     else:
-                        msg = resp.get("not_found_message", "NF não encontrada.")
+                        msg = (
+                            "Não foi possível encontrar ou gerar a nota fiscal para esse pedido.\n\n"
+                            "Isso pode acontecer se o pedido ainda não foi processado ou se houve algum problema.\n"
+                            "Vou transferir para um atendente que pode te ajudar."
+                        )
                         result["bot_messages"].append(msg)
                         await _save_bot_message(db, conversation, msg)
+                        # Escalate since we couldn't provide the NF
+                        return await _escalate_to_agent(
+                            db, conversation, result,
+                            escalation_message="Transferindo para um atendente...",
+                        )
 
             if result["bot_messages"] or result["interactive_messages"] or result["document_messages"]:
                 result["handler"] = "chatbot"
@@ -323,6 +347,25 @@ async def _lookup_invoice(order_number: str) -> dict | None:
                     return data
     except Exception as e:
         logger.warning("Invoice lookup failed: %s", e)
+    return None
+
+
+async def _generate_invoice(order_number: str) -> dict | None:
+    """Auto-generate NF via Carbon NF system (calls Bling API)."""
+    import httpx
+    import os
+    nf_host = os.environ.get("CARBON_NF_URL", "http://172.17.0.1:8002")
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{nf_host}/api/internal/generate-invoice",
+                params={"order_number": order_number},
+                timeout=30,
+            )
+            if resp.status_code == 200:
+                return resp.json()
+    except Exception as e:
+        logger.warning("Invoice generation failed: %s", e)
     return None
 
 
