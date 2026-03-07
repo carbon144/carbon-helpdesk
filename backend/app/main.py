@@ -2,7 +2,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text, select
@@ -782,6 +782,44 @@ app.include_router(csat_public.router, prefix="/api")
 _uploads_dir = Path("uploads")
 _uploads_dir.mkdir(exist_ok=True)
 app.mount("/api/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+
+@app.get("/api/public/invoice-pdf")
+async def public_invoice_pdf(order_number: str, token: str = ""):
+    """Public proxy for NF PDF — used by WhatsApp Cloud API to fetch document.
+    Simple token check to prevent open access."""
+    import httpx
+    import os
+    from fastapi.responses import Response
+
+    expected_token = os.environ.get("NF_PDF_TOKEN", "carbon-nf-2026")
+    if token != expected_token:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    nf_host = os.environ.get("CARBON_NF_URL", "http://172.17.0.1:8002")
+    try:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            resp = await client.get(
+                f"{nf_host}/api/internal/invoice-pdf",
+                params={"order_number": order_number},
+                timeout=30,
+            )
+            if resp.status_code == 404:
+                raise HTTPException(404, "NF não encontrada")
+            resp.raise_for_status()
+            content_type = resp.headers.get("content-type", "application/pdf")
+            return Response(
+                content=resp.content,
+                media_type=content_type,
+                headers={
+                    "Content-Disposition": f'inline; filename="NF_{order_number}.pdf"',
+                    "Cache-Control": "public, max-age=86400",
+                },
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(502, f"Erro ao buscar PDF: {e}")
 
 
 @app.get("/api/health")

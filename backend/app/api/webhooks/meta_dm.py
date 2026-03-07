@@ -191,6 +191,12 @@ async def _process_whatsapp_message(db: AsyncSession, msg: dict):
                     await dispatcher.send_interactive(
                         channel, sender_id, im["content"], im["options"],
                     )
+            for doc in pr.get("document_messages", []):
+                from app.services.channels.dispatcher import dispatcher
+                await dispatcher.send_document(
+                    channel, sender_id,
+                    doc["url"], doc.get("filename", "document.pdf"), doc.get("caption", ""),
+                )
 
 
 async def _process_meta_message(db: AsyncSession, msg: dict, channel: str):
@@ -281,3 +287,9 @@ async def _process_meta_message(db: AsyncSession, msg: dict, channel: str):
                     await dispatcher.send_interactive(
                         channel, sender_id, im["content"], im["options"],
                     )
+            for doc in pr.get("document_messages", []):
+                from app.services.channels.dispatcher import dispatcher
+                await dispatcher.send_document(
+                    channel, sender_id,
+                    doc["url"], doc.get("filename", "document.pdf"), doc.get("caption", ""),
+                )

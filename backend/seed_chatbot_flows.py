@@ -1,6 +1,6 @@
 """
 Seed script para criar chatbot flows do Carbon Helpdesk — REDESIGN v2.
-Baseado na analise de 1870 tickets reais.
+Baseado na análise de 1870 tickets reais.
 Uso: python seed_chatbot_flows.py
 """
 
@@ -15,52 +15,52 @@ from app.models.chatbot_flow import ChatbotFlow
 
 MENU_OPTIONS = [
     {"id": "meu_pedido", "label": "Meu Pedido", "description": "Rastreio, status, nota fiscal"},
-    {"id": "garantia", "label": "Trocas e Garantia", "description": "Defeito, troca, devolucao"},
+    {"id": "garantia", "label": "Trocas e Garantia", "description": "Defeito, troca, devolução"},
     {"id": "financeiro", "label": "Financeiro", "description": "Cancelamento, estorno, pagamento"},
-    {"id": "atendente", "label": "Falar com atendente", "description": "Atendimento humano"},
+    {"id": "duvida_geral", "label": "Dúvida geral", "description": "Sobre produtos, uso, compra"},
 ]
 
 SUBMENU_PEDIDO = [
-    {"id": "rastreio", "label": "Rastreio / Entrega", "description": "Onde esta meu pedido"},
+    {"id": "rastreio", "label": "Rastreio / Entrega", "description": "Onde está meu pedido"},
     {"id": "nota_fiscal", "label": "Nota Fiscal", "description": "Solicitar NF do pedido"},
     {"id": "cancelar", "label": "Cancelar pedido", "description": "Quero cancelar"},
     {"id": "voltar_menu", "label": "Voltar ao menu", "description": "Menu principal"},
 ]
 
 SUBMENU_GARANTIA = [
-    {"id": "defeito", "label": "Defeito / Nao funciona", "description": "Relogio com problema"},
+    {"id": "defeito", "label": "Defeito / Não funciona", "description": "Relógio com problema"},
     {"id": "troca_modelo", "label": "Trocar modelo ou pulseira", "description": "Quero trocar"},
-    {"id": "nao_recebi", "label": "Nao recebi / Extraviado", "description": "Pedido nao chegou"},
+    {"id": "nao_recebi", "label": "Não recebi / Extraviado", "description": "Pedido não chegou"},
     {"id": "voltar_menu", "label": "Voltar ao menu", "description": "Menu principal"},
 ]
 
 SUBMENU_FINANCEIRO = [
     {"id": "cancelar", "label": "Cancelar pedido", "description": "Quero cancelar minha compra"},
     {"id": "estorno", "label": "Estorno / Reembolso", "description": "Quero meu dinheiro de volta"},
-    {"id": "pagamento", "label": "Duvida de pagamento", "description": "Boleto, pix, parcela"},
+    {"id": "pagamento", "label": "Dúvida de pagamento", "description": "Boleto, pix, parcela"},
     {"id": "voltar_menu", "label": "Voltar ao menu", "description": "Menu principal"},
 ]
 
 
 FLOWS = [
     # ══════════════════════════════════════════════════════════════
-    # 1. SAUDACAO + MENU PRINCIPAL
+    # 1. SAUDAÇÃO + MENU PRINCIPAL
     # ══════════════════════════════════════════════════════════════
     {
-        "name": "Saudacao + Menu",
+        "name": "Saudação + Menu",
         "trigger_type": "greeting",
         "trigger_config": {},
         "steps": [
             {
                 "type": "send_message",
                 "message": (
-                    "Ola! Bem-vindo ao suporte da Carbon.\n"
+                    "Olá! Bem-vindo ao suporte da Carbon.\n"
                     "Sou o assistente virtual e vou te ajudar."
                 ),
             },
             {
                 "type": "send_menu",
-                "message": "Como posso te ajudar? Escolha uma opcao:",
+                "message": "Como posso te ajudar? Escolha uma opção:",
                 "options": MENU_OPTIONS,
             },
         ],
@@ -86,7 +86,7 @@ FLOWS = [
             },
             {
                 "type": "send_menu",
-                "message": "O que voce precisa?",
+                "message": "O que você precisa?",
                 "options": SUBMENU_PEDIDO,
             },
         ],
@@ -103,9 +103,9 @@ FLOWS = [
         "trigger_config": {
             "keywords": [
                 "rastreio", "rastrear", "rastreamento", "entrega", "chegou",
-                "onde esta", "cadê", "tracking", "codigo de rastreio",
+                "onde está", "cadê", "tracking", "código de rastreio",
                 "encomenda", "correios", "transportadora", "prazo",
-                "previsao", "status", "excecao", "devolvido",
+                "previsão", "status", "exceção", "devolvido",
             ]
         },
         "steps": [
@@ -117,7 +117,7 @@ FLOWS = [
                 "type": "collect_input",
                 "variable": "order_number",
                 "message": (
-                    "Me informe o numero do seu pedido ou o e-mail usado na compra.\n"
+                    "Me informe o número do seu pedido ou o e-mail usado na compra.\n"
                     "Exemplo: 128478 ou #128478"
                 ),
             },
@@ -126,7 +126,7 @@ FLOWS = [
                 "lookup_by": "order_number",
                 "variable": "order_number",
                 "not_found_message": (
-                    "Nao encontrei esse pedido. Verifique o numero e tente novamente.\n"
+                    "Não encontrei esse pedido. Verifique o número e tente novamente.\n"
                     "Se preferir, digite *atendente* para falar com a equipe."
                 ),
                 "found_message": (
@@ -141,7 +141,7 @@ FLOWS = [
                 "type": "send_menu",
                 "message": "Posso te ajudar com mais alguma coisa?",
                 "options": [
-                    {"id": "voltar_menu", "label": "Voltar ao menu", "description": "Ver outras opcoes"},
+                    {"id": "voltar_menu", "label": "Voltar ao menu", "description": "Ver outras opções"},
                     {"id": "atendente", "label": "Falar com atendente", "description": "Atendimento humano"},
                 ],
             },
@@ -151,6 +151,7 @@ FLOWS = [
 
     # ══════════════════════════════════════════════════════════════
     # 4. NOTA FISCAL
+    # Tenta puxar NF automaticamente do sistema Carbon NF.
     # ══════════════════════════════════════════════════════════════
     {
         "name": "Nota Fiscal",
@@ -164,25 +165,37 @@ FLOWS = [
         "steps": [
             {
                 "type": "send_message",
-                "message": (
-                    "A nota fiscal e enviada automaticamente para o e-mail "
-                    "cadastrado na compra apos o faturamento do pedido.\n\n"
-                    "Se voce nao recebeu, verifique a pasta de spam.\n"
-                    "Caso ainda nao tenha encontrado, vou transferir para a equipe."
-                ),
+                "message": "Vou buscar a nota fiscal do seu pedido.",
             },
             {
                 "type": "collect_input",
                 "variable": "order_number",
-                "message": "Informe o numero do pedido para eu verificar:",
+                "message": "Informe o número do pedido:",
             },
             {
-                "type": "transfer_to_agent",
-                "message": (
-                    "Transferindo para a equipe verificar a nota fiscal do pedido {order_number}.\n"
-                    "Aguarde um momento."
+                "type": "lookup_invoice",
+                "variable": "order_number",
+                "found_message": (
+                    "Encontrei a nota fiscal do seu pedido!\n\n"
+                    "NFS-e nº {nfse_number}\n"
+                    "Valor: R$ {valor_servico}\n\n"
+                    "Acesse o PDF aqui: {link_pdf}\n\n"
+                    "A NF também foi enviada para o e-mail cadastrado na compra."
                 ),
-                "department": "financeiro",
+                "not_found_message": (
+                    "A nota fiscal desse pedido ainda não está disponível no sistema.\n"
+                    "Ela é enviada automaticamente por e-mail após o faturamento.\n\n"
+                    "Se você não recebeu, verifique a pasta de spam.\n"
+                    "Vou transferir para a equipe verificar."
+                ),
+            },
+            {
+                "type": "send_menu",
+                "message": "Posso te ajudar com mais alguma coisa?",
+                "options": [
+                    {"id": "voltar_menu", "label": "Voltar ao menu", "description": "Ver outras opções"},
+                    {"id": "atendente", "label": "Falar com atendente", "description": "Atendimento humano"},
+                ],
             },
         ],
         "active": True,
@@ -198,32 +211,32 @@ FLOWS = [
         "trigger_config": {
             "keywords": [
                 "cancelar", "cancelamento", "cancela", "desistir",
-                "desistencia", "nao quero mais", "cancelar pedido",
+                "desistência", "não quero mais", "cancelar pedido",
             ]
         },
         "steps": [
             {
                 "type": "send_message",
                 "message": (
-                    "Entendi que voce quer cancelar seu pedido.\n\n"
+                    "Entendi que você quer cancelar seu pedido.\n\n"
                     "Como funciona o cancelamento na Carbon:\n"
-                    "- Pedido ainda nao enviado: cancelamos e fazemos o estorno.\n"
-                    "- Pedido ja enviado: voce pode recusar a entrega ou devolver em ate 7 dias apos receber.\n\n"
-                    "O prazo do estorno e de ate 10 dias uteis.\n"
-                    "Pix: devolvido direto. Cartao: pode levar ate 3 faturas."
+                    "- Pedido ainda não enviado: cancelamos e fazemos o estorno.\n"
+                    "- Pedido já enviado: você pode recusar a entrega ou devolver em até 7 dias após receber.\n\n"
+                    "O prazo do estorno é de até 10 dias úteis.\n"
+                    "Pix: devolvido direto. Cartão: pode levar até 3 faturas."
                 ),
             },
             {
                 "type": "collect_input",
                 "variable": "order_number",
-                "message": "Informe o numero do pedido que deseja cancelar:",
+                "message": "Informe o número do pedido que deseja cancelar:",
             },
             {
                 "type": "lookup_order",
                 "lookup_by": "order_number",
                 "variable": "order_number",
                 "not_found_message": (
-                    "Nao encontrei esse pedido. Verifique o numero e tente novamente."
+                    "Não encontrei esse pedido. Verifique o número e tente novamente."
                 ),
                 "found_message": (
                     "Pedido localizado:\n\n"
@@ -237,7 +250,7 @@ FLOWS = [
                 "type": "transfer_to_agent",
                 "message": (
                     "Transferindo para a equipe processar o cancelamento do pedido {order_number}.\n"
-                    "Um atendente vai confirmar os proximos passos."
+                    "Um atendente vai confirmar os próximos passos."
                 ),
                 "department": "financeiro",
             },
@@ -253,14 +266,14 @@ FLOWS = [
         "trigger_type": "keyword",
         "trigger_config": {
             "keywords": [
-                "garantia", "troca", "trocar", "devolucao", "devolver",
+                "garantia", "troca", "trocar", "devolução", "devolver",
                 "arrependimento", "produto errado",
             ]
         },
         "steps": [
             {
                 "type": "send_menu",
-                "message": "Certo! Qual a situacao?",
+                "message": "Certo! Qual a situação?",
                 "options": SUBMENU_GARANTIA,
             },
         ],
@@ -268,17 +281,17 @@ FLOWS = [
     },
 
     # ══════════════════════════════════════════════════════════════
-    # 7. DEFEITO / NAO FUNCIONA
+    # 7. DEFEITO / NÃO FUNCIONA
     # 5.5% do volume. Coletar dados + direcionar pra troque.app
     # ══════════════════════════════════════════════════════════════
     {
-        "name": "Defeito / Nao Funciona",
+        "name": "Defeito / Não Funciona",
         "trigger_type": "keyword",
         "trigger_config": {
             "keywords": [
-                "defeito", "quebrou", "nao funciona", "parou", "nao liga",
-                "nao carrega", "travou", "apagou", "esquentando", "tela",
-                "bateria", "consertar", "reparo", "assistencia",
+                "defeito", "quebrou", "não funciona", "parou", "não liga",
+                "não carrega", "travou", "apagou", "esquentando", "tela",
+                "bateria", "consertar", "reparo", "assistência",
                 "parou de funcionar",
             ]
         },
@@ -286,37 +299,37 @@ FLOWS = [
             {
                 "type": "send_message",
                 "message": (
-                    "Sinto muito que voce esteja tendo problemas com seu Carbon.\n"
-                    "Vou coletar algumas informacoes para analisar seu caso."
+                    "Sinto muito que você esteja tendo problemas com seu Carbon.\n"
+                    "Vou coletar algumas informações para analisar seu caso."
                 ),
             },
             {
                 "type": "collect_input",
                 "variable": "modelo",
                 "message": (
-                    "Qual o modelo do seu relogio?\n"
+                    "Qual o modelo do seu relógio?\n"
                     "Carbon Raptor, Atlas, One Max, Aurora ou Quartz?"
                 ),
             },
             {
                 "type": "collect_input",
                 "variable": "problema",
-                "message": "Descreva o problema que esta acontecendo:",
+                "message": "Descreva o problema que está acontecendo:",
             },
             {
                 "type": "collect_input",
                 "variable": "order_number",
-                "message": "Informe o numero do pedido ou NF para verificar a garantia:",
+                "message": "Informe o número do pedido ou NF para verificar a garantia:",
             },
             {
                 "type": "send_message",
                 "message": (
-                    "Obrigado pelas informacoes!\n\n"
-                    "A Carbon oferece garantia de 1 ano. Para dar andamento a sua solicitacao, "
-                    "acesse nosso portal de trocas e devolucoes:\n\n"
+                    "Obrigado pelas informações!\n\n"
+                    "A Carbon oferece garantia de 1 ano. Para dar andamento à sua solicitação, "
+                    "acesse nosso portal de trocas e devoluções:\n\n"
                     "carbonsmartwatch.troque.app.br\n\n"
-                    "La voce consegue abrir a solicitacao com fotos e acompanhar o andamento.\n\n"
-                    "Importante: atualmente nao realizamos reparos nem temos assistencia tecnica. "
+                    "Lá você consegue abrir a solicitação com fotos e acompanhar o andamento.\n\n"
+                    "Importante: atualmente não realizamos reparos nem temos assistência técnica. "
                     "Caso seu produto esteja na garantia, fazemos a troca por um novo."
                 ),
             },
@@ -325,7 +338,7 @@ FLOWS = [
                 "message": "Precisa de mais alguma coisa?",
                 "options": [
                     {"id": "atendente", "label": "Falar com atendente", "description": "Se precisar de ajuda com o portal"},
-                    {"id": "voltar_menu", "label": "Voltar ao menu", "description": "Ver outras opcoes"},
+                    {"id": "voltar_menu", "label": "Voltar ao menu", "description": "Ver outras opções"},
                 ],
             },
         ],
@@ -341,7 +354,7 @@ FLOWS = [
         "trigger_config": {
             "keywords": [
                 "trocar modelo", "trocar pulseira", "pulseira errada",
-                "pulseira incompativel", "modelo errado", "produto errado",
+                "pulseira incompatível", "modelo errado", "produto errado",
                 "veio errado", "troca_modelo",
             ]
         },
@@ -351,14 +364,14 @@ FLOWS = [
                 "message": (
                     "Para solicitar troca de modelo ou pulseira, acesse:\n\n"
                     "carbonsmartwatch.troque.app.br\n\n"
-                    "Voce tem ate 7 dias apos o recebimento para solicitar a troca.\n"
+                    "Você tem até 7 dias após o recebimento para solicitar a troca.\n"
                     "O produto deve estar sem uso e na embalagem original."
                 ),
             },
             {
                 "type": "collect_input",
                 "variable": "order_number",
-                "message": "Se precisar de ajuda, informe o numero do pedido:",
+                "message": "Se precisar de ajuda, informe o número do pedido:",
             },
             {
                 "type": "transfer_to_agent",
@@ -373,35 +386,36 @@ FLOWS = [
     },
 
     # ══════════════════════════════════════════════════════════════
-    # 9. NAO RECEBI / REENVIO
+    # 9. NÃO RECEBI / REENVIO
     # 11.5% do volume. Lookup + escalar.
     # ══════════════════════════════════════════════════════════════
     {
-        "name": "Nao Recebi / Reenvio",
+        "name": "Não Recebi / Reenvio",
         "trigger_type": "keyword",
         "trigger_config": {
             "keywords": [
-                "nao recebi", "não recebi", "nao chegou", "atrasado", "atraso",
-                "extraviado", "reenvio", "devolvido", "alfandega", "taxado",
-                "demora", "barrado", "fiscalizacao", "nao_recebi",
+                "não recebi", "nao recebi", "não chegou", "nao chegou",
+                "atrasado", "atraso", "extraviado", "reenvio", "devolvido",
+                "alfândega", "taxado", "demora", "barrado", "fiscalização",
+                "nao_recebi",
             ]
         },
         "steps": [
             {
                 "type": "send_message",
-                "message": "Entendo sua preocupacao. Vou verificar a situacao do seu pedido.",
+                "message": "Entendo sua preocupação. Vou verificar a situação do seu pedido.",
             },
             {
                 "type": "collect_input",
                 "variable": "order_number",
-                "message": "Informe o numero do pedido ou o e-mail usado na compra:",
+                "message": "Informe o número do pedido ou o e-mail usado na compra:",
             },
             {
                 "type": "lookup_order",
                 "lookup_by": "order_number",
                 "variable": "order_number",
                 "not_found_message": (
-                    "Nao encontrei esse pedido. Verifique o numero e tente novamente.\n"
+                    "Não encontrei esse pedido. Verifique o número e tente novamente.\n"
                     "Ou digite *atendente* para falar com a equipe."
                 ),
                 "found_message": (
@@ -409,17 +423,17 @@ FLOWS = [
                     "Pedido: {order_name}\n"
                     "Status: {status}\n"
                     "Rastreio: {tracking_number}\n\n"
-                    "Vou transferir para a equipe verificar a entrega e as opcoes disponiveis."
+                    "Vou transferir para a equipe verificar a entrega e as opções disponíveis."
                 ),
             },
             {
                 "type": "transfer_to_agent",
                 "message": (
-                    "Transferindo para a equipe analisar a situacao da entrega "
+                    "Transferindo para a equipe analisar a situação da entrega "
                     "do pedido {order_number}.\n"
-                    "Eles vao verificar as opcoes (reenvio, estorno) e te retornar."
+                    "Eles vão verificar as opções (reenvio, estorno) e te retornar."
                 ),
-                "department": "logistica",
+                "department": "logística",
             },
         ],
         "active": True,
@@ -435,13 +449,13 @@ FLOWS = [
             "keywords": [
                 "financeiro", "reembolso", "estorno", "pix", "boleto",
                 "pagamento", "paguei", "cobrado", "valor", "parcela",
-                "cartao", "cobranca", "fatura",
+                "cartão", "cobrança", "fatura",
             ]
         },
         "steps": [
             {
                 "type": "send_menu",
-                "message": "Certo! Qual a questao financeira?",
+                "message": "Certo! Qual a questão financeira?",
                 "options": SUBMENU_FINANCEIRO,
             },
         ],
@@ -466,23 +480,23 @@ FLOWS = [
                 "type": "send_message",
                 "message": (
                     "Sobre o estorno:\n\n"
-                    "O prazo para conclusao e de ate 10 dias uteis.\n"
-                    "- Pix: o valor e devolvido direto apos aprovacao.\n"
-                    "- Cartao de credito: pode levar ate 3 faturas, "
+                    "O prazo para conclusão é de até 10 dias úteis.\n"
+                    "- Pix: o valor é devolvido direto após aprovação.\n"
+                    "- Cartão de crédito: pode levar até 3 faturas, "
                     "conforme regras da operadora.\n\n"
-                    "Voce recebera a confirmacao por e-mail."
+                    "Você receberá a confirmação por e-mail."
                 ),
             },
             {
                 "type": "collect_input",
                 "variable": "order_number",
-                "message": "Informe o numero do pedido para verificar o status do estorno:",
+                "message": "Informe o número do pedido para verificar o status do estorno:",
             },
             {
                 "type": "lookup_order",
                 "lookup_by": "order_number",
                 "variable": "order_number",
-                "not_found_message": "Nao encontrei esse pedido. Verifique o numero.",
+                "not_found_message": "Não encontrei esse pedido. Verifique o número.",
                 "found_message": (
                     "Pedido localizado:\n\n"
                     "Pedido: {order_name}\n"
@@ -503,17 +517,17 @@ FLOWS = [
     },
 
     # ══════════════════════════════════════════════════════════════
-    # 12. SUPORTE TECNICO
-    # Script fixo: sem assist tecnica, opcoes claras.
+    # 12. SUPORTE TÉCNICO
+    # Script fixo: sem assist técnica, opções claras.
     # ══════════════════════════════════════════════════════════════
     {
-        "name": "Suporte Tecnico",
+        "name": "Suporte Técnico",
         "trigger_type": "keyword",
         "trigger_config": {
             "keywords": [
                 "bluetooth", "app", "aplicativo", "conectar", "configurar",
                 "atualizar", "reset", "resetar", "gps", "sensor",
-                "frequencia cardiaca", "batimento", "sono", "notificacao",
+                "frequência cardíaca", "batimento", "sono", "notificação",
                 "liga e desliga", "reiniciando", "travando",
             ]
         },
@@ -521,24 +535,24 @@ FLOWS = [
             {
                 "type": "send_message",
                 "message": (
-                    "Vou te ajudar com o suporte tecnico.\n\n"
-                    "Antes de tudo, tente o reset de fabrica:\n"
-                    "1. Va em Configuracoes no relogio\n"
-                    "2. Selecione 'Restaurar padrao de fabrica'\n"
+                    "Vou te ajudar com o suporte técnico.\n\n"
+                    "Antes de tudo, tente o reset de fábrica:\n"
+                    "1. Vá em Configurações no relógio\n"
+                    "2. Selecione 'Restaurar padrão de fábrica'\n"
                     "3. Confirme e aguarde reiniciar\n"
                     "4. Reconecte pelo app no celular\n\n"
-                    "Se o problema persistir apos o reset, vou transferir para a equipe."
+                    "Se o problema persistir após o reset, vou transferir para a equipe."
                 ),
             },
             {
                 "type": "collect_input",
                 "variable": "problema_tecnico",
-                "message": "O reset resolveu? Se nao, descreva o que esta acontecendo:",
+                "message": "O reset resolveu? Se não, descreva o que está acontecendo:",
             },
             {
                 "type": "transfer_to_agent",
                 "message": (
-                    "Transferindo para a equipe tecnica.\n\n"
+                    "Transferindo para a equipe técnica.\n\n"
                     "Problema relatado: {problema_tecnico}\n\n"
                     "Aguarde um momento."
                 ),
@@ -549,17 +563,18 @@ FLOWS = [
     },
 
     # ══════════════════════════════════════════════════════════════
-    # 13. DUVIDA GERAL → IA
-    # A IA responde com KB + regras. Se nao souber, escala.
+    # 13. DÚVIDA GERAL → IA
+    # A IA responde com KB + regras. Se não souber, escala.
     # ══════════════════════════════════════════════════════════════
     {
-        "name": "Duvida Geral (IA)",
+        "name": "Dúvida Geral (IA)",
         "trigger_type": "keyword",
         "trigger_config": {
             "keywords": [
-                "duvida", "pergunta", "informacao", "quero saber",
-                "como funciona", "como usar", "preco", "comprar",
-                "a prova dagua", "resistente", "modelo", "diferenca",
+                "dúvida", "duvida", "pergunta", "informação", "quero saber",
+                "como funciona", "como usar", "preço", "comprar",
+                "à prova d'água", "resistente", "modelo", "diferença",
+                "duvida_geral", "dúvida geral",
             ]
         },
         "steps": [
@@ -579,7 +594,7 @@ FLOWS = [
         "trigger_type": "keyword",
         "trigger_config": {
             "keywords": [
-                "atendente", "humano", "pessoa", "agente", "falar com alguem",
+                "atendente", "humano", "pessoa", "agente", "falar com alguém",
                 "quero falar", "atendimento",
             ]
         },
@@ -597,51 +612,51 @@ FLOWS = [
     },
 
     # ══════════════════════════════════════════════════════════════
-    # 15. PROCON / JURIDICO / RECLAME AQUI → ESCALAR IMEDIATO
+    # 15. PROCON / JURÍDICO / RECLAME AQUI → ESCALAR IMEDIATO
     # NUNCA tentar resolver no bot. Flag urgente.
     # ══════════════════════════════════════════════════════════════
     {
-        "name": "Procon / Juridico / Reclame Aqui",
+        "name": "Procon / Jurídico / Reclame Aqui",
         "trigger_type": "keyword",
         "trigger_config": {
             "keywords": [
-                "procon", "advogado", "processo", "justica", "juizado",
+                "procon", "advogado", "processo", "justiça", "juizado",
                 "danos morais", "reclame aqui", "reclameaqui",
                 "consumidor.gov", "desacordo comercial", "chargeback",
-                "contestacao", "disputa",
+                "contestação", "disputa",
             ]
         },
         "steps": [
             {
                 "type": "send_message",
                 "message": (
-                    "Entendo a gravidade da situacao e peco desculpas pelo transtorno.\n"
-                    "Vou transferir imediatamente para nossa equipe responsavel, "
+                    "Entendo a gravidade da situação e peço desculpas pelo transtorno.\n"
+                    "Vou transferir imediatamente para nossa equipe responsável, "
                     "que vai tratar o seu caso com prioridade total."
                 ),
             },
             {
                 "type": "transfer_to_agent",
                 "message": (
-                    "PRIORIDADE ALTA - Transferindo para atendimento imediato.\n"
-                    "Um responsavel vai entrar em contato o mais rapido possivel."
+                    "PRIORIDADE ALTA — Transferindo para atendimento imediato.\n"
+                    "Um responsável vai entrar em contato o mais rápido possível."
                 ),
-                "department": "juridico",
+                "department": "jurídico",
             },
         ],
         "active": True,
     },
 
     # ══════════════════════════════════════════════════════════════
-    # 16. DUVIDA PRE-VENDA
+    # 16. DÚVIDA PRÉ-VENDA
     # Perguntas sobre produto antes de comprar.
     # ══════════════════════════════════════════════════════════════
     {
-        "name": "Pre-Venda",
+        "name": "Pré-Venda",
         "trigger_type": "keyword",
         "trigger_config": {
             "keywords": [
-                "comprar", "preco", "valor", "desconto", "cupom",
+                "comprar", "preço", "valor", "desconto", "cupom",
                 "frete", "prazo entrega", "tributo", "imposto", "taxa",
                 "produto nacional", "importado",
             ]
@@ -655,7 +670,69 @@ FLOWS = [
     },
 
     # ══════════════════════════════════════════════════════════════
-    # 17. FALLBACK → MENU
+    # 17. QUESTIONAMENTO NF (serviço vs produto)
+    # Resposta automática quando cliente questiona o tipo da NF.
+    # ══════════════════════════════════════════════════════════════
+    {
+        "name": "Questionamento Nota Fiscal",
+        "trigger_type": "keyword",
+        "trigger_config": {
+            "keywords": [
+                "nota de serviço", "nota de servico", "nf de serviço",
+                "nf de servico", "nota errada", "nf errada",
+                "nota diferente", "valor da nota", "valor da nf",
+                "nota não confere", "nf não confere",
+                "nota de produto", "nf de produto",
+                "nota com valor", "por que a nota",
+                "porque a nota", "nota fiscal errada",
+                "intermediação", "intermediacao", "intermediador",
+                "nota fiscal de serviço", "nota fiscal de servico",
+                "nota fiscal de produto", "pq nota fiscal",
+                "pq a nota", "quero nota de produto",
+                "quero nf de produto", "nota fiscal errada",
+                "por que serviço", "por que servico",
+                "pq serviço", "pq servico",
+            ]
+        },
+        "steps": [
+            {
+                "type": "send_message",
+                "message": (
+                    "Entendo sua dúvida em relação à nota fiscal.\n\n"
+                    "A Carbon atua como intermediadora comercial. Isso significa que nosso "
+                    "CNPJ é enquadrado como empresa de intermediação de negócios, e não como "
+                    "comércio varejista tradicional.\n\n"
+                    "Por isso, a nota fiscal é emitida nessa modalidade, que é o formato "
+                    "correto e legal de acordo com o nosso enquadramento tributário.\n\n"
+                    "Não conseguimos emitir a nota de outra forma ou em um modelo diferente, "
+                    "porque o nosso CNPJ não permite esse tipo de emissão."
+                ),
+            },
+            {
+                "type": "send_message",
+                "message": (
+                    "Mas não se preocupe!\n\n"
+                    "O valor integral da sua compra está devidamente registrado na nota. "
+                    "Ela tem a mesma validade fiscal e serve como comprovante oficial para "
+                    "todos os fins, incluindo garantia do produto.\n\n"
+                    "Se precisar da nota para alguma finalidade específica, me explica o caso "
+                    "que eu vejo como posso te ajudar."
+                ),
+            },
+            {
+                "type": "send_menu",
+                "message": "Posso te ajudar com mais alguma coisa?",
+                "options": [
+                    {"id": "atendente", "label": "Falar com atendente", "description": "Se ainda tiver dúvidas sobre a NF"},
+                    {"id": "voltar_menu", "label": "Voltar ao menu", "description": "Ver outras opções"},
+                ],
+            },
+        ],
+        "active": True,
+    },
+
+    # ══════════════════════════════════════════════════════════════
+    # 18. FALLBACK → MENU
     # Quando nenhum flow matcha.
     # ══════════════════════════════════════════════════════════════
     {
@@ -665,11 +742,11 @@ FLOWS = [
         "steps": [
             {
                 "type": "send_message",
-                "message": "Nao entendi o que voce precisa.",
+                "message": "Não entendi o que você precisa.",
             },
             {
                 "type": "send_menu",
-                "message": "Escolha uma opcao para eu te ajudar:",
+                "message": "Escolha uma opção para eu te ajudar:",
                 "options": MENU_OPTIONS,
             },
         ],
@@ -687,7 +764,7 @@ async def seed():
 
         if count > 0:
             resp = input(
-                f"Ja existem {count} chatbot flow(s) no banco. "
+                f"Já existem {count} chatbot flow(s) no banco. "
                 "Deseja deletar e recriar? (s/n): "
             )
             if resp.strip().lower() != "s":

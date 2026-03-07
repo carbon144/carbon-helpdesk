@@ -4,6 +4,7 @@ import logging
 import re
 from typing import Optional
 from sqlalchemy import select
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.chatbot_flow import ChatbotFlow
 
@@ -97,10 +98,12 @@ class ChatbotEngine:
                     exact_matches.append(flow)
             elif flow.trigger_type == "keyword":
                 keywords = (flow.trigger_config or {}).get("keywords", [])
+                best_kw_len = 0
                 for kw in keywords:
                     if kw.lower() in text_lower:
-                        keyword_matches.append(flow)
-                        break
+                        best_kw_len = max(best_kw_len, len(kw))
+                if best_kw_len > 0:
+                    keyword_matches.append((best_kw_len, flow))
             elif flow.trigger_type == "greeting":
                 greetings = ["oi", "ola", "olá", "bom dia", "boa tarde", "boa noite", "hello", "hi", "hey"]
                 if text_lower in greetings:
@@ -108,8 +111,12 @@ class ChatbotEngine:
             elif flow.trigger_type == "any":
                 any_matches.append(flow)
 
+        # Sort keyword matches by longest keyword (most specific first)
+        keyword_matches.sort(key=lambda x: x[0], reverse=True)
+        keyword_flows = [flow for _, flow in keyword_matches]
+
         # Return first match in priority order
-        for group in (exact_matches, keyword_matches, greeting_matches, any_matches):
+        for group in (exact_matches, keyword_flows, greeting_matches, any_matches):
             if group:
                 return group[0]
 
@@ -234,9 +241,10 @@ class ChatbotEngine:
             options = step.get("options", [])
             # Save menu options in metadata for selection routing
             if conversation and hasattr(conversation, "metadata_"):
-                meta = getattr(conversation, "metadata_", None) or {}
+                meta = dict(getattr(conversation, "metadata_", None) or {})
                 meta["last_menu_options"] = options
                 conversation.metadata_ = meta
+                flag_modified(conversation, "metadata_")
             return {
                 "type": "send_menu",
                 "content": content,
@@ -261,7 +269,16 @@ class ChatbotEngine:
                 "type": "lookup_order",
                 "order_field": step.get("order_field", "order_number"),
                 "collected_data": collected_data,
-                "message": step.get("message", "Buscando informacoes do pedido..."),
+                "message": step.get("message", "Buscando informações do pedido..."),
+            }
+
+        elif step_type == "lookup_invoice":
+            return {
+                "type": "lookup_invoice",
+                "variable": step.get("variable", "order_number"),
+                "collected_data": collected_data,
+                "found_message": step.get("found_message", ""),
+                "not_found_message": step.get("not_found_message", ""),
             }
 
         elif step_type == "suggest_article":
@@ -311,15 +328,17 @@ class ChatbotEngine:
 
     def _save_state(self, conversation: object, state: dict):
         """Save chatbot_state into conversation.metadata_."""
-        meta = getattr(conversation, "metadata_", None) or {}
+        meta = dict(getattr(conversation, "metadata_", None) or {})
         meta["chatbot_state"] = state
         conversation.metadata_ = meta
+        flag_modified(conversation, "metadata_")
 
     def _clear_state(self, conversation: object):
         """Remove chatbot_state from conversation.metadata_."""
-        meta = getattr(conversation, "metadata_", None) or {}
+        meta = dict(getattr(conversation, "metadata_", None) or {})
         meta.pop("chatbot_state", None)
         conversation.metadata_ = meta
+        flag_modified(conversation, "metadata_")
 
 
 # ── CRUD helpers for flows (unchanged) ──

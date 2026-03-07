@@ -42,6 +42,23 @@ class ChannelDispatcher:
         logger.warning("No adapter registered for channel: %s", channel)
         return None
 
+    async def send_document(
+        self,
+        channel: str,
+        recipient_id: str,
+        document_url: str,
+        filename: str = "document.pdf",
+        caption: str = "",
+    ) -> dict | None:
+        adapter = self.adapters.get(channel)
+        if adapter and hasattr(adapter, "send_document"):
+            return await adapter.send_document(recipient_id, document_url, filename, caption)
+        # Fallback: send as regular media
+        if adapter:
+            return await adapter.send_media(recipient_id, document_url, "document")
+        logger.warning("No adapter registered for channel: %s", channel)
+        return None
+
     async def send_interactive(
         self,
         channel: str,

@@ -90,6 +90,42 @@ class WhatsAppAdapter(ChannelAdapter):
             logger.error("Failed to send WhatsApp media to %s: %s", recipient_id, e)
             return None
 
+    async def send_document(
+        self,
+        recipient_id: str,
+        document_url: str,
+        filename: str = "document.pdf",
+        caption: str = "",
+    ) -> dict | None:
+        """Send a document (PDF) via WhatsApp Cloud API with filename and caption."""
+        url = f"{GRAPH_API_BASE}/{settings.META_WHATSAPP_PHONE_ID}/messages"
+        headers = {
+            "Authorization": f"Bearer {settings.META_WHATSAPP_TOKEN}",
+            "Content-Type": "application/json",
+        }
+
+        doc_payload = {"link": document_url, "filename": filename}
+        if caption:
+            doc_payload["caption"] = caption
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": recipient_id,
+            "type": "document",
+            "document": doc_payload,
+        }
+
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(url, json=payload, headers=headers, timeout=30)
+                resp.raise_for_status()
+                data = resp.json()
+                logger.info("WhatsApp document sent to %s: %s", recipient_id, filename)
+                return data
+        except httpx.HTTPError as e:
+            logger.error("Failed to send WhatsApp document to %s: %s", recipient_id, e)
+            return None
+
     async def send_interactive(
         self,
         recipient_id: str,
@@ -111,7 +147,7 @@ class WhatsAppAdapter(ChannelAdapter):
         }
 
         try:
-            body_text = (text or "Selecione uma opcao:")[:1024]
+            body_text = (text or "Selecione uma opção:")[:1024]
 
             if len(options) <= 3:
                 # Reply buttons
@@ -157,7 +193,7 @@ class WhatsAppAdapter(ChannelAdapter):
                         "body": {"text": text[:1024]},
                         "action": {
                             "button": "Selecionar",
-                            "sections": [{"title": "Opcoes", "rows": rows}],
+                            "sections": [{"title": "Opções", "rows": rows}],
                         },
                     },
                 }

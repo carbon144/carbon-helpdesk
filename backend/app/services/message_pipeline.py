@@ -39,7 +39,7 @@ _chatbot_engine = ChatbotEngine()
 DELIVERY_STATUS_PT = {
     "pending": "Pendente",
     "shipped": "Enviado",
-    "in_transit": "Em transito",
+    "in_transit": "Em trânsito",
     "out_for_delivery": "Saiu para entrega",
     "delivered": "Entregue",
     "failed": "Falha na entrega",
@@ -81,6 +81,7 @@ async def process_incoming_message(
         "handler": conversation.handler or "chatbot",
         "bot_messages": [],
         "interactive_messages": [],
+        "document_messages": [],
         "escalated": False,
     }
 
@@ -88,15 +89,22 @@ async def process_incoming_message(
     if conversation.handler == "agent" and not conversation.ai_enabled:
         return result
 
+    # Check if chatbot has active state (waiting for input) — skip auto-lookups
+    _conv_meta = getattr(conversation, "metadata_", None)
+    if not isinstance(_conv_meta, dict):
+        _conv_meta = {}
+    _has_active_flow = bool(_conv_meta.get("chatbot_state"))
+
     # Layer 0.5: Auto order lookup if message looks like an order number
-    if conversation.handler in ("chatbot", None, "ai"):
+    # Skip if chatbot is waiting for input (e.g., NF flow collecting order number)
+    if not _has_active_flow and conversation.handler in ("chatbot", None, "ai"):
         order_num = _extract_order_number(message_text)
         if order_num:
             from app.services import shopify_service
             order = await shopify_service.get_order_by_number(order_num)
             if order and not order.get("error"):
                 detail_msgs = _format_order_messages(order)
-                detail_msgs.append("Precisa de mais alguma coisa? Digite *menu* para ver as opcoes.")
+                detail_msgs.append("Precisa de mais alguma coisa? Digite *menu* para ver as opções.")
                 for m in detail_msgs:
                     result["bot_messages"].append(m)
                     await _save_bot_message(db, conversation, m)
@@ -157,7 +165,10 @@ async def process_incoming_message(
                 elif resp_type == "collect_input":
                     field = resp.get("field", "")
                     # Auto-lookup: if collecting order_number and we have phone, try Shopify first
-                    if field in ("order_number", "pedido") and conversation.channel == "whatsapp":
+                    # But skip if the flow explicitly needs the number (e.g., NF lookup)
+                    _flow_name = chatbot_result.get("flow_name", "")
+                    _skip_auto = "nota fiscal" in _flow_name.lower()
+                    if not _skip_auto and field in ("order_number", "pedido") and conversation.channel == "whatsapp":
                         phone = getattr(customer, "phone", None)
                         if phone:
                             auto_msgs = await _auto_lookup_by_phone(customer, phone)
@@ -185,7 +196,62 @@ async def process_incoming_message(
                         result["bot_messages"].append(msg)
                         await _save_bot_message(db, conversation, msg)
 
-            if result["bot_messages"] or result["interactive_messages"]:
+                elif resp_type == "lookup_invoice":
+                    collected_data = resp.get("collected_data", {})
+                    order_num = collected_data.get(resp.get("variable", "order_number"), "")
+                    # Clean order number
+                    clean_num = order_num.strip().lstrip("#")
+                    invoice = await _lookup_invoice(clean_num)
+                    if invoice:
+                        # LGPD: verify customer identity before sending NF
+                        customer_phone = getattr(customer, "phone", "") or ""
+                        is_owner = _verify_invoice_owner(invoice, customer_phone)
+                        print(f"[NF-LGPD] order={clean_num} customer_phone={customer_phone} invoice_phone={invoice.get('customer_phone','')} is_owner={is_owner}", flush=True)
+                        if not is_owner:
+                            # Send NF to the order email instead, and inform the customer
+                            inv_email = invoice.get("customer_email", "") or ""
+                            if inv_email:
+                                masked_email = _mask_email(inv_email)
+                                # Send NF by email
+                                await _send_invoice_by_email(
+                                    inv_email,
+                                    invoice,
+                                    _get_invoice_pdf_url(clean_num),
+                                )
+                                lgpd_msg = (
+                                    f"Encontrei a nota fiscal desse pedido! Por questões de "
+                                    f"segurança (LGPD), enviei o PDF para o e-mail cadastrado "
+                                    f"no pedido: *{masked_email}*\n\n"
+                                    f"Verifique sua caixa de entrada e spam."
+                                )
+                            else:
+                                lgpd_msg = (
+                                    "Encontrei a nota fiscal desse pedido, mas por questões de "
+                                    "segurança e LGPD, só posso enviar para o titular.\n\n"
+                                    "Entre em contato pelo mesmo número ou e-mail cadastrado no pedido."
+                                )
+                            result["bot_messages"].append(lgpd_msg)
+                            await _save_bot_message(db, conversation, lgpd_msg)
+                        else:
+                            nfse_num = str(invoice.get("nfse_number", ""))
+                            valor = str(invoice.get("valor_servico", ""))
+                            link = invoice.get("link_pdf", "") or ""
+                            msg = (
+                                f"Sua Nota Fiscal de Serviço:\n\n"
+                                f"NFS-e: *{nfse_num}*\n"
+                                f"Valor: R$ {valor}\n"
+                            )
+                            if link:
+                                msg += f"\nLink para visualização:\n{link}\n"
+                                msg += "\n_O link pode demorar alguns segundos para carregar (servidor da prefeitura)._"
+                            result["bot_messages"].append(msg)
+                            await _save_bot_message(db, conversation, msg)
+                    else:
+                        msg = resp.get("not_found_message", "NF não encontrada.")
+                        result["bot_messages"].append(msg)
+                        await _save_bot_message(db, conversation, msg)
+
+            if result["bot_messages"] or result["interactive_messages"] or result["document_messages"]:
                 result["handler"] = "chatbot"
                 await db.commit()
                 return result
@@ -239,6 +305,99 @@ async def process_incoming_message(
 
 # ── Order lookup helpers ──
 
+async def _lookup_invoice(order_number: str) -> dict | None:
+    """Fetch invoice from Carbon NF system (same server, port 8002)."""
+    import httpx
+    import os
+    nf_host = os.environ.get("CARBON_NF_URL", "http://172.17.0.1:8002")
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{nf_host}/api/internal/invoice-by-order",
+                params={"order_number": order_number},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("found"):
+                    return data
+    except Exception as e:
+        logger.warning("Invoice lookup failed: %s", e)
+    return None
+
+
+def _get_invoice_pdf_url(order_number: str) -> str | None:
+    """Get the public proxied PDF URL (accessible by WhatsApp Cloud API)."""
+    import os
+    # Public URL that WhatsApp can fetch — proxies through helpdesk → carbon-nf → prefeitura
+    helpdesk_host = os.environ.get("HELPDESK_PUBLIC_URL", "https://helpdesk.brutodeverdade.com.br")
+    nf_token = os.environ.get("NF_PDF_TOKEN", "carbon-nf-2026")
+    return f"{helpdesk_host}/api/public/invoice-pdf?order_number={order_number}&token={nf_token}"
+
+
+def _mask_email(email: str) -> str:
+    """Mask email for LGPD: pe***@gm***.com"""
+    parts = email.split("@")
+    if len(parts) != 2:
+        return "***@***.com"
+    user = parts[0]
+    domain = parts[1]
+    domain_parts = domain.split(".")
+    masked_user = user[:2] + "***" if len(user) > 2 else user[0] + "***"
+    masked_domain = domain_parts[0][:2] + "***" if len(domain_parts[0]) > 2 else domain_parts[0]
+    return f"{masked_user}@{masked_domain}.{'.'.join(domain_parts[1:])}"
+
+
+async def _send_invoice_by_email(email: str, invoice: dict, pdf_url: str | None):
+    """Send NF to customer email via Gmail API (reuses helpdesk gmail_service)."""
+    from app.services.gmail_service import send_email
+    import httpx
+    import tempfile
+    import os
+
+    nfse_number = invoice.get("nfse_number", "")
+    customer_name = invoice.get("customer_name", "Cliente")
+    link = invoice.get("link_pdf", "")
+
+    subject = f"Sua Nota Fiscal - Carbon Smartwatch (NFS-e {nfse_number})"
+    body = (
+        f"Olá {customer_name},\n\n"
+        f"Segue sua Nota Fiscal de Serviço (NFS-e {nfse_number}).\n\n"
+    )
+    if link:
+        body += f"Link para visualização: {link}\n\n"
+    body += (
+        "Qualquer dúvida, estamos à disposição.\n\n"
+        "Atenciosamente,\nCarbon Smartwatch\n"
+        "atendimento@carbonsmartwatch.com.br"
+    )
+
+    try:
+        result = send_email(to=email, subject=subject, body_text=body)
+        if result:
+            print(f"[NF-EMAIL] Invoice NF {nfse_number} sent to {email} via Gmail — id={result.get('id')}", flush=True)
+        else:
+            print(f"[NF-EMAIL] FAILED to send invoice to {email} via Gmail (no result)", flush=True)
+    except Exception as e:
+        print(f"[NF-EMAIL] ERROR sending invoice to {email}: {e}", flush=True)
+
+
+def _verify_invoice_owner(invoice: dict, customer_phone: str) -> bool:
+    """LGPD: verify that the requesting customer is the order owner by matching phone number."""
+    import re
+    if not customer_phone:
+        return False
+    # Normalize phones to digits only for comparison
+    req_digits = re.sub(r"\D", "", customer_phone)
+    inv_phone = invoice.get("customer_phone", "") or ""
+    inv_digits = re.sub(r"\D", "", inv_phone)
+    if not inv_digits:
+        # No phone on order — can't verify, deny for safety
+        return False
+    # Match last 8-9 digits (ignores country code / area code differences)
+    return req_digits[-9:] == inv_digits[-9:]
+
+
 async def _auto_lookup_by_phone(customer: Customer, phone: str) -> list[str]:
     """Try to find recent orders by customer phone number in Shopify."""
     from app.services import shopify_service
@@ -251,7 +410,7 @@ async def _auto_lookup_by_phone(customer: Customer, phone: str) -> list[str]:
 
         # Show most recent orders — split tracking codes into separate messages for easy copy
         msgs = []
-        summary = "Encontrei seus pedidos pelo seu numero de WhatsApp:\n"
+        summary = "Encontrei seus pedidos pelo seu número de WhatsApp:\n"
         tracking_codes = []
 
         for o in orders[:3]:
@@ -266,7 +425,7 @@ async def _auto_lookup_by_phone(customer: Customer, phone: str) -> list[str]:
             if tracking:
                 tracking_codes.append(f"Rastreio pedido {number}:\n{tracking}")
 
-        summary += "\n\nPara detalhes de um pedido, envie o numero (ex: #12345)."
+        summary += "\n\nPara detalhes de um pedido, envie o número (ex: #12345)."
         msgs.append(summary)
 
         # Each tracking code as separate message so customer can copy
@@ -300,7 +459,7 @@ async def _handle_order_lookup(
             messages.append(_format_order_detail(order))
             return messages
         elif order and order.get("error"):
-            messages.append(f"Nao encontrei o pedido {order_number}. Verifique o numero e tente novamente.")
+            messages.append(f"Não encontrei o pedido {order_number}. Verifique o número e tente novamente.")
             return messages
 
     # Fallback: try by customer email
@@ -312,7 +471,7 @@ async def _handle_order_lookup(
             messages.append(_format_orders_list(orders))
             return messages
 
-    messages.append("Nao encontrei pedidos associados. Pode informar o numero do pedido? (ex: #12345)")
+    messages.append("Não encontrei pedidos associados. Pode informar o número do pedido? (ex: #12345)")
     return messages
 
 
@@ -360,7 +519,7 @@ def _format_order_messages(order: dict) -> list[str]:
         tc = tracking
         if carrier:
             tc += f" ({carrier})"
-        msgs.append(f"Codigo de rastreio:\n{tc}")
+        msgs.append(f"Código de rastreio:\n{tc}")
         msgs.append("Acompanhe em:\nhttps://carbonsmartwatch.com.br/tracking")
     return msgs
 
@@ -374,7 +533,7 @@ def _format_orders_list(orders: list[dict]) -> str:
         delivery = DELIVERY_STATUS_PT.get(o.get("delivery_status", ""), o.get("delivery_status", ""))
         total = o.get("total_price", "0.00")
         lines.append(f"  {number} — R$ {total} — {financial} — {delivery}")
-    lines.append("\nEnvie o numero do pedido para ver os detalhes.")
+    lines.append("\nEnvie o número do pedido para ver os detalhes.")
     return "\n".join(lines)
 
 
@@ -384,7 +543,7 @@ async def _escalate_to_agent(
     db: AsyncSession,
     conversation: Conversation,
     result: dict,
-    escalation_message: str = "Vou transferir voce para um de nossos atendentes. Um momento, por favor.",
+    escalation_message: str = "Vou transferir você para um de nossos atendentes. Um momento, por favor.",
 ) -> dict:
     conversation.handler = "agent"
     conversation.ai_enabled = False
