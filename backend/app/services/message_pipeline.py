@@ -606,11 +606,139 @@ async def _escalate_to_agent(
     result["bot_messages"].append(escalation_message)
     await _save_bot_message(db, conversation, escalation_message)
 
+    # Create email ticket from chat conversation
+    ticket_number = await _create_ticket_from_conversation(db, conversation)
+
+    if ticket_number:
+        # Check if customer has email
+        customer_email = getattr(conversation.customer, "email", None) if conversation.customer else None
+        if customer_email:
+            masked = _mask_email(customer_email)
+            ticket_msg = (
+                f"Criei o chamado *#{ticket_number}* para você.\n"
+                f"Nosso time vai responder pelo e-mail cadastrado: *{masked}*\n\n"
+                f"Horário de atendimento: *segunda a sexta, 9h às 18h*.\n"
+                f"Sua mensagem será respondida assim que possível."
+            )
+        else:
+            ticket_msg = (
+                f"Criei o chamado *#{ticket_number}* para você.\n"
+                f"Nosso time vai entrar em contato por e-mail.\n\n"
+                f"Se preferir, envie um e-mail para:\n"
+                f"*atendimento@carbonsmartwatch.com.br*\n\n"
+                f"Horário de atendimento: *segunda a sexta, 9h às 18h*."
+            )
+    else:
+        ticket_msg = (
+            "Nosso horário de atendimento é *segunda a sexta, 9h às 18h*.\n\n"
+            "Envie um e-mail para *atendimento@carbonsmartwatch.com.br* "
+            "que nosso time vai te responder o mais rápido possível."
+        )
+
+    result["bot_messages"].append(ticket_msg)
+    await _save_bot_message(db, conversation, ticket_msg)
+
     await db.commit()
 
     result["handler"] = "agent"
     result["escalated"] = True
     return result
+
+
+async def _create_ticket_from_conversation(db: AsyncSession, conversation: Conversation) -> int | None:
+    """Create an email ticket from a WhatsApp/IG/FB conversation so the team sees it."""
+    from app.models.ticket import Ticket
+    from app.models.message import Message
+
+    try:
+        # Build conversation transcript
+        messages = []
+        for msg in (conversation.chat_messages or []):
+            if msg.sender_type == "system":
+                continue
+            sender = "Cliente" if msg.sender_type == "contact" else "Bot"
+            messages.append(f"[{sender}] {msg.content}")
+
+        transcript = "\n".join(messages[-20:])  # Last 20 messages
+
+        # Determine subject from conversation context
+        _meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
+        collected = _meta.get("collected_by_bot", {})
+        subject_parts = []
+        channel_name = {"whatsapp": "WhatsApp", "instagram": "Instagram", "facebook": "Facebook"}.get(
+            conversation.channel, conversation.channel or "Chat"
+        )
+        subject_parts.append(f"[{channel_name}]")
+
+        customer_name = conversation.customer.name if conversation.customer else "Cliente"
+        subject_parts.append(customer_name)
+
+        # Try to extract intent from first customer message
+        first_msg = ""
+        for msg in (conversation.chat_messages or []):
+            if msg.sender_type == "contact":
+                first_msg = (msg.content or "")[:80]
+                break
+        if first_msg:
+            subject_parts.append(f"— {first_msg}")
+
+        subject = " ".join(subject_parts)[:500]
+
+        # Determine priority
+        priority = conversation.priority if hasattr(conversation, "priority") and conversation.priority != "normal" else "medium"
+        if _meta.get("chatbot_state", {}).get("flow_name", ""):
+            flow = _meta["chatbot_state"]["flow_name"].lower()
+            if any(w in flow for w in ("procon", "juridico", "chargeback")):
+                priority = "high"
+
+        # Determine category from tags or flow
+        category = None
+        tags_list = []
+        if conversation.tags and isinstance(conversation.tags, list):
+            tags_list = conversation.tags
+        tags_list.append(f"chat_{conversation.channel or 'unknown'}")
+        tags_list.append("auto_escalado")
+
+        # Get next ticket number
+        from sqlalchemy import func as sqlfunc
+        max_num = await db.execute(select(sqlfunc.max(Ticket.number)))
+        next_number = (max_num.scalar() or 0) + 1
+
+        ticket = Ticket(
+            number=next_number,
+            subject=subject,
+            status="open",
+            priority=priority,
+            category=category,
+            customer_id=conversation.customer_id,
+            source=conversation.channel or "chat",
+            meta_conversation_id=conversation.id,
+            meta_platform=conversation.channel,
+            tags=tags_list,
+        )
+        db.add(ticket)
+        await db.flush()  # Get ticket.id
+
+        # Add transcript as first message
+        body_text = f"Conversa escalada do {channel_name}:\n\n{transcript}"
+        body_html = f"<p><strong>Conversa escalada do {channel_name}:</strong></p><pre>{transcript}</pre>"
+
+        message = Message(
+            ticket_id=ticket.id,
+            type="inbound",
+            sender_name=customer_name,
+            sender_email=getattr(conversation.customer, "email", None) or f"{conversation.channel}@chat.internal",
+            body_text=body_text,
+            body_html=body_html,
+        )
+        db.add(message)
+
+        logger.info("[ESCALATE] Created ticket #%s from %s conversation %s", next_number, conversation.channel, conversation.id)
+        return next_number
+
+    except Exception as e:
+        logger.error("[ESCALATE] Failed to create ticket from conversation: %s", e)
+        return None
 
 
 async def _save_bot_message(db: AsyncSession, conversation: Conversation, content: str):
