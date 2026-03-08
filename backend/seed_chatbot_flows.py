@@ -236,7 +236,9 @@ FLOWS = [
                 "lookup_by": "order_number",
                 "variable": "order_number",
                 "not_found_message": (
-                    "Não encontrei esse pedido. Verifique o número e tente novamente."
+                    "Não encontrei esse pedido. Verifique o número e tente novamente.\n"
+                    "Você também pode enviar o *e-mail* usado na compra.\n\n"
+                    "Ou digite *atendente* para falar com a equipe."
                 ),
                 "found_message": (
                     "Pedido localizado:\n\n"
@@ -249,8 +251,8 @@ FLOWS = [
             {
                 "type": "transfer_to_agent",
                 "message": (
-                    "Transferindo para a equipe processar o cancelamento do pedido {order_number}.\n"
-                    "Um atendente vai confirmar os próximos passos."
+                    "Abrindo chamado para cancelamento do pedido {{order_number}}.\n"
+                    "Nossa equipe vai responder pelo seu e-mail."
                 ),
                 "department": "financeiro",
             },
@@ -327,19 +329,24 @@ FLOWS = [
                     "Obrigado pelas informações!\n\n"
                     "A Carbon oferece garantia de 1 ano. Para dar andamento à sua solicitação, "
                     "acesse nosso portal de trocas e devoluções:\n\n"
-                    "carbonsmartwatch.troque.app.br\n\n"
+                    "*carbonsmartwatch.troque.app.br*\n\n"
                     "Lá você consegue abrir a solicitação com fotos e acompanhar o andamento.\n\n"
                     "Importante: atualmente não realizamos reparos nem temos assistência técnica. "
-                    "Caso seu produto esteja na garantia, fazemos a troca por um novo."
+                    "Caso seu produto esteja na garantia, fazemos a troca por um novo.\n\n"
+                    "Vou abrir um chamado com as informações que você me passou "
+                    "para que nossa equipe acompanhe o seu caso."
                 ),
             },
             {
-                "type": "send_menu",
-                "message": "Precisa de mais alguma coisa?",
-                "options": [
-                    {"id": "atendente", "label": "Falar com atendente", "description": "Se precisar de ajuda com o portal"},
-                    {"id": "voltar_menu", "label": "Voltar ao menu", "description": "Ver outras opções"},
-                ],
+                "type": "transfer_to_agent",
+                "message": (
+                    "Chamado aberto para análise de defeito/garantia.\n\n"
+                    "Modelo: {{modelo}}\n"
+                    "Problema: {{problema}}\n"
+                    "Pedido: {{order_number}}\n\n"
+                    "Nossa equipe vai responder pelo seu e-mail."
+                ),
+                "department": "garantia",
             },
         ],
         "active": True,

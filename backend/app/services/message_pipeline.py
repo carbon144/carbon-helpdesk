@@ -36,19 +36,21 @@ def _extract_order_number(text: str) -> str | None:
 def _extract_tracking_code(text: str) -> str | None:
     """Extract tracking code from text. Supports Correios (AA123456789BR), Cainiao (CNBR...), YT..., LP..., LB..."""
     import re
-    text = text.strip().upper()
+    # Remove spaces, dashes, dots that customers sometimes add (e.g., "CN BR 0013-1955-466")
+    cleaned = re.sub(r'[\s\-\.]', '', text.strip()).upper()
     # Correios: 2 letters + 9 digits + 2 letters (NL247033946BR)
     # Cainiao: 4 letters + 11 digits (CNBR00131955466)
     # General: 2-4 alpha + 9-14 digits + 0-2 alpha
-    m = re.match(r'^([A-Z]{2,4}\d{9,14}[A-Z]{0,2})$', text)
+    m = re.match(r'^([A-Z]{2,4}\d{9,14}[A-Z]{0,2})$', cleaned)
     if m:
         return m.group(1)
     # YT/LP/LB prefixed codes (YunExpress, etc)
-    m = re.match(r'^((?:YT|LP|LB|LX|RR|NL)\d{10,20}[A-Z]{0,2})$', text)
+    m = re.match(r'^((?:YT|LP|LB|LX|RR|NL|SF|BR)\d{10,20}[A-Z]{0,2})$', cleaned)
     if m:
         return m.group(1)
-    # Embedded in text: "rastreio CNBR00131955466"
-    m = re.search(r'\b([A-Z]{2,4}\d{9,14}[A-Z]{0,2})\b', text)
+    # Embedded in text: "meu rastreio é CNBR00131955466" or "rastreio: NL247033946BR"
+    text_upper = text.strip().upper()
+    m = re.search(r'\b([A-Z]{2,4}\d{9,14}[A-Z]{0,2})\b', text_upper)
     if m:
         code = m.group(1)
         if len(code) >= 10:
@@ -233,6 +235,7 @@ async def process_incoming_message(
         _meta_reset.pop("pending_escalation", None)
         _meta_reset.pop("pending_observation", None)
         _meta_reset.pop("chatbot_state", None)
+        _meta_reset.pop("_lookup_fail_count", None)
         conversation.metadata_ = _meta_reset
         # Fall through to chatbot layer below
 
@@ -332,12 +335,31 @@ async def process_incoming_message(
                 await db.commit()
                 return result
             else:
-                # Order not found — give helpful message instead of falling to chatbot "nao entendi"
+                # Order not found — track failure count
+                from sqlalchemy.orm.attributes import flag_modified as _fm
+                _lm = dict(getattr(conversation, "metadata_", None) or {})
+                _fail = _lm.get("_lookup_fail_count", 0) + 1
+                _lm["_lookup_fail_count"] = _fail
+                conversation.metadata_ = _lm
+                _fm(conversation, "metadata_")
+
+                if _fail >= 2:
+                    _lm.pop("_lookup_fail_count", None)
+                    conversation.metadata_ = _lm
+                    _fm(conversation, "metadata_")
+                    msg = (
+                        "Não consegui localizar seu pedido após algumas tentativas.\n"
+                        "Vou transferir para um atendente que pode te ajudar diretamente."
+                    )
+                    result["bot_messages"].append(msg)
+                    await _save_bot_message(db, conversation, msg)
+                    return await _escalate_to_agent(db, conversation, result)
+
                 msg = (
                     f"Não encontrei o pedido *#{order_num}* no sistema.\n\n"
                     f"Isso pode acontecer se o pedido foi feito antes de março/2025 (plataforma antiga).\n"
                     f"Tente enviar o *e-mail* cadastrado no pedido que busco por lá.\n\n"
-                    f"Ou digite *menu* para ver outras opções."
+                    f"Ou digite *atendente* para falar com a equipe."
                 )
                 result["bot_messages"].append(msg)
                 await _save_bot_message(db, conversation, msg)
@@ -472,10 +494,19 @@ async def process_incoming_message(
                     order_field = resp.get("order_field", "order_number")
                     lookup_msgs = await _handle_order_lookup(
                         customer, collected_data, order_field,
+                        conversation=conversation,
                     )
                     for msg in lookup_msgs:
                         result["bot_messages"].append(msg)
                         await _save_bot_message(db, conversation, msg)
+
+                    # Check if lookup failures triggered auto-escalation
+                    _force_esc_meta = getattr(conversation, "metadata_", None) or {}
+                    if _force_esc_meta.get("_force_escalate"):
+                        meta = dict(_force_esc_meta)
+                        meta.pop("_force_escalate", None)
+                        conversation.metadata_ = meta
+                        return await _escalate_to_agent(db, conversation, result)
 
                 elif resp_type == "lookup_invoice":
                     collected_data = resp.get("collected_data", {})
@@ -792,11 +823,14 @@ async def _handle_order_lookup(
     customer: Customer,
     collected_data: dict,
     order_field: str,
+    conversation: Conversation = None,
 ) -> list[str]:
-    """Perform real Shopify order lookup and return formatted messages."""
+    """Perform real Shopify order lookup and return formatted messages.
+    Tracks failed attempts — after 2 failures returns escalation signal."""
     from app.services import shopify_service
 
     messages = []
+    found = False
 
     # Try by order number first (from collected data)
     order_number = collected_data.get(order_field) or collected_data.get("order_number") or collected_data.get("pedido")
@@ -805,36 +839,72 @@ async def _handle_order_lookup(
         clean_num = order_number.strip().lstrip("#")
         order = await shopify_service.get_order_by_number(clean_num)
         if order and not order.get("error"):
-            # Use _format_order_messages to include live tracking from 17track
             msgs = await _format_order_messages(order)
             messages.extend(msgs)
-            return messages
+            found = True
         else:
-            # Not found in Shopify — helpful message about old orders
-            messages.append(
-                f"Não encontrei o pedido *#{clean_num}* no sistema.\n\n"
-                f"Se foi feito antes de março/2025, pode estar na plataforma antiga.\n"
-                f"Tente enviar o *e-mail* cadastrado no pedido que busco por lá."
-            )
-            return messages
+            # Also try by email if it looks like an email
+            if "@" in order_number:
+                email_result = await shopify_service.get_orders_by_email(order_number.strip(), limit=5)
+                email_orders = email_result.get("orders", [])
+                if email_orders:
+                    messages.append(_format_orders_list(email_orders))
+                    found = True
 
-    # Fallback: try by customer email (Shopify + Yampi)
-    email = getattr(customer, "email", None)
-    if email:
-        result = await shopify_service.get_orders_by_email(email, limit=5)
-        orders = result.get("orders", [])
-        if not orders:
-            try:
-                from app.services import yampi_service
-                yampi_result = await yampi_service.get_orders_by_email(email, limit=5)
-                orders = yampi_result.get("orders", [])
-            except Exception as e:
-                logger.warning("Yampi fallback failed: %s", e)
-        if orders:
-            messages.append(_format_orders_list(orders))
-            return messages
+            if not found:
+                messages.append(
+                    f"Não encontrei o pedido *#{clean_num}* no sistema.\n\n"
+                    f"Se foi feito antes de março/2025, pode estar na plataforma antiga.\n"
+                    f"Tente enviar o *e-mail* cadastrado no pedido que busco por lá.\n"
+                    f"Ou digite *atendente* para falar com a equipe."
+                )
+    else:
+        # Fallback: try by customer email (Shopify + Yampi)
+        email = getattr(customer, "email", None)
+        if email:
+            result = await shopify_service.get_orders_by_email(email, limit=5)
+            orders = result.get("orders", [])
+            if not orders:
+                try:
+                    from app.services import yampi_service
+                    yampi_result = await yampi_service.get_orders_by_email(email, limit=5)
+                    orders = yampi_result.get("orders", [])
+                except Exception as e:
+                    logger.warning("Yampi fallback failed: %s", e)
+            if orders:
+                messages.append(_format_orders_list(orders))
+                found = True
 
-    messages.append("Não encontrei pedidos associados. Pode informar o número do pedido? (ex: #12345)")
+        if not found:
+            messages.append("Não encontrei pedidos associados. Pode informar o número do pedido? (ex: #12345)")
+
+    # Track failed lookups — auto-escalate after 2 failures
+    if not found and conversation:
+        from sqlalchemy.orm.attributes import flag_modified
+        meta = dict(getattr(conversation, "metadata_", None) or {})
+        fail_count = meta.get("_lookup_fail_count", 0) + 1
+        meta["_lookup_fail_count"] = fail_count
+        conversation.metadata_ = meta
+        flag_modified(conversation, "metadata_")
+
+        if fail_count >= 2:
+            messages = [
+                "Não consegui localizar seu pedido após algumas tentativas.\n"
+                "Vou transferir para um atendente que pode te ajudar diretamente."
+            ]
+            meta.pop("_lookup_fail_count", None)
+            meta["_force_escalate"] = True
+            conversation.metadata_ = meta
+            flag_modified(conversation, "metadata_")
+    elif found and conversation:
+        # Reset counter on success
+        from sqlalchemy.orm.attributes import flag_modified
+        meta = dict(getattr(conversation, "metadata_", None) or {})
+        if "_lookup_fail_count" in meta:
+            meta.pop("_lookup_fail_count", None)
+            conversation.metadata_ = meta
+            flag_modified(conversation, "metadata_")
+
     return messages
 
 

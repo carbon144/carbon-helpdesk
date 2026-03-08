@@ -81,6 +81,9 @@ export const TAG_COLORS = {
   AUTO_ESCALADO: 'bg-orange-500/10 text-orange-300',
   SLA_ESTOURADO: 'bg-red-500/10 text-red-300',
   SLA_ALERTA: 'bg-yellow-500/10 text-yellow-300',
+  chat_whatsapp: 'bg-green-500/15 text-green-300',
+  chat_instagram: 'bg-pink-500/15 text-pink-300',
+  chat_facebook: 'bg-blue-500/15 text-blue-300',
 }
 
 export const TAG_LABELS = {
@@ -90,6 +93,7 @@ export const TAG_LABELS = {
   suporte_tecnico: 'Suporte Técnico',
   BLACKLIST: 'Blacklist', AUTO_ESCALADO: 'Auto-Escalado',
   SLA_ESTOURADO: 'SLA Estourado', SLA_ALERTA: 'Alerta SLA',
+  chat_whatsapp: 'Via WhatsApp', chat_instagram: 'Via Instagram', chat_facebook: 'Via Facebook',
 }
 
 export const PRIORITY_ORDER = { urgent: 4, high: 3, medium: 2, low: 1 }

@@ -1263,7 +1263,10 @@ export default function TicketsPage({ user }) {
                   slaStatus === 'breached' && !['resolved', 'closed'].includes(ticket.status) ? 'bg-red-900/5 hover:bg-red-900/10' :
                   ticket.is_unread ? 'bg-indigo-500/[0.03] hover:bg-indigo-500/[0.06]' :
                   'hover:bg-[var(--bg-hover)]'
-                } ${ticket.status === 'escalated' ? 'border-l-4 border-l-red-500' : ''}`}
+                } ${ticket.status === 'escalated' ? 'border-l-4 border-l-red-500' : ''} ${
+                  (ticket.tags || []).includes('auto_escalado') && !['resolved', 'closed'].includes(ticket.status)
+                    ? 'border-l-4 border-l-amber-500 bg-amber-500/[0.03]' : ''
+                }`}
                 style={{ gridTemplateColumns: '36px minmax(140px,1.2fr) minmax(100px,1fr) minmax(80px,0.7fr) 90px 80px 90px 130px 80px 60px' }}
                 onClick={() => onOpenTicket(ticket.id)}
               >
@@ -1288,9 +1291,16 @@ export default function TicketsPage({ user }) {
 
                 {/* Assunto */}
                 <div className="min-w-0 pr-2">
-                  <p className={`text-sm truncate ${ticket.is_unread ? 'font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
-                    {ticket.subject}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <p className={`text-sm truncate ${ticket.is_unread ? 'font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
+                      {ticket.subject}
+                    </p>
+                    {(ticket.tags || []).includes('auto_escalado') && (
+                      <span className="flex-shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                        Escalado
+                      </span>
+                    )}
+                  </div>
                   {ticket.last_message_preview && (
                     <p className="text-[11px] mt-0.5 truncate text-[var(--text-tertiary)]">
                       {ticket.last_message_preview.substring(0, 80)}
