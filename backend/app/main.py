@@ -13,7 +13,7 @@ from pathlib import Path
 from app.core.config import settings
 from app.core.database import engine, Base, async_session
 from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta, customers, agent_analysis, chat, chatbot
-from app.api.webhooks import whatsapp as wh_whatsapp, meta_dm as wh_meta_dm, tiktok as wh_tiktok
+from app.api.webhooks import whatsapp as wh_whatsapp, meta_dm as wh_meta_dm, tiktok as wh_tiktok, vapi as wh_vapi
 from app.services.seed import seed_database
 from app.services.ticket_number import init_ticket_sequence
 from app.models.csat import CSATRating  # noqa: ensure table created
@@ -458,9 +458,9 @@ async def _run_chat_inactivity_loop():
     while True:
         try:
             async with async_session() as db:
-                cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
+                cutoff = datetime.now(timezone.utc) - timedelta(minutes=25)
 
-                # Find open conversations with last activity > 15min ago
+                # Find open conversations with last activity > 25min ago
                 result = await db.execute(
                     select(Conversation).where(
                         and_(
@@ -480,11 +480,27 @@ async def _run_chat_inactivity_loop():
                         if meta.get("pending_observation") or meta.get("pending_escalation"):
                             continue
 
-                        msg = (
-                            "Como não houve novas mensagens, vou encerrar este atendimento.\n\n"
-                            "Se precisar de algo mais, é só mandar um *oi* a qualquer momento! "
-                            "Estaremos aqui pra te ajudar."
-                        )
+                        # Differentiate timeout message by chatbot state
+                        chatbot_state = meta.get("chatbot_state", {})
+                        current_flow = chatbot_state.get("flow_name", "") if chatbot_state else ""
+
+                        if current_flow and "defeito" in current_flow.lower():
+                            msg = (
+                                "Ei, parece que você ficou ausente!\n"
+                                "Pra abrir sua solicitação de garantia, acesse:\n"
+                                "👉 *carbonsmartwatch.troque.app.br*\n\n"
+                                "Se precisar, manda um *oi* que a gente continua 👊"
+                            )
+                        elif chatbot_state and chatbot_state.get("step_index", 0) > 0:
+                            msg = (
+                                "Como você pode estar ocupado, já encaminhei sua solicitação pro nosso time 👊\n"
+                                "Vamos retornar via e-mail."
+                            )
+                        else:
+                            msg = (
+                                "Ei, tudo bem? Parece que você ficou ausente...\n"
+                                "Se precisar, manda um *oi* que a gente continua 👊"
+                            )
 
                         bot_msg = ChatMessage(
                             conversation_id=conv.id,
@@ -863,6 +879,7 @@ app.include_router(chatbot.router, prefix="/api")
 app.include_router(wh_whatsapp.router)
 app.include_router(wh_meta_dm.router)
 app.include_router(wh_tiktok.router)
+app.include_router(wh_vapi.router)
 app.include_router(ws.router)
 
 # Public CSAT rating page (no auth required - customer clicks email link)
