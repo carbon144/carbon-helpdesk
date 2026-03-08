@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     NOTION_TOKEN: str = ""
     NOTION_DATABASE_ID: str = ""  # Auto-created if empty
 
+    # Vapi Voice AI
+    VAPI_API_KEY: str = ""
+    VAPI_SERVER_SECRET: str = ""  # shared secret to verify webhook requests
+
     SLA_URGENT_HOURS: int = 4
     SLA_HIGH_HOURS: int = 8
     SLA_MEDIUM_HOURS: int = 24
