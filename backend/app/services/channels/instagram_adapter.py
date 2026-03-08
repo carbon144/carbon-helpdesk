@@ -145,9 +145,16 @@ class InstagramAdapter(ChannelAdapter):
         messages: list[dict] = []
 
         for entry in payload.get("entry", []):
+            entry_keys = list(entry.keys())
+            has_messaging = "messaging" in entry
+            logger.info("[IG-WEBHOOK] entry keys=%s has_messaging=%s", entry_keys, has_messaging)
             for event in entry.get("messaging", []):
                 msg_data = event.get("message", {})
                 if not msg_data:
+                    continue
+
+                # Skip echo messages (bot's own messages reflected back)
+                if msg_data.get("is_echo"):
                     continue
 
                 sender_id = event.get("sender", {}).get("id", "")

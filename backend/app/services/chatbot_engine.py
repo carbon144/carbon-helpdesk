@@ -105,8 +105,17 @@ class ChatbotEngine:
                 if best_kw_len > 0:
                     keyword_matches.append((best_kw_len, flow))
             elif flow.trigger_type == "greeting":
-                greetings = ["oi", "ola", "olá", "bom dia", "boa tarde", "boa noite", "hello", "hi", "hey"]
-                if text_lower in greetings:
+                greetings = [
+                    "oi", "ola", "olá", "bom dia", "boa tarde", "boa noite",
+                    "hello", "hi", "hey", "oii", "oie", "opa", "eai", "e ai",
+                    "bom dua", "boa tde", "boa trd", "boa noit", "bon dia",
+                    "bom diaaa", "boa tardeee", "boa noiteee",
+                    "ola boa tarde", "oi boa tarde", "oi bom dia", "oi boa noite",
+                    "olá boa tarde", "olá bom dia", "olá boa noite",
+                ]
+                # Match exact or first line of multiline message
+                first_line = text_lower.split("\n")[0].strip()
+                if text_lower in greetings or first_line in greetings:
                     greeting_matches.append(flow)
             elif flow.trigger_type == "any":
                 any_matches.append(flow)

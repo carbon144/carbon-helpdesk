@@ -33,6 +33,29 @@ def _extract_order_number(text: str) -> str | None:
     return None
 
 
+def _extract_tracking_code(text: str) -> str | None:
+    """Extract tracking code from text. Supports Correios (AA123456789BR), Cainiao (CNBR...), YT..., LP..., LB..."""
+    import re
+    text = text.strip().upper()
+    # Correios: 2 letters + 9 digits + 2 letters (NL247033946BR)
+    # Cainiao: 4 letters + 11 digits (CNBR00131955466)
+    # General: 2-4 alpha + 9-14 digits + 0-2 alpha
+    m = re.match(r'^([A-Z]{2,4}\d{9,14}[A-Z]{0,2})$', text)
+    if m:
+        return m.group(1)
+    # YT/LP/LB prefixed codes (YunExpress, etc)
+    m = re.match(r'^((?:YT|LP|LB|LX|RR|NL)\d{10,20}[A-Z]{0,2})$', text)
+    if m:
+        return m.group(1)
+    # Embedded in text: "rastreio CNBR00131955466"
+    m = re.search(r'\b([A-Z]{2,4}\d{9,14}[A-Z]{0,2})\b', text)
+    if m:
+        code = m.group(1)
+        if len(code) >= 10:
+            return code
+    return None
+
+
 def _extract_email(text: str) -> str | None:
     """Extract email address from message text."""
     import re
@@ -189,8 +212,17 @@ async def process_incoming_message(
     if pending_esc and conversation.handler == "agent":
         return await _handle_pending_email(db, conversation, customer, message_text, result, pending_esc)
 
-    # Layer 0: Allow "menu/voltar" to reset back to chatbot even from agent/resolved
+    # Layer -0.5: Intercept "falar com atendente" from ANY handler (including AI)
     _text_lower = message_text.strip().lower()
+    _escalate_words = ("atendente", "humano", "pessoa", "agente", "falar com alguém",
+                        "falar com alguem", "quero falar", "atendimento", "falar com atendente")
+    if _text_lower in _escalate_words and conversation.handler in ("ai", "chatbot", None):
+        return await _escalate_to_agent(
+            db, conversation, result,
+            escalation_message="Certo! Transferindo para um atendente da Carbon.\nNosso time vai responder pelo seu e-mail.",
+        )
+
+    # Layer 0: Allow "menu/voltar" to reset back to chatbot even from agent/resolved
     _menu_words = ("menu", "voltar", "inicio", "início", "0", "oi", "olá", "ola", "meni", "memu")
     if _text_lower in _menu_words and conversation.handler in ("agent", "chatbot", None):
         conversation.handler = "chatbot"
@@ -214,13 +246,79 @@ async def process_incoming_message(
         _conv_meta = {}
     _has_active_flow = bool(_conv_meta.get("chatbot_state"))
 
-    # Layer 0.5: Auto order lookup if message looks like an order number or email
-    # Skip if chatbot is waiting for input (e.g., NF flow collecting order number)
-    if not _has_active_flow and conversation.handler in ("chatbot", None, "ai"):
-        order_num = _extract_order_number(message_text)
-        email_input = _extract_email(message_text) if not order_num else None
+    # Layer 0.5: Auto order/tracking/email lookup
+    # Tracking codes and emails are always intercepted (even mid-flow — they're unambiguous)
+    # Order numbers skip if chatbot is waiting for input (to not conflict with NF flow)
+    if conversation.handler in ("chatbot", None, "ai"):
+        tracking_code = _extract_tracking_code(message_text)
+        order_num = _extract_order_number(message_text) if not tracking_code else None
+        email_input = _extract_email(message_text) if not order_num and not tracking_code else None
+        # Order numbers: only auto-lookup if no active flow (avoid conflicts with collect_input)
+        if order_num and _has_active_flow:
+            order_num = None
 
-        if order_num:
+        if tracking_code:
+            # Direct tracking code lookup — clear chatbot state if mid-flow
+            if _has_active_flow:
+                meta = dict(getattr(conversation, "metadata_", None) or {})
+                meta.pop("chatbot_state", None)
+                conversation.metadata_ = meta
+            from app.services.tracking_service import track_package
+            try:
+                track_result = await track_package(tracking_code)
+                events = track_result.get("events", [])
+                is_delivered = track_result.get("delivered", False)
+                carrier = track_result.get("carrier", "")
+
+                if events:
+                    msg = f"*Rastreio {tracking_code}*"
+                    if carrier:
+                        msg += f" ({carrier})"
+                    msg += "\n"
+
+                    last_event = events[0]
+                    if is_delivered:
+                        msg += "\n*ENTREGUE*"
+                    else:
+                        msg += f"\n*Status:* {last_event.get('status', '')}"
+                    if last_event.get("location"):
+                        msg += f"\n*Local:* {last_event['location']}"
+
+                    eta = track_result.get("estimated_delivery", "")
+                    if eta and not is_delivered:
+                        msg += f"\n*Previsão:* {eta}"
+
+                    msg += "\n"
+                    for ev in events[:5]:
+                        ev_date = _format_date_br(ev.get("date", ""))
+                        ev_status = ev.get("status", "")
+                        ev_loc = ev.get("location", "")
+                        line = f"  {ev_date} — {ev_status}"
+                        if ev_loc:
+                            line += f" ({ev_loc})"
+                        msg += f"\n{line}"
+
+                    msg += "\n\nPrecisa de mais alguma coisa? Digite *menu* para ver as opções."
+                else:
+                    status = track_result.get("status", "Sem informação")
+                    msg = (
+                        f"*Rastreio {tracking_code}*\n\n"
+                        f"Status: {status}\n\n"
+                        f"O pacote pode ter sido registrado recentemente. "
+                        f"Tente novamente em algumas horas.\n\n"
+                        f"Digite *menu* para ver as opções."
+                    )
+
+                result["bot_messages"].append(msg)
+                await _save_bot_message(db, conversation, msg)
+                result["handler"] = "chatbot"
+                conversation.handler = "chatbot"
+                await db.commit()
+                return result
+            except Exception as e:
+                logger.warning("Direct tracking lookup failed for %s: %s", tracking_code, e)
+
+        elif order_num:
             from app.services import shopify_service
             order = await shopify_service.get_order_by_number(order_num)
             if order and not order.get("error"):
@@ -249,7 +347,11 @@ async def process_incoming_message(
                 return result
 
         elif email_input:
-            # Search orders by email in Shopify + Yampi
+            # Search orders by email — clear chatbot state if mid-flow
+            if _has_active_flow:
+                meta = dict(getattr(conversation, "metadata_", None) or {})
+                meta.pop("chatbot_state", None)
+                conversation.metadata_ = meta
             from app.services import shopify_service
             shopify_result = await shopify_service.get_orders_by_email(email_input, limit=5)
             orders = shopify_result.get("orders", [])
@@ -469,8 +571,22 @@ async def process_incoming_message(
                 await db.commit()
                 return result
 
+        # Check if chatbot matched the fallback ("any" trigger) with a long message
+        # If so, redirect to AI instead of showing "Não entendi" repeatedly
+        if chatbot_result and chatbot_result.get("matched"):
+            _flow_name = chatbot_result.get("flow_name", "")
+            if _flow_name.lower() == "fallback" and len(message_text.strip()) > 10:
+                logger.info("[FALLBACK→AI] Long message '%s...' redirected to AI", message_text[:30])
+                # Don't send fallback messages — let AI handle it
+                result["bot_messages"] = []
+                result["interactive_messages"] = []
+                conversation.handler = "ai"
+                conversation.ai_enabled = True
+                # Fall through to AI layer below
+
         # No chatbot match — fall through to AI
-        conversation.handler = "ai"
+        if conversation.handler not in ("ai",):
+            conversation.handler = "ai"
 
     # Layer 2: AI auto-reply
     if conversation.handler == "ai" and conversation.ai_enabled:
@@ -491,6 +607,20 @@ async def process_incoming_message(
             contact_shopify_data=shopify_data,
             kb_articles=kb_articles if kb_articles else None,
         )
+
+        # Check if AI response promises to transfer (but code wouldn't actually do it)
+        ai_response_text = (ai_result.get("response") or "").lower()
+        _transfer_phrases = ("vou transferir", "transferindo para", "um atendente vai",
+                             "atendente da carbon", "encaminhar para", "escalar para")
+        _ai_wants_transfer = any(phrase in ai_response_text for phrase in _transfer_phrases)
+
+        if _ai_wants_transfer:
+            # AI promised transfer — actually escalate
+            logger.info("[AI-ESCALATE] AI promised transfer, escalating conversation %s", conversation.id)
+            if ai_result.get("response"):
+                result["bot_messages"].append(ai_result["response"])
+                await _save_bot_message(db, conversation, ai_result["response"])
+            return await _escalate_to_agent(db, conversation, result)
 
         if ai_result["resolved"]:
             conversation.ai_attempts = 0
@@ -993,7 +1123,7 @@ def _schedule_observation_timeout(conversation_id):
 
 async def _finalize_observation_timeout(conversation_id):
     """Auto-finalize escalation after 15min timeout on observation."""
-    from app.core.database import AsyncSessionLocal
+    from app.core.database import async_session as AsyncSessionLocal
     from app.services.channels.dispatcher import dispatcher
     from app.models.channel_identity import ChannelIdentity
 

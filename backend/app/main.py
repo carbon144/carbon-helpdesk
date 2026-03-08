@@ -457,7 +457,7 @@ async def _run_chat_inactivity_loop():
 
     while True:
         try:
-            async with AsyncSessionLocal() as db:
+            async with async_session() as db:
                 cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
 
                 # Find open conversations with last activity > 15min ago

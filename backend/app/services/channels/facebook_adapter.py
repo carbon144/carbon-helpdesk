@@ -145,9 +145,21 @@ class FacebookAdapter(ChannelAdapter):
         messages: list[dict] = []
 
         for entry in payload.get("entry", []):
+            # Debug: log entry keys to understand payload structure
+            entry_keys = list(entry.keys())
+            has_messaging = "messaging" in entry
+            has_changes = "changes" in entry
+            logger.info("[FB-WEBHOOK] entry keys=%s has_messaging=%s has_changes=%s", entry_keys, has_messaging, has_changes)
+            if has_changes:
+                for change in entry.get("changes", []):
+                    logger.info("[FB-WEBHOOK] change field=%s value_keys=%s", change.get("field"), list(change.get("value", {}).keys())[:5])
             for event in entry.get("messaging", []):
                 msg_data = event.get("message", {})
                 if not msg_data:
+                    continue
+
+                # Skip echo messages (bot's own messages reflected back)
+                if msg_data.get("is_echo"):
                     continue
 
                 sender_id = event.get("sender", {}).get("id", "")
