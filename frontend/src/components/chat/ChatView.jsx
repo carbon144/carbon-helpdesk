@@ -5,6 +5,7 @@ import ChatMessageBubble from './ChatMessageBubble'
 import ChatInput from './ChatInput'
 import TypingIndicator from './TypingIndicator'
 import ChannelIcon from './ChannelIcon'
+import VoiceCallPlayer from '../tickets/VoiceCallPlayer'
 import {
   Bot,
   CheckCircle2,
@@ -16,6 +17,7 @@ import {
 export default function ChatView({ conversation, customer, user, onConversationUpdate }) {
   const [messages, setMessages] = useState([])
   const [agents, setAgents] = useState([])
+  const [voiceCalls, setVoiceCalls] = useState([])
   const [loading, setLoading] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
@@ -44,6 +46,14 @@ export default function ChatView({ conversation, customer, user, onConversationU
   }, [conversation?.id])
 
   useEffect(() => { fetchMessages() }, [fetchMessages])
+
+  // Fetch voice calls for conversation
+  useEffect(() => {
+    if (!conversation) { setVoiceCalls([]); return }
+    api.get(`/chat/conversations/${conversation.id}/voice-calls`)
+      .then((res) => setVoiceCalls(res.data || []))
+      .catch(() => setVoiceCalls([]))
+  }, [conversation?.id])
 
   useEffect(() => {
     api.get('/auth/users').then((res) => setAgents(res.data || [])).catch(() => {})
@@ -88,12 +98,16 @@ export default function ChatView({ conversation, customer, user, onConversationU
 
   useChatEvents(token, handleChatEvent)
 
-  // Fallback: light polling every 30s for any missed messages
+  // Fallback: light polling every 30s for any missed messages (only when visible)
+  const fetchMessagesRef = useRef(fetchMessages)
+  fetchMessagesRef.current = fetchMessages
   useEffect(() => {
     if (!conversation) return
-    const interval = setInterval(fetchMessages, 30000)
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchMessagesRef.current()
+    }, 30000)
     return () => clearInterval(interval)
-  }, [conversation?.id, fetchMessages])
+  }, [conversation?.id])
 
   const handleSendMessage = useCallback(async (content) => {
     if (!conversation) return
@@ -175,7 +189,7 @@ export default function ChatView({ conversation, customer, user, onConversationU
     <div className="flex-1 flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#1F1F23' }}>
         <div className="flex items-center gap-3">
           {customer?.avatar_url ? (
             <img src={customer.avatar_url} alt={contactName} className="w-9 h-9 rounded-full object-cover" />
@@ -270,6 +284,13 @@ export default function ChatView({ conversation, customer, user, onConversationU
           </div>
         ) : (
           <>
+            {voiceCalls.length > 0 && (
+              <div className="px-4 pb-2">
+                {voiceCalls.map((vc) => (
+                  <VoiceCallPlayer key={vc.id} voiceCall={vc} />
+                ))}
+              </div>
+            )}
             {messages.map((msg) => (
               <ChatMessageBubble key={msg.id} message={msg} agentName={getAgentName(msg)} />
             ))}

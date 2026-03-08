@@ -264,3 +264,25 @@ async def resolve_conversation(
     conv.last_message_at = now
     await db.commit()
     return {"status": "resolved"}
+
+
+@router.get("/conversations/{conv_id}/voice-calls")
+async def get_conversation_voice_calls(conv_id: str, db: AsyncSession = Depends(get_db), user = Depends(get_current_user)):
+    from app.models.voice_call import VoiceCall
+    result = await db.execute(
+        select(VoiceCall).where(VoiceCall.conversation_id == conv_id).order_by(VoiceCall.created_at.desc())
+    )
+    calls = result.scalars().all()
+    return [
+        {
+            "id": str(c.id),
+            "vapi_call_id": c.vapi_call_id,
+            "caller_phone": c.caller_phone,
+            "duration_seconds": c.duration_seconds,
+            "recording_url": c.recording_url,
+            "transcript": c.transcript,
+            "summary": c.summary,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        }
+        for c in calls
+    ]

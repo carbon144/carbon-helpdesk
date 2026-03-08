@@ -1126,9 +1126,13 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
             scheduled_at = scheduled_at.replace(tzinfo=timezone.utc)
         is_scheduled = scheduled_at > datetime.now(timezone.utc)
 
-    # For outbound gmail messages, try to send email BEFORE saving to DB
+    # For outbound messages, try to send email BEFORE saving to DB
     # This way if email fails, the agent sees the error and can retry
-    if body.type == "outbound" and not is_scheduled and ticket.source == "gmail" and ticket.customer:
+    # Works for gmail tickets AND chat-escalated tickets that have a customer email
+    email_result = None
+    _has_customer_email = ticket.customer and getattr(ticket.customer, "email", None)
+    _sendable_source = ticket.source == "gmail" or (ticket.source in ("whatsapp", "instagram", "facebook", "chat") and _has_customer_email)
+    if body.type == "outbound" and not is_scheduled and _sendable_source and ticket.customer:
         from app.services.gmail_service import send_email
         thread_msg = await db.execute(
             select(Message).where(
@@ -1165,6 +1169,8 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
         attachments=body.attachments if body.attachments else None,
         scheduled_at=scheduled_at if is_scheduled else None,
         is_scheduled=is_scheduled,
+        gmail_thread_id=email_result.get("threadId") if email_result else None,
+        gmail_message_id=email_result.get("id") if email_result else None,
     )
     db.add(msg)
     if body.type == "outbound" and not is_scheduled and not ticket.first_response_at:
@@ -1192,6 +1198,28 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
                 )
         except Exception as e:
             logger.error(f"Failed to send reply to Slack: {e}")
+
+        # Notify customer on WhatsApp when agent replies to a chat-escalated ticket
+        if ticket.source in ("whatsapp", "instagram", "facebook") and ticket.meta_conversation_id:
+            try:
+                from app.models.channel_identity import ChannelIdentity
+                from app.services.meta_service import send_message as meta_send
+                ci_result = await db.execute(
+                    select(ChannelIdentity).where(
+                        ChannelIdentity.customer_id == ticket.customer_id,
+                        ChannelIdentity.channel == ticket.source,
+                    )
+                )
+                ci = ci_result.scalar_one_or_none()
+                if ci:
+                    wa_msg = (
+                        f"Oi! Acabamos de responder seu chamado *#{ticket.number}* por e-mail.\n"
+                        f"Dá uma olhada na sua caixa de entrada 📩"
+                    )
+                    await meta_send(ticket.source, ci.channel_id, wa_msg)
+                    logger.info("[WA-NOTIFY] Sent reply notification to %s for ticket #%s", ci.channel_id, ticket.number)
+            except Exception as e:
+                logger.warning("[WA-NOTIFY] Failed to notify customer on %s: %s", ticket.source, e)
 
     # RF-019: Auto-generate summary every 3 messages
     try:
@@ -1565,3 +1593,25 @@ async def unmerge_ticket(
         "messages_restored": restored_count,
         "source_ticket_id": source.id,
     }
+
+
+@router.get("/{ticket_id}/voice-calls")
+async def get_voice_calls(ticket_id: str, db: AsyncSession = Depends(get_db), user = Depends(get_current_user)):
+    from app.models.voice_call import VoiceCall
+    result = await db.execute(
+        select(VoiceCall).where(VoiceCall.ticket_id == ticket_id).order_by(VoiceCall.created_at.desc())
+    )
+    calls = result.scalars().all()
+    return [
+        {
+            "id": str(c.id),
+            "vapi_call_id": c.vapi_call_id,
+            "caller_phone": c.caller_phone,
+            "duration_seconds": c.duration_seconds,
+            "recording_url": c.recording_url,
+            "transcript": c.transcript,
+            "summary": c.summary,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        }
+        for c in calls
+    ]
