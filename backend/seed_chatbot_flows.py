@@ -284,7 +284,8 @@ FLOWS = [
 
     # ══════════════════════════════════════════════════════════════
     # 7. DEFEITO / NÃO FUNCIONA
-    # 5.5% do volume. Coletar dados + direcionar pra troque.app
+    # 5.5% do volume. Questionário completo (baseado no Reportana/troque.app)
+    # Coleta tudo → cria ticket → cliente envia fotos por email
     # ══════════════════════════════════════════════════════════════
     {
         "name": "Defeito / Não Funciona",
@@ -302,49 +303,67 @@ FLOWS = [
                 "type": "send_message",
                 "message": (
                     "Sinto muito que você esteja tendo problemas com seu Carbon.\n"
-                    "Vou coletar algumas informações para analisar seu caso."
+                    "Vou precisar de algumas informações para analisar seu caso de garantia."
                 ),
+            },
+            {
+                "type": "collect_input",
+                "variable": "order_number",
+                "message": "Informe o *número do pedido* da compra:",
             },
             {
                 "type": "collect_input",
                 "variable": "modelo",
                 "message": (
-                    "Qual o modelo do seu relógio?\n"
+                    "Qual o *modelo* do seu relógio?\n"
                     "Carbon Raptor, Atlas, One Max ou Aurora?"
                 ),
             },
             {
                 "type": "collect_input",
                 "variable": "problema",
-                "message": "Descreva o problema que está acontecendo:",
+                "message": "Descreva o *problema* que está acontecendo com o produto:",
             },
             {
                 "type": "collect_input",
-                "variable": "order_number",
-                "message": "Informe o número do pedido ou NF para verificar a garantia:",
+                "variable": "tentou_reset",
+                "message": (
+                    "Você já tentou fazer o *reset de fábrica*?\n"
+                    "Configurações → Restaurar padrão de fábrica\n\n"
+                    "Responda *sim* ou *não*."
+                ),
+            },
+            {
+                "type": "collect_input",
+                "variable": "aceita_vale",
+                "message": (
+                    "Antes de prosseguir: você aceitaria um *vale compras* no valor do produto "
+                    "para usar quando quiser na nossa loja?\n\n"
+                    "Responda *sim* (quero vale compras) ou *não* (quero troca/devolução)."
+                ),
             },
             {
                 "type": "send_message",
                 "message": (
                     "Obrigado pelas informações!\n\n"
-                    "A Carbon oferece garantia de 1 ano. Para dar andamento à sua solicitação, "
-                    "acesse nosso portal de trocas e devoluções:\n\n"
-                    "*carbonsmartwatch.troque.app.br*\n\n"
-                    "Lá você consegue abrir a solicitação com fotos e acompanhar o andamento.\n\n"
-                    "Importante: atualmente não realizamos reparos nem temos assistência técnica. "
-                    "Caso seu produto esteja na garantia, fazemos a troca por um novo.\n\n"
-                    "Vou abrir um chamado com as informações que você me passou "
-                    "para que nossa equipe acompanhe o seu caso."
+                    "A Carbon oferece *garantia de 1 ano*. Não realizamos reparos — "
+                    "caso o produto esteja na garantia, fazemos a *troca por um novo*.\n\n"
+                    "Vou abrir um chamado com tudo que você me informou. "
+                    "Nossa equipe vai responder pelo seu *e-mail*.\n\n"
+                    "*IMPORTANTE:* Ao receber o e-mail do chamado, responda anexando "
+                    "*fotos do produto* mostrando o defeito. Isso agiliza a análise!"
                 ),
             },
             {
                 "type": "transfer_to_agent",
                 "message": (
-                    "Chamado aberto para análise de defeito/garantia.\n\n"
+                    "SOLICITAÇÃO DE GARANTIA/TROCA\n\n"
+                    "Pedido: {{order_number}}\n"
                     "Modelo: {{modelo}}\n"
                     "Problema: {{problema}}\n"
-                    "Pedido: {{order_number}}\n\n"
-                    "Nossa equipe vai responder pelo seu e-mail."
+                    "Tentou reset: {{tentou_reset}}\n"
+                    "Aceita vale compras: {{aceita_vale}}\n\n"
+                    "Aguardando fotos do produto por e-mail."
                 ),
                 "department": "garantia",
             },
