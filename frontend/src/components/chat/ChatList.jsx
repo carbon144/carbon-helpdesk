@@ -19,6 +19,7 @@ function timeAgo(dateStr) {
 const channelOptions = [
   { key: null, label: 'Todos' },
   { key: 'chat', label: 'Chat' },
+  { key: 'phone', label: 'Telefone' },
   { key: 'whatsapp', label: 'WhatsApp' },
   { key: 'instagram', label: 'Instagram' },
   { key: 'facebook', label: 'Facebook' },
@@ -47,6 +48,13 @@ export default function ChatList({ activeConversationId, onSelectConversation })
   const [status, setStatus] = useState('open')
   const [search, setSearch] = useState('')
 
+  // Use ref for customers to avoid stale closures in useCallback
+  const customersRef = useRef({})
+  customersRef.current = customers
+
+  // Debounce WS-triggered refreshes (multiple events within 1s = 1 fetch)
+  const debounceRef = useRef(null)
+
   const fetchConversations = useCallback(async () => {
     try {
       const params = { limit: 50 }
@@ -56,20 +64,22 @@ export default function ChatList({ activeConversationId, onSelectConversation })
       const res = await api.get('/chat/conversations', { params })
       const convs = res.data || []
 
-      // Fetch customer names
+      // Fetch only unknown customer names (use ref to avoid stale data)
+      const known = customersRef.current
       const custIds = [...new Set(convs.map((c) => c.customer_id))]
-      const newCusts = { ...customers }
-      await Promise.all(
-        custIds
-          .filter((id) => !newCusts[id])
-          .map(async (id) => {
+      const unknownIds = custIds.filter((id) => !known[id])
+      if (unknownIds.length > 0) {
+        const newCusts = { ...known }
+        await Promise.all(
+          unknownIds.map(async (id) => {
             try {
               const r = await api.get(`/customers/${id}`)
               newCusts[id] = r.data
             } catch { /* skip */ }
           })
-      )
-      setCustomers(newCusts)
+        )
+        setCustomers(newCusts)
+      }
       setConversations(convs)
     } catch (err) {
       console.error('Failed to fetch conversations:', err)
@@ -83,30 +93,38 @@ export default function ChatList({ activeConversationId, onSelectConversation })
     fetchConversations()
   }, [fetchConversations])
 
-  // Real-time: refresh list on new conversation or new message
+  // Real-time: debounced refresh on WS events (coalesce rapid events)
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('carbon_token') : null
+
+  const fetchRef = useRef(fetchConversations)
+  fetchRef.current = fetchConversations
 
   const handleChatEvent = useCallback((data) => {
     if (data.event === 'new_conversation' || data.event === 'new_message' || data.event === 'escalation') {
-      fetchConversations()
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(() => fetchRef.current(), 1000)
     }
-  }, [fetchConversations])
+  }, [])
 
   useChatEvents(token, handleChatEvent)
 
-  // Fallback polling every 30s
+  // Fallback polling every 30s (only when tab is visible)
   useEffect(() => {
-    const interval = setInterval(fetchConversations, 30000)
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchRef.current()
+    }, 30000)
     return () => clearInterval(interval)
-  }, [fetchConversations])
+  }, [])
 
   const filteredConversations = search
     ? conversations.filter((c) => {
         const cust = customers[c.customer_id]
         const name = (cust?.name || '').toLowerCase()
         const email = (cust?.email || '').toLowerCase()
+        const phone = (cust?.phone || '').replace(/\D/g, '')
         const q = search.toLowerCase()
-        return name.includes(q) || email.includes(q) || (c.subject || '').toLowerCase().includes(q)
+        const qDigits = search.replace(/\D/g, '')
+        return name.includes(q) || email.includes(q) || (c.subject || '').toLowerCase().includes(q) || (qDigits && phone.includes(qDigits))
       })
     : conversations
 
@@ -213,11 +231,16 @@ export default function ChatList({ activeConversationId, onSelectConversation })
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-sm truncate" style={{ color: '#E4E4E7' }}>{name}</span>
-                      <span className="text-xs whitespace-nowrap flex-shrink-0" style={{ color: '#52525B' }}>
+                      <span className="font-medium text-sm truncate" style={{ color: '#F4F4F5' }}>{name}</span>
+                      <span className="text-xs whitespace-nowrap flex-shrink-0" style={{ color: '#71717A' }}>
                         {timeAgo(conv.last_message_at)}
                       </span>
                     </div>
+                    {cust?.phone && (
+                      <p className="text-xs mt-0.5 truncate" style={{ color: '#A1A1AA' }}>
+                        {cust.phone}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 mt-0.5">
                       <p className="text-xs truncate flex-1" style={{ color: '#71717A' }}>
                         {conv.subject || `#${conv.number || ''}`}
