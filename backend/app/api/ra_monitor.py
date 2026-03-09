@@ -12,27 +12,18 @@ router = APIRouter(prefix="/ra-monitor", tags=["reclame-aqui"])
 
 
 @router.get("/complaints")
-async def get_ra_complaints(
-    limit: int = 10,
-    user: User = Depends(get_current_user),
-):
-    """Fetch latest RA complaints (live scrape)."""
+async def get_ra_complaints(limit: int = 10, user: User = Depends(get_current_user)):
+    """Fetch latest RA complaints via Google Search."""
     from app.services.ra_monitor import fetch_ra_complaints
-    try:
-        complaints = await fetch_ra_complaints(limit=limit)
-        return {"complaints": complaints, "total": len(complaints)}
-    except Exception as e:
-        logger.error(f"RA complaints fetch failed: {e}")
-        raise HTTPException(500, f"Erro ao buscar reclamações: {str(e)}")
+    complaints = await fetch_ra_complaints(limit=limit)
+    return {"complaints": complaints, "total": len(complaints)}
 
 
 @router.get("/reputation")
 async def get_ra_reputation(user: User = Depends(get_current_user)):
-    """Fetch RA company reputation score."""
+    """Fetch RA company reputation."""
     from app.services.ra_monitor import fetch_ra_reputation
     reputation = await fetch_ra_reputation()
-    if not reputation:
-        return {"reputation": None, "message": "Não foi possível buscar reputação"}
     return {"reputation": reputation}
 
 
@@ -68,17 +59,3 @@ async def sync_ra_complaints(
         "details": created,
         "errors": errors,
     }
-
-
-@router.get("/status")
-async def ra_monitor_status(user: User = Depends(get_current_user)):
-    """Check if Playwright is available for RA scraping."""
-    try:
-        from playwright.async_api import async_playwright
-        return {"available": True, "engine": "playwright"}
-    except ImportError:
-        return {
-            "available": False,
-            "engine": None,
-            "message": "Playwright não instalado. Execute: pip install playwright && playwright install chromium",
-        }
