@@ -76,6 +76,11 @@ export const createInbox = (data) => api.post('/inboxes', data)
 // ── Dashboard ──
 export const getDashboardStats = (days = 30) => api.get('/dashboard/stats', { params: { days } })
 export const getAgentDashboardStats = (days = 30) => api.get('/dashboard/agent-stats', { params: { days } })
+export const getLeaderDashboard = () => api.get('/dashboard/leader')
+
+// ── Reclame Aqui ──
+export const getRATickets = (limit = 50) => api.get('/ra-monitor/tickets', { params: { limit } })
+export const syncRAComplaints = () => api.post('/ra-monitor/sync')
 
 // ── KB ──
 export const getArticles = (params) => api.get('/kb/articles', { params })

@@ -26,6 +26,8 @@ const ChatbotFlowsPage = lazy(() => import('../pages/ChatbotFlowsPage'))
 const VoiceCallsPage = lazy(() => import('../pages/VoiceCallsPage'))
 const MacrosPage = lazy(() => import('../pages/MacrosPage'))
 const TriagemPage = lazy(() => import('../pages/TriagemPage'))
+const LeaderDashboardPage = lazy(() => import('../pages/LeaderDashboardPage'))
+const RAMonitorPage = lazy(() => import('../pages/RAMonitorPage'))
 
 const AUTO_REFRESH_MS = 30_000
 
@@ -117,6 +119,8 @@ export default function Layout({ user, onLogout }) {
             <Route path="/integrations" element={<IntegrationsPage />} />
             <Route path="/macros" element={<MacrosPage />} />
             <Route path="/triagem" element={<TriagemPage user={user} />} />
+            <Route path="/leader" element={<LeaderDashboardPage />} />
+            <Route path="/ra-monitor" element={<RAMonitorPage />} />
             <Route path="/settings" element={<SettingsPage user={user} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
