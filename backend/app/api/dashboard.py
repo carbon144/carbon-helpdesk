@@ -259,3 +259,112 @@ async def get_agent_stats(
 
     await cache_set(cache_key, result, ttl_seconds=120)
     return result
+
+
+@router.get("/leader")
+async def get_leader_dashboard(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Dashboard do lider: KPIs por agente, presenca, alertas."""
+    from app.services.triage_service import get_online_agents
+
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=today_start.weekday())
+
+    # All agents
+    agents_result = await db.execute(
+        select(User).where(User.is_active == True, User.role.in_(["agent", "supervisor", "admin"]))
+    )
+    all_agents = agents_result.scalars().all()
+    online_agents = await get_online_agents(db)
+    online_ids = {a.id for a in online_agents}
+    agent_ids = [a.id for a in all_agents]
+
+    # Batch: open tickets per agent
+    open_q = await db.execute(
+        select(Ticket.assigned_to, func.count())
+        .where(
+            Ticket.assigned_to.in_(agent_ids),
+            Ticket.status.notin_(["resolved", "closed", "archived", "merged"])
+        )
+        .group_by(Ticket.assigned_to)
+    )
+    open_map = dict(open_q.all())
+
+    # Batch: resolved today per agent
+    resolved_today_q = await db.execute(
+        select(Ticket.assigned_to, func.count())
+        .where(Ticket.assigned_to.in_(agent_ids), Ticket.resolved_at >= today_start)
+        .group_by(Ticket.assigned_to)
+    )
+    resolved_today_map = dict(resolved_today_q.all())
+
+    # Batch: resolved this week per agent
+    resolved_week_q = await db.execute(
+        select(Ticket.assigned_to, func.count())
+        .where(Ticket.assigned_to.in_(agent_ids), Ticket.resolved_at >= week_start)
+        .group_by(Ticket.assigned_to)
+    )
+    resolved_week_map = dict(resolved_week_q.all())
+
+    # Batch: avg response time (last 7 days) per agent
+    avg_resp_q = await db.execute(
+        select(
+            Ticket.assigned_to,
+            func.avg(func.extract("epoch", Ticket.first_response_at - Ticket.created_at) / 3600)
+        )
+        .where(
+            Ticket.assigned_to.in_(agent_ids),
+            Ticket.first_response_at.isnot(None),
+            Ticket.created_at >= today_start - timedelta(days=7),
+        )
+        .group_by(Ticket.assigned_to)
+    )
+    avg_resp_map = {row[0]: round(row[1] or 0, 1) for row in avg_resp_q.all()}
+
+    agent_stats = []
+    for agent in all_agents:
+        agent_stats.append({
+            "id": agent.id, "name": agent.name, "role": agent.role,
+            "specialty": agent.specialty,
+            "is_online": agent.id in online_ids,
+            "last_activity": agent.last_activity_at.isoformat() if agent.last_activity_at else None,
+            "open_tickets": open_map.get(agent.id, 0),
+            "resolved_today": resolved_today_map.get(agent.id, 0),
+            "resolved_week": resolved_week_map.get(agent.id, 0),
+            "avg_response_hours": avg_resp_map.get(agent.id, 0),
+        })
+
+    # Global: unassigned tickets
+    unassigned_q = await db.execute(
+        select(func.count()).select_from(Ticket).where(
+            Ticket.assigned_to.is_(None),
+            Ticket.status.notin_(["resolved", "closed", "archived", "merged"])
+        )
+    )
+    unassigned = unassigned_q.scalar()
+
+    # Alerts
+    alerts = []
+    if unassigned > 10:
+        alerts.append({"type": "warning", "message": f"{unassigned} tickets sem agente"})
+    if len(online_ids) < 2:
+        alerts.append({"type": "critical", "message": f"Apenas {len(online_ids)} agente(s) online"})
+
+    # AI auto-replies today
+    ai_replied_q = await db.execute(
+        select(func.count()).select_from(Ticket).where(
+            Ticket.auto_replied == True, Ticket.auto_reply_at >= today_start,
+        )
+    )
+    ai_replied_today = ai_replied_q.scalar()
+
+    return {
+        "agents": sorted(agent_stats, key=lambda x: x["resolved_today"], reverse=True),
+        "online_count": len(online_ids),
+        "total_agents": len(all_agents),
+        "alerts": alerts,
+        "ai_replies_today": ai_replied_today,
+        "unassigned_count": unassigned,
+    }

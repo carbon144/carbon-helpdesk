@@ -50,4 +50,12 @@ async def get_current_user(
     user = result.scalar_one_or_none()
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="Usuário não encontrado ou inativo")
+
+    # Track agent activity (throttle: update only if >60s since last)
+    now = datetime.now(timezone.utc)
+    if user.last_activity_at is None or (now - user.last_activity_at).total_seconds() > 60:
+        user.last_activity_at = now
+        db.add(user)
+        await db.commit()
+
     return user

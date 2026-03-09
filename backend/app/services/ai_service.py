@@ -417,7 +417,8 @@ REGRAS ABSOLUTAS:
 - Sem emojis exagerados (máximo 1 por mensagem).
 
 REGRAS DE NEGÓCIO:
-- Modelos: Carbon Raptor, Atlas, One Max, Aurora, Quartz
+- Modelos atuais: Carbon Raptor, Atlas, One Max, Aurora, Quartz
+- Carbon One (DESCONTINUADO): modelo antigo, pulseira 24mm. Carbon One Max é a evolução do Carbon One, pulseira 22mm. NÃO são compatíveis entre si (pulseiras diferentes).
 - Garantia: legal 90 dias + contratual 12 meses. Carbon Care estende pra 24 meses (upsell).
 - NÃO temos assistência técnica. Dentro da garantia: troca por novo. Fora: cupom de desconto.
 - Portal trocas/devoluções: carbonsmartwatch.troque.app.br (sempre direcionar pra lá)
@@ -616,7 +617,8 @@ A Carbon é uma marca brasileira de smartwatches e acessórios.
 === REGRAS DE NEGÓCIO ===
 
 PRODUTOS:
-- Modelos: Carbon Raptor, Carbon Atlas, Carbon One Max, Carbon Aurora, Carbon Quartz
+- Modelos atuais: Carbon Raptor, Carbon Atlas, Carbon One Max, Carbon Aurora, Carbon Quartz
+- Carbon One (DESCONTINUADO): modelo antigo, pulseira 24mm. Carbon One Max é a evolução, pulseira 22mm. Pulseiras NÃO são compatíveis entre si.
 - Carregador magnético incluso
 - Pulseiras de silicone, metal e luxe
 

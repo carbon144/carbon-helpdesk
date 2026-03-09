@@ -12,7 +12,7 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.core.database import engine, Base, async_session
-from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta, customers, agent_analysis, chat, chatbot
+from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta, customers, agent_analysis, chat, chatbot, triage
 from app.api.webhooks import whatsapp as wh_whatsapp, meta_dm as wh_meta_dm, tiktok as wh_tiktok, vapi as wh_vapi
 from app.services.seed import seed_database
 from app.services.ticket_number import init_ticket_sequence
@@ -443,6 +443,22 @@ async def _run_weekly_analysis():
         await asyncio.sleep(3600)
 
 
+async def _run_auto_close_loop():
+    """Background task: auto-close stale tickets every 6 hours."""
+    from app.services.auto_close_service import auto_close_stale_tickets
+    aclose_logger = logging.getLogger("auto_close")
+    await asyncio.sleep(120)  # Wait for startup
+    while True:
+        try:
+            async with async_session() as session:
+                result = await auto_close_stale_tickets(session)
+                if result["auto_closed"]:
+                    aclose_logger.info(f"Auto-closed {result['auto_closed']} stale tickets")
+        except Exception as e:
+            aclose_logger.error(f"Auto-close failed: {e}")
+        await asyncio.sleep(21600)  # 6 hours
+
+
 async def _run_chat_inactivity_loop():
     """Background task: auto-close chat conversations inactive for 15+ minutes."""
     from datetime import datetime, timezone, timedelta
@@ -827,6 +843,7 @@ async def lifespan(app: FastAPI):
     scheduled_email_task = asyncio.create_task(_run_scheduled_email_loop())
     weekly_analysis_task = asyncio.create_task(_run_weekly_analysis())
     chat_inactivity_task = asyncio.create_task(_run_chat_inactivity_loop())
+    auto_close_task = asyncio.create_task(_run_auto_close_loop())
 
     yield
 
@@ -835,6 +852,7 @@ async def lifespan(app: FastAPI):
     scheduled_email_task.cancel()
     weekly_analysis_task.cancel()
     chat_inactivity_task.cancel()
+    auto_close_task.cancel()
 
 
 app = FastAPI(
@@ -883,6 +901,7 @@ app.include_router(wh_vapi.router)
 
 from app.api import voice_calls
 app.include_router(voice_calls.router, prefix="/api")
+app.include_router(triage.router, prefix="/api")
 app.include_router(ws.router)
 
 # Public CSAT rating page (no auth required - customer clicks email link)

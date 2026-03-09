@@ -35,7 +35,8 @@ Você está respondendo a um email de cliente automaticamente. O email já foi c
 - Sem emojis.
 
 === REGRAS DE NEGÓCIO ===
-- Modelos: Carbon Raptor, Atlas, One Max, Aurora, Quartz
+- Modelos atuais: Carbon Raptor, Atlas, One Max, Aurora, Quartz
+- Carbon One (DESCONTINUADO): modelo antigo, pulseira 24mm. One Max é a evolução, pulseira 22mm. Pulseiras NÃO compatíveis.
 - Garantia: 12 meses contra defeitos. Troca direta (sem assistência técnica).
 - Portal trocas: carbonsmartwatch.troque.app.br
 - Cancelamento antes de envio: ok. Depois: recusar entrega ou devolver em 7 dias.
