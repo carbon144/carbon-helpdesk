@@ -31,6 +31,7 @@ const NAV_GROUPS = [
   {
     label: 'Gestao',
     items: [
+      { to: '/triagem', label: 'Triagem', icon: 'fa-filter', roles: ['super_admin', 'admin', 'supervisor'] },
       { to: '/leaderboard', label: 'Performance', icon: 'fa-gamepad', roles: ['super_admin', 'admin', 'supervisor'] },
       { to: '/agent-analysis', label: 'Analise de Equipe', icon: 'fa-microscope', roles: ['super_admin'] },
       { to: '/reports', label: 'Relatorios', icon: 'fa-chart-bar', roles: ['super_admin', 'admin', 'supervisor'] },

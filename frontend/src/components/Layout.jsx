@@ -25,6 +25,7 @@ const ChatPage = lazy(() => import('../pages/ChatPage'))
 const ChatbotFlowsPage = lazy(() => import('../pages/ChatbotFlowsPage'))
 const VoiceCallsPage = lazy(() => import('../pages/VoiceCallsPage'))
 const MacrosPage = lazy(() => import('../pages/MacrosPage'))
+const TriagemPage = lazy(() => import('../pages/TriagemPage'))
 
 const AUTO_REFRESH_MS = 30_000
 
@@ -115,6 +116,7 @@ export default function Layout({ user, onLogout }) {
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/integrations" element={<IntegrationsPage />} />
             <Route path="/macros" element={<MacrosPage />} />
+            <Route path="/triagem" element={<TriagemPage user={user} />} />
             <Route path="/settings" element={<SettingsPage user={user} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
