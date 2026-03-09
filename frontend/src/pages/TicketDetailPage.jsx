@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast'
 import {
-  getTicket, getTickets, updateTicket, addMessage, getMacros, getUsers, getCustomerHistory,
+  getTicket, getTickets, updateTicket, addMessage, getMacros, trackMacroUse, getUsers, getCustomerHistory,
   triageTicket, suggestReply, updateSupplierNotes, updateTracking, refreshTracking,
   blacklistCustomer, unblacklistCustomer, generateSummary, getNextTicket,
   updateInternalNotes, sendProtocolEmail, backfillProtocols,
@@ -134,9 +134,10 @@ function ChatBubble({ msg, isLast, isLastInbound }) {
   )
 }
 
-function applyMacroVars(content, ticket) {
+function applyMacroVars(content, ticket, agentName) {
   return content
     .replace(/\{\{cliente\}\}/gi, ticket.customer?.name || '')
+    .replace(/\{\{agente\}\}/gi, agentName || '')
     .replace(/\{\{email\}\}/gi, ticket.customer?.email || '')
     .replace(/\{\{numero\}\}/gi, `#${ticket.number}`)
     .replace(/\{\{assunto\}\}/gi, ticket.subject || '')
@@ -634,23 +635,26 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
   const handleSlashSelect = (macro) => {
     // Remove the "/query" from the reply text
     const slashPos = reply.lastIndexOf('/')
-    setReply(applyMacroVars(macro.content, ticket))
+    setReply(applyMacroVars(macro.content, ticket, user?.name))
     setSlashOpen(false); setSlashFilter(''); setSlashIdx(0)
     textareaRef.current?.focus()
     if (macro.actions?.length) executeMacroActions(macro)
+    trackMacroUse(macro.id).catch(() => {})
   }
 
   const handleMacroClick = (macro) => {
-    setReply(applyMacroVars(macro.content, ticket)); setShowMacros(false); textareaRef.current?.focus()
+    setReply(applyMacroVars(macro.content, ticket, user?.name)); setShowMacros(false); textareaRef.current?.focus()
     if (macro.actions?.length) executeMacroActions(macro)
+    trackMacroUse(macro.id).catch(() => {})
   }
 
   const handleMacroSendDirect = async (macro) => {
     setSending(true)
     try {
-      await addMessage(ticketId, { body_text: applyMacroVars(macro.content, ticket), type: 'outbound' })
+      await addMessage(ticketId, { body_text: applyMacroVars(macro.content, ticket, user?.name), type: 'outbound' })
       if (macro.actions?.length) await executeMacroActions(macro)
       setShowMacros(false); loadTicket()
+      trackMacroUse(macro.id).catch(() => {})
     }
     catch (e) { toast.error('Falha ao executar macro') } finally { setSending(false) }
   }
@@ -1265,7 +1269,7 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                                       {macro.name}
                                       {macro.actions?.length > 0 && <i className="fas fa-cog text-[9px] text-[var(--text-tertiary)]" title={`Ações: ${macro.actions.map(a => a.type).join(', ')}`} />}
                                     </p>
-                                    <p className="text-[var(--text-tertiary)] text-[11px] line-clamp-1 mt-0.5">{applyMacroVars(macro.content, ticket).substring(0, 80)}</p>
+                                    <p className="text-[var(--text-tertiary)] text-[11px] line-clamp-1 mt-0.5">{applyMacroVars(macro.content, ticket, user?.name).substring(0, 80)}</p>
                                   </div>
                                   <i className="fas fa-arrow-right text-[10px] text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 mt-1 transition" />
                                 </button>
@@ -1343,7 +1347,7 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                                     <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400">+ ações</span>
                                   )}
                                 </p>
-                                <p className="text-[var(--text-tertiary)] text-[11px] line-clamp-1 mt-0.5">{applyMacroVars(macro.content, ticket).substring(0, 90)}</p>
+                                <p className="text-[var(--text-tertiary)] text-[11px] line-clamp-1 mt-0.5">{applyMacroVars(macro.content, ticket, user?.name).substring(0, 90)}</p>
                               </div>
                             </button>
                           ))}

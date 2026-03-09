@@ -130,6 +130,20 @@ async def update_macro(macro_id: str, body: MacroUpdate, db: AsyncSession = Depe
     return MacroResponse.model_validate(macro)
 
 
+@router.post("/macros/{macro_id}/use")
+async def track_macro_use(macro_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    try:
+        result = await db.execute(select(Macro).where(Macro.id == macro_id))
+    except Exception:
+        raise HTTPException(status_code=404, detail="Macro não encontrada")
+    macro = result.scalar_one_or_none()
+    if not macro:
+        raise HTTPException(status_code=404, detail="Macro não encontrada")
+    macro.use_count = (macro.use_count or 0) + 1
+    await db.commit()
+    return {"ok": True, "use_count": macro.use_count}
+
+
 @router.delete("/macros/{macro_id}")
 async def delete_macro(macro_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     result = await db.execute(select(Macro).where(Macro.id == macro_id))

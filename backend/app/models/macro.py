@@ -2,7 +2,7 @@ import uuid
 from typing import Optional
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Text, Boolean, DateTime, JSON
+from sqlalchemy import String, Text, Boolean, DateTime, JSON, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -20,3 +20,5 @@ class Macro(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     # Actions: list of dicts like [{"type": "set_status", "value": "resolved"}, {"type": "add_tag", "value": "garantia"}]
     actions: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=None)
+    use_count: Mapped[int] = mapped_column(default=0)
+    created_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

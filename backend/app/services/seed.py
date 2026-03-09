@@ -145,20 +145,71 @@ async def seed_database(db: AsyncSession):
     ]
     db.add_all(articles)
 
-    # ── Macros ──
+    # ── Macros (aligned with 6 system categories) ──
     macros = [
-        Macro(name="Saudação Inicial", category="geral",
-            content="Olá! Obrigado por entrar em contato com o suporte Carbon. Meu nome é {agente} e ficarei responsável pelo seu atendimento. Como posso ajudar?"),
-        Macro(name="Solicitar Informações", category="geral",
-            content="Para dar andamento ao seu caso, precisamos das seguintes informações:\n- Número do pedido\n- Modelo do relógio\n- Fotos do problema\n\nAguardamos seu retorno!"),
+        # ── meu_pedido ──
+        Macro(name="Rastreio do Pedido", category="meu_pedido",
+            content="Oi, {{cliente}}! Seu pedido {{numero}} está com o seguinte status de rastreio:\n\nCódigo: {{rastreio}}\nStatus: em trânsito\n\nVocê pode acompanhar em tempo real pelo site dos Correios. Qualquer dúvida, estou aqui!"),
+        Macro(name="Pedido a Caminho", category="meu_pedido",
+            content="{{cliente}}, boas notícias! Seu pedido já saiu do nosso centro de distribuição e está a caminho.\n\nCódigo de rastreio: {{rastreio}}\nPrevisão: 5 a 12 dias úteis dependendo da sua região.\n\nAcompanhe pelo site dos Correios!"),
+        Macro(name="Nota Fiscal", category="meu_pedido",
+            content="{{cliente}}, segue em anexo a nota fiscal do seu pedido {{numero}}.\n\nCaso precise de uma segunda via futuramente, é só nos chamar!"),
+        Macro(name="Pedido Não Recebido", category="meu_pedido",
+            content="{{cliente}}, lamento que seu pedido ainda não chegou. Vou verificar o status agora mesmo.\n\nPode me confirmar o endereço de entrega para eu comparar com o que consta no sistema?"),
+        Macro(name="Pedido Incompleto", category="meu_pedido",
+            content="{{cliente}}, sinto muito pelo transtorno! Vamos resolver isso.\n\nPode me informar quais itens estão faltando e enviar uma foto do que recebeu? Assim consigo agilizar o reenvio."),
+        Macro(name="Cancelar Pedido", category="meu_pedido",
+            content="{{cliente}}, entendi que deseja cancelar o pedido {{numero}}.\n\nSe o pedido ainda não foi enviado, consigo cancelar e solicitar o estorno imediato. Caso já tenha sido postado, precisamos aguardar a devolução para processar.\n\nPosso seguir com o cancelamento?"),
+
+        # ── garantia ──
+        Macro(name="Garantia - Análise Inicial", category="garantia",
+            content="{{cliente}}, vamos analisar seu caso de garantia.\n\nPreciso de algumas informações:\n1. Número do pedido\n2. Descrição detalhada do defeito\n3. Fotos ou vídeo mostrando o problema\n4. O relógio teve contato com água ou calor excessivo?\n\nNossa garantia cobre 12 meses contra defeitos de fabricação."),
         Macro(name="Garantia Aprovada", category="garantia",
-            content="Boa notícia! Analisamos seu caso e a garantia foi aprovada. Segue as instruções para envio:\n\n1. Embale o produto na caixa original\n2. Cole a etiqueta de postagem (em anexo)\n3. Envie pelos Correios\n\nPrazo de troca: até 10 dias úteis após recebermos o produto."),
-        Macro(name="Procedimento de Troca", category="troca",
-            content="Para realizar a troca, siga os passos:\n\n1. Acesse carbonsmartwatch.com.br/troca\n2. Informe o número do pedido\n3. Selecione o motivo da troca\n4. Imprima a etiqueta de postagem\n\nDúvidas? Estamos à disposição!"),
-        Macro(name="Escalação", category="geral",
-            content="Entendo sua situação e peço desculpas pelo transtorno. Estou encaminhando seu caso para um especialista que poderá ajudá-lo melhor. Você receberá um retorno em até 4 horas."),
-        Macro(name="Encerramento", category="geral",
-            content="Ficamos felizes em ter ajudado! Se precisar de mais alguma coisa, não hesite em nos procurar. Tenha um ótimo dia! 😊"),
+            content="{{cliente}}, boa notícia! Analisamos seu caso e a garantia foi aprovada.\n\nPróximos passos:\n1. Vamos gerar sua solicitação no Troque Commerce\n2. Você receberá um e-mail com a etiqueta de postagem (grátis)\n3. Embale o produto e envie pelos Correios\n4. Assim que recebermos, enviamos o novo em até 10 dias úteis\n\nAlguma dúvida?",
+            actions=[{"type": "add_tag", "value": "garantia_aprovada"}]),
+        Macro(name="Garantia Negada - Mau Uso", category="garantia",
+            content="{{cliente}}, após análise técnica, identificamos que o problema não é coberto pela garantia pois se trata de mau uso (contato com água/calor/impacto).\n\nA garantia de 12 meses cobre defeitos de fabricação. Danos por uso inadequado não são cobertos.\n\nSe quiser, posso te ajudar com opções de compra de um novo com desconto especial."),
+        Macro(name="Abrir Troque Commerce", category="garantia",
+            content="{{cliente}}, para dar andamento à sua troca, preciso que você abra uma solicitação no nosso portal:\n\n1. Acesse troquecommerce.com.br\n2. Informe o número do pedido ou CPF\n3. Selecione o motivo\n4. Aguarde a aprovação (até 48h)\n\nSe já abriu, me passe o número da solicitação que consulto o status pra você!"),
+        Macro(name="Assistência Técnica", category="garantia",
+            content="{{cliente}}, atualmente não oferecemos assistência técnica com reparo. Nossa política é de troca direta dentro da garantia (12 meses).\n\nSe o defeito for coberto, enviamos um produto novo. Me conta mais sobre o problema para eu avaliar?"),
+
+        # ── reenvio ──
+        Macro(name="Reenvio Confirmado", category="reenvio",
+            content="{{cliente}}, confirmamos o reenvio do seu pedido! Um novo produto será postado em até 3 dias úteis.\n\nVocê receberá o código de rastreio por e-mail assim que sair. Qualquer dúvida, estou aqui!",
+            actions=[{"type": "add_tag", "value": "reenvio"}, {"type": "set_status", "value": "waiting"}]),
+        Macro(name="Extraviado - Verificação", category="reenvio",
+            content="{{cliente}}, verifiquei que seu pedido consta como extraviado pelos Correios.\n\nVou providenciar o reenvio sem custo. Pode confirmar se o endereço está correto?\n\nEndereço no sistema: (verificar no Shopify)"),
+
+        # ── financeiro ──
+        Macro(name="Estorno Solicitado", category="financeiro",
+            content="{{cliente}}, o estorno do seu pedido {{numero}} foi solicitado.\n\nPrazos:\n- Pix: até 5 dias úteis\n- Cartão de crédito: até 2 faturas (depende da operadora)\n- Boleto: até 10 dias úteis na conta informada\n\nVocê receberá um e-mail de confirmação.",
+            actions=[{"type": "add_tag", "value": "estorno"}, {"type": "set_status", "value": "waiting"}]),
+        Macro(name="Dúvida de Pagamento", category="financeiro",
+            content="{{cliente}}, sobre sua dúvida de pagamento:\n\nAceitamos: Pix, cartão de crédito (até 12x), boleto bancário e carteiras digitais.\n\nSe o pagamento não foi confirmado, pode levar até 3 dias úteis para compensação (boleto) ou ser instantâneo (Pix/cartão).\n\nPosso te ajudar com algo mais específico?"),
+
+        # ── duvida ──
+        Macro(name="Informações do Produto", category="duvida",
+            content="{{cliente}}, sobre o Carbon Watch:\n\n- Bluetooth 5.0 para conexão com o celular\n- Monitor cardíaco e oxímetro (SpO2)\n- Resistente a respingos (IP67) - NÃO submergir\n- Bateria: 3 a 5 dias de uso normal\n- Compatível com Android e iOS\n\nTem alguma dúvida específica?"),
+        Macro(name="Como Usar o Relógio", category="duvida",
+            content="{{cliente}}, para começar a usar seu Carbon Watch:\n\n1. Carregue por 2h antes do primeiro uso\n2. Baixe o app FitCloudPro (Android/iOS)\n3. Ative o Bluetooth e pareie pelo app\n4. Pronto! O app sincroniza dados automaticamente\n\nSe precisar de ajuda com algum passo, me avisa!"),
+
+        # ── reclamacao ──
+        Macro(name="GUACU é Carbon", category="reclamacao",
+            content="{{cliente}}, entendo sua preocupação! GUACU Negócios Digitais LTDA é a razão social da Carbon Smartwatch. É a mesma empresa, mesmo CNPJ.\n\nIsso aparece na fatura do cartão porque é o nome registrado. Seu pedido é legítimo e estamos aqui para qualquer dúvida!\n\nPosso te ajudar com mais alguma coisa?",
+            actions=[{"type": "add_tag", "value": "guacu"}]),
+        Macro(name="Reclamação - Acolhimento", category="reclamacao",
+            content="{{cliente}}, entendo completamente sua frustração e peço desculpas pelo transtorno. Sua experiência importa muito pra gente.\n\nVou analisar seu caso com prioridade. Pode me contar mais detalhes sobre o que aconteceu?",
+            actions=[{"type": "set_priority", "value": "high"}]),
+        Macro(name="Escalação para Supervisor", category="reclamacao",
+            content="{{cliente}}, entendo a gravidade da situação. Estou encaminhando seu caso diretamente para nosso supervisor, que vai entrar em contato em até 4 horas.\n\nSua satisfação é nossa prioridade e vamos resolver isso.",
+            actions=[{"type": "set_status", "value": "escalated"}, {"type": "set_priority", "value": "urgent"}]),
+
+        # ── uso geral (sem categoria específica = duvida) ──
+        Macro(name="Solicitar Dados", category="duvida",
+            content="{{cliente}}, para dar andamento ao seu caso, preciso de algumas informações:\n\n- Número do pedido ou e-mail de compra\n- Modelo do relógio\n- Descrição do problema\n\nAguardo seu retorno!"),
+        Macro(name="Encerramento", category="duvida",
+            content="{{cliente}}, fico feliz em ter ajudado! Se precisar de qualquer coisa, é só nos chamar.\n\nTenha um ótimo dia!"),
     ]
     db.add_all(macros)
 

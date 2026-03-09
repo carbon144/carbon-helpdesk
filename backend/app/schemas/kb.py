@@ -59,6 +59,8 @@ class MacroResponse(BaseModel):
     category: str | None = None
     is_active: bool
     actions: list[dict] | None = None
+    use_count: int = 0
+    created_by: str | None = None
 
     class Config:
         from_attributes = True

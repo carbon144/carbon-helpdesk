@@ -3,16 +3,17 @@ import { getMacros, createMacro, updateMacro, deleteMacro } from '../services/ap
 import { useToast } from '../components/Toast'
 
 const MACRO_CATEGORIES = [
-  { value: 'geral', label: 'Geral' },
+  { value: 'meu_pedido', label: 'Meu Pedido' },
   { value: 'garantia', label: 'Garantia' },
-  { value: 'troca', label: 'Troca' },
-  { value: 'rastreamento', label: 'Rastreamento' },
+  { value: 'reenvio', label: 'Reenvio' },
   { value: 'financeiro', label: 'Financeiro' },
+  { value: 'duvida', label: 'Duvida' },
   { value: 'reclamacao', label: 'Reclamacao' },
 ]
 
 const VARIABLES = [
   { tag: '{{cliente}}', desc: 'Nome do cliente' },
+  { tag: '{{agente}}', desc: 'Nome do agente logado' },
   { tag: '{{email}}', desc: 'Email do cliente' },
   { tag: '{{numero}}', desc: 'Numero do ticket' },
   { tag: '{{assunto}}', desc: 'Assunto do ticket' },
@@ -22,7 +23,14 @@ const VARIABLES = [
   { tag: '{{status}}', desc: 'Status atual' },
 ]
 
-const EMPTY_FORM = { name: '', content: '', category: 'geral' }
+const ACTION_TYPES = [
+  { value: 'set_status', label: 'Mudar status', options: ['open', 'waiting', 'resolved', 'escalated', 'closed'] },
+  { value: 'set_priority', label: 'Mudar prioridade', options: ['low', 'medium', 'high', 'urgent'] },
+  { value: 'set_category', label: 'Mudar categoria', options: ['meu_pedido', 'garantia', 'reenvio', 'financeiro', 'duvida', 'reclamacao'] },
+  { value: 'add_tag', label: 'Adicionar tag', options: null },
+]
+
+const EMPTY_FORM = { name: '', content: '', category: 'meu_pedido', actions: [] }
 
 export default function MacrosPage() {
   const toast = useToast()
@@ -62,7 +70,7 @@ export default function MacrosPage() {
 
   const startEdit = (macro) => {
     setEditing(macro)
-    setForm({ name: macro.name, content: macro.content, category: macro.category || 'geral' })
+    setForm({ name: macro.name, content: macro.content, category: macro.category || 'meu_pedido', actions: macro.actions || [] })
   }
 
   const startNew = () => {
@@ -78,12 +86,19 @@ export default function MacrosPage() {
       return
     }
     setSaving(true)
+    const payload = {
+      name: form.name,
+      content: form.content,
+      category: form.category,
+      actions: (form.actions || []).filter(a => a.type && a.value) || null,
+    }
+    if (payload.actions.length === 0) payload.actions = null
     try {
       if (editing === 'new') {
-        await createMacro(form)
+        await createMacro(payload)
         toast.success('Macro criada')
       } else {
-        await updateMacro(editing.id, form)
+        await updateMacro(editing.id, payload)
         toast.success('Macro atualizada')
       }
       setEditing(null)
@@ -186,6 +201,18 @@ export default function MacrosPage() {
                         </div>
                       </div>
                       <p className="text-sm line-clamp-2" style={{ color: '#94A3B8' }}>{m.content}</p>
+                      <div className="flex items-center gap-3 mt-2">
+                        {m.use_count > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', color: '#64748B' }}>
+                            <i className="fas fa-chart-bar mr-1" />{m.use_count}x usada
+                          </span>
+                        )}
+                        {m.actions?.length > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(234,179,8,0.1)', color: '#EAB308' }}>
+                            <i className="fas fa-cog mr-1" />{m.actions.length} {m.actions.length === 1 ? 'acao' : 'acoes'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -247,6 +274,74 @@ export default function MacrosPage() {
               </div>
             </div>
 
+            {/* Actions automáticas */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#475569' }}>
+                  Acoes automaticas
+                </p>
+                <button onClick={() => setForm(f => ({ ...f, actions: [...(f.actions || []), { type: 'set_status', value: '' }] }))}
+                  className="text-[10px] px-2 py-0.5 rounded transition hover:bg-yellow-500/10"
+                  style={{ color: '#E5A800' }}>
+                  <i className="fas fa-plus mr-1" />Adicionar
+                </button>
+              </div>
+              {(form.actions || []).length === 0 ? (
+                <p className="text-[11px]" style={{ color: '#475569' }}>Nenhuma acao. A macro so insere texto.</p>
+              ) : (
+                <div className="space-y-2">
+                  {form.actions.map((action, idx) => {
+                    const actionType = ACTION_TYPES.find(a => a.value === action.type)
+                    return (
+                      <div key={idx} className="flex items-center gap-2">
+                        <select value={action.type}
+                          onChange={e => {
+                            const newActions = [...form.actions]
+                            newActions[idx] = { type: e.target.value, value: '' }
+                            setForm(f => ({ ...f, actions: newActions }))
+                          }}
+                          className="flex-1 px-2 py-1.5 rounded-lg text-[11px] focus:outline-none"
+                          style={{ background: 'var(--bg-primary)', border: '1px solid rgba(255,255,255,0.08)', color: '#E2E8F0' }}>
+                          {ACTION_TYPES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                        </select>
+                        {actionType?.options ? (
+                          <select value={action.value}
+                            onChange={e => {
+                              const newActions = [...form.actions]
+                              newActions[idx] = { ...action, value: e.target.value }
+                              setForm(f => ({ ...f, actions: newActions }))
+                            }}
+                            className="flex-1 px-2 py-1.5 rounded-lg text-[11px] focus:outline-none"
+                            style={{ background: 'var(--bg-primary)', border: '1px solid rgba(255,255,255,0.08)', color: '#E2E8F0' }}>
+                            <option value="">Selecione...</option>
+                            {actionType.options.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        ) : (
+                          <input value={action.value}
+                            onChange={e => {
+                              const newActions = [...form.actions]
+                              newActions[idx] = { ...action, value: e.target.value }
+                              setForm(f => ({ ...f, actions: newActions }))
+                            }}
+                            placeholder="ex: garantia_aprovada"
+                            className="flex-1 px-2 py-1.5 rounded-lg text-[11px] focus:outline-none"
+                            style={{ background: 'var(--bg-primary)', border: '1px solid rgba(255,255,255,0.08)', color: '#E2E8F0' }}
+                          />
+                        )}
+                        <button onClick={() => {
+                          const newActions = form.actions.filter((_, i) => i !== idx)
+                          setForm(f => ({ ...f, actions: newActions }))
+                        }}
+                          className="p-1 rounded hover:bg-red-500/10 transition" style={{ color: '#64748B' }}>
+                          <i className="fas fa-times text-xs" />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* Preview */}
             {form.content && (
               <div className="mb-4">
@@ -255,6 +350,7 @@ export default function MacrosPage() {
                   style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', color: '#CBD5E1' }}>
                   {form.content
                     .replace(/\{\{cliente\}\}/gi, 'Joao Silva')
+                    .replace(/\{\{agente\}\}/gi, 'Ana Silva')
                     .replace(/\{\{email\}\}/gi, 'joao@email.com')
                     .replace(/\{\{numero\}\}/gi, '#1234')
                     .replace(/\{\{assunto\}\}/gi, 'Meu pedido nao chegou')

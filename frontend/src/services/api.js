@@ -85,6 +85,7 @@ export const getMacros = () => api.get('/kb/macros')
 export const createMacro = (data) => api.post('/kb/macros', data)
 export const updateMacro = (id, data) => api.patch(`/kb/macros/${id}`, data)
 export const deleteMacro = (id) => api.delete(`/kb/macros/${id}`)
+export const trackMacroUse = (id) => api.post(`/kb/macros/${id}/use`)
 
 // ── Slack ──
 export const getSlackStatus = () => api.get('/slack/status')
