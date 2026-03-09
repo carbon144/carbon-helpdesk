@@ -103,6 +103,10 @@ class Ticket(Base):
     csat_sent: Mapped[bool] = mapped_column(Boolean, default=False)
     first_response_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Email auto-reply tracking
+    auto_replied: Mapped[bool] = mapped_column(Boolean, default=False)
+    auto_reply_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # Relationships
     customer = relationship("Customer", foreign_keys=[customer_id], lazy="selectin")
     agent = relationship("User", foreign_keys=[assigned_to], lazy="selectin")

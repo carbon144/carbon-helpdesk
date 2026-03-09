@@ -65,6 +65,11 @@ class Settings(BaseSettings):
     VAPI_API_KEY: str = ""
     VAPI_SERVER_SECRET: str = ""  # shared secret to verify webhook requests
 
+    # Email auto-reply
+    EMAIL_AUTO_REPLY_ENABLED: bool = True
+    ANTHROPIC_TRIAGE_MODEL: str = "claude-haiku-4-5-20251001"
+    ANTHROPIC_AUTO_REPLY_MODEL: str = ""  # empty = use ANTHROPIC_MODEL (Sonnet)
+
     SLA_URGENT_HOURS: int = 4
     SLA_HIGH_HOURS: int = 8
     SLA_MEDIUM_HOURS: int = 24

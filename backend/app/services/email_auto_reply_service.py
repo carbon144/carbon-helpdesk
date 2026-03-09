@@ -1,0 +1,196 @@
+"""Email Auto-Reply Service — IA responds to simple email tickets automatically."""
+
+import logging
+from datetime import datetime, timezone
+
+from app.core.config import settings
+from app.services import ai_service
+from app.services.gmail_service import send_email
+from app.services.kb_real_data import KB_ARTICLES
+
+logger = logging.getLogger(__name__)
+
+# Categories that IA can auto-resolve
+AUTO_RESOLVE_CATEGORIES = {"meu_pedido", "duvida", "reenvio"}
+
+# Categories that get ACK only (agent handles)
+ACK_CATEGORIES = {"garantia", "financeiro", "reclamacao"}
+
+EMAIL_AUTO_REPLY_PROMPT = """Você é a assistente de suporte da Carbon por email.
+A Carbon é uma marca brasileira de smartwatches.
+
+Você está respondendo a um email de cliente automaticamente. O email já foi classificado pela triagem.
+
+=== REGRAS ABSOLUTAS ===
+1. NUNCA inventar informações. Se não tem certeza, diga que a equipe vai analisar.
+2. NUNCA sugerir Procon, Reclame Aqui, advogado ou qualquer órgão.
+3. NUNCA dizer "Carbon Smartwatch". Sempre apenas "Carbon".
+4. NUNCA mencionar importação, China, alfândega.
+5. NUNCA mencionar espontaneamente que a NF é de serviço/intermediação.
+
+=== TOM ===
+- Email profissional mas amigável. Mais completo que chat, mas sem enrolação.
+- Português brasileiro. Chamar pelo nome.
+- Máximo 4 parágrafos.
+- Sem emojis.
+
+=== REGRAS DE NEGÓCIO ===
+- Modelos: Carbon Raptor, Atlas, One Max, Aurora, Quartz
+- Garantia: 12 meses contra defeitos. Troca direta (sem assistência técnica).
+- Portal trocas: carbonsmartwatch.troque.app.br
+- Cancelamento antes de envio: ok. Depois: recusar entrega ou devolver em 7 dias.
+- Estorno: até 10 dias úteis. Pix direto. Cartão até 3 faturas.
+- Apps: Raptor/Atlas = GloryFitPro. One Max/Aurora = DaFit.
+
+PRAZOS DE ENTREGA:
+- Sudeste: 7 a 12 dias úteis
+- Sul: 7 a 14 dias úteis
+- Centro-Oeste: 8 a 16 dias úteis
+- Nordeste: 10 a 20 dias úteis
+- Norte: 12 a 25 dias úteis
+
+=== FORMATO ===
+Responda APENAS com o texto do email. Sem JSON, sem markdown.
+Comece com "Olá, [nome]!" e termine com:
+
+Qualquer dúvida, é só responder este email.
+
+Atenciosamente,
+Equipe Carbon"""
+
+ACK_TEMPLATE = """Olá, {name}!
+
+Recebemos sua mensagem e nosso time já está analisando.{extra_info}
+
+Retornaremos em até 24 horas úteis com uma resposta completa.
+
+Enquanto isso, algumas informações que podem ajudar:
+• Rastreio do seu pedido: https://carbonsmartwatch.com.br/rastreio
+• Portal de trocas/devoluções: carbonsmartwatch.troque.app.br
+• Garantia: 12 meses a partir da compra
+
+Qualquer dúvida, é só responder este email.
+
+Atenciosamente,
+Equipe Carbon"""
+
+
+def _get_kb_context(category: str) -> str:
+    """Get relevant KB articles for the category."""
+    relevant = [a for a in KB_ARTICLES if a.get("category") == category]
+    if not relevant:
+        relevant = KB_ARTICLES[:3]
+    texts = []
+    for a in relevant[:3]:
+        texts.append(f"Artigo: {a['title']}\n{a['content'][:500]}")
+    return "\n\n".join(texts)
+
+
+async def generate_auto_reply(
+    subject: str,
+    body: str,
+    customer_name: str,
+    category: str,
+    triage: dict | None = None,
+    protocol: str | None = None,
+) -> dict:
+    """Generate an automatic email reply.
+
+    Returns:
+        {
+            "type": "auto_reply" | "ack" | "skip",
+            "body": str (email text),
+            "reason": str,
+        }
+    """
+    if not settings.EMAIL_AUTO_REPLY_ENABLED:
+        return {"type": "skip", "body": "", "reason": "disabled"}
+
+    # NEVER auto-reply to legal risk or urgent
+    if triage and (triage.get("legal_risk") or triage.get("priority") == "urgent"):
+        return {"type": "skip", "body": "", "reason": "legal_risk_or_urgent"}
+
+    confidence = triage.get("confidence", 0) if triage else 0
+
+    # Auto-resolve: simple categories with high confidence
+    if category in AUTO_RESOLVE_CATEGORIES and confidence >= 0.7:
+        try:
+            reply_text = await _generate_ai_reply(
+                subject, body, customer_name, category, protocol
+            )
+            if reply_text:
+                return {
+                    "type": "auto_reply",
+                    "body": reply_text,
+                    "reason": f"auto_resolve_{category}",
+                }
+        except Exception as e:
+            logger.error(f"AI auto-reply generation failed: {e}")
+
+    # ACK: everything else that's not skipped
+    name = customer_name.split()[0] if customer_name else "Cliente"
+    extra_info = ""
+    if protocol:
+        extra_info = f"\nSeu protocolo de atendimento: {protocol}"
+
+    ack_body = ACK_TEMPLATE.format(name=name, extra_info=extra_info)
+    return {"type": "ack", "body": ack_body, "reason": f"ack_{category}"}
+
+
+async def _generate_ai_reply(
+    subject: str,
+    body: str,
+    customer_name: str,
+    category: str,
+    protocol: str | None = None,
+) -> str | None:
+    """Use Claude to generate a full auto-reply for simple tickets."""
+    if ai_service.is_credits_exhausted():
+        return None
+
+    kb_context = _get_kb_context(category)
+
+    user_msg = f"Assunto: {subject}\nCliente: {customer_name}\nCategoria: {category}\n"
+    if protocol:
+        user_msg += f"Protocolo: {protocol}\n"
+    user_msg += f"\nEmail do cliente:\n{body[:2000]}"
+    if kb_context:
+        user_msg += f"\n\n--- Base de Conhecimento ---\n{kb_context}"
+
+    try:
+        ai = ai_service.get_client()
+        response = await ai_service._call_with_retry(
+            lambda: ai.messages.create(
+                model=settings.ANTHROPIC_AUTO_REPLY_MODEL or settings.ANTHROPIC_MODEL,
+                max_tokens=800,
+                system=EMAIL_AUTO_REPLY_PROMPT,
+                messages=[{"role": "user", "content": user_msg}],
+            )
+        )
+        return response.content[0].text.strip()
+    except Exception as e:
+        ai_service._handle_credit_error(e)
+        logger.error(f"Email auto-reply AI failed: {e}")
+        return None
+
+
+async def send_auto_reply(
+    to_email: str,
+    subject: str,
+    body_text: str,
+    gmail_thread_id: str | None = None,
+    gmail_message_id: str | None = None,
+) -> dict | None:
+    """Send the auto-reply email via Gmail in the same thread."""
+    reply_subject = subject if subject.startswith("Re:") else f"Re: {subject}"
+
+    result = send_email(
+        to=to_email,
+        subject=reply_subject,
+        body_text=body_text,
+        thread_id=gmail_thread_id,
+        in_reply_to=gmail_message_id,
+    )
+    if result:
+        logger.info(f"Auto-reply sent to {to_email}, gmail_id={result.get('id')}")
+    return result

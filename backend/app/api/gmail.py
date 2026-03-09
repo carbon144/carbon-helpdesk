@@ -334,6 +334,7 @@ async def fetch_emails(
             db.add(msg)
 
             # AI Triage for new ticket
+            triage = None
             try:
                 from app.services.ai_service import triage_ticket as ai_triage, apply_triage_results
                 triage = await ai_triage(
@@ -355,6 +356,48 @@ async def fetch_emails(
                 await assign_protocol(ticket, db)
             except Exception as e:
                 logger.warning(f"Protocol assignment skipped: {e}")
+
+            # === EMAIL AUTO-REPLY ===
+            try:
+                from app.services.email_auto_reply_service import generate_auto_reply, send_auto_reply
+                auto_reply_result = await generate_auto_reply(
+                    subject=email_data["subject"],
+                    body=email_data["body_text"][:2000],
+                    customer_name=email_data["from_name"],
+                    category=ticket.category or "duvida",
+                    triage=triage if triage else None,
+                    protocol=ticket.protocol,
+                )
+                if auto_reply_result and auto_reply_result["type"] in ("auto_reply", "ack"):
+                    sent = await send_auto_reply(
+                        to_email=email_data["from_email"],
+                        subject=email_data["subject"],
+                        body_text=auto_reply_result["body"],
+                        gmail_thread_id=gmail_thread_id,
+                        gmail_message_id=gmail_message_id,
+                    )
+                    if sent:
+                        auto_msg = Message(
+                            ticket_id=ticket.id,
+                            type="outbound",
+                            sender_name="Carbon IA",
+                            sender_email=settings.GMAIL_SUPPORT_EMAIL or "suporte@carbonsmartwatch.com.br",
+                            body_text=auto_reply_result["body"],
+                            gmail_message_id=sent.get("id"),
+                            gmail_thread_id=sent.get("threadId") or gmail_thread_id,
+                        )
+                        db.add(auto_msg)
+                        ticket.auto_replied = True
+                        ticket.auto_reply_at = datetime.now(timezone.utc)
+                        ticket.first_response_at = datetime.now(timezone.utc)
+                        if auto_reply_result["type"] == "auto_reply":
+                            ticket.status = "waiting"
+                        existing_tags = list(ticket.tags or [])
+                        existing_tags.append(auto_reply_result["type"])
+                        ticket.tags = list(set(existing_tags))
+                        logger.info(f"Auto-reply ({auto_reply_result['type']}) sent for ticket #{ticket.number}")
+            except Exception as e:
+                logger.warning(f"Email auto-reply skipped: {e}")
 
             # Auto-assign to available agent
             try:
