@@ -1,10 +1,10 @@
 """Real KB articles extracted from Carbon's Crisp Help Center and website policies."""
 
 KB_ARTICLES = [
-    # ── CATEGORIA: PRODUTO E FUNCIONAMENTO ──
+    # ── CATEGORIA: DÚVIDA ──
     {
         "title": "Atualizações, Instabilidades e Comportamento Temporário",
-        "category": "suporte_tecnico",
+        "category": "duvida",
         "tags": ["atualizacao", "instabilidade", "bluetooth", "reset", "sincronizacao"],
         "content": """1. Atualizações de Sistema
 Os dispositivos podem receber atualizações de sistema ou do aplicativo oficial, com o objetivo de melhorar desempenho, corrigir falhas pontuais, ajustar compatibilidade com novas versões de Android ou iOS e implementar melhorias funcionais.
@@ -30,7 +30,7 @@ Oscilações temporárias decorrentes de atualização, sincronização ou ajust
     },
     {
         "title": "Compatibilidade e Requisitos de Uso",
-        "category": "suporte_tecnico",
+        "category": "duvida",
         "tags": ["compatibilidade", "android", "ios", "bluetooth", "aplicativo", "permissoes"],
         "content": """1. Requisitos Mínimos de Sistema
 Para funcionamento adequado, o dispositivo requer:
@@ -56,10 +56,10 @@ Algumas funcionalidades podem variar conforme marca e modelo do smartphone, vers
 Antes de qualquer análise técnica, recomenda-se: reiniciar o relógio, restaurar configurações de fábrica (reset), reiniciar o smartphone, verificar e reativar todas as permissões do aplicativo, desinstalar e reinstalar o aplicativo, atualizar para a versão mais recente e refazer o pareamento Bluetooth.""",
     },
 
-    # ── CATEGORIA: PROMOÇÕES E CONDIÇÕES COMERCIAIS ──
+    # ── CATEGORIA: DÚVIDA (PROMOÇÕES) ──
     {
         "title": "Brindes, Promoções e Condições Especiais",
-        "category": "outros",
+        "category": "duvida",
         "tags": ["brinde", "promocao", "desconto", "combo", "condicoes"],
         "content": """1. Natureza dos Brindes
 Brindes promocionais são itens concedidos gratuitamente como parte de campanhas específicas. O brinde não integra o valor principal do produto adquirido, não possui cobrança individual e está vinculado às regras da promoção vigente no momento da compra.
@@ -80,10 +80,10 @@ Se o brinde apresentar defeito de fabricação comprovado, a análise seguirá c
 Promoções podem envolver descontos, combos, frete especial, garantia estendida e brindes vinculados. As condições aplicáveis são aquelas vigentes no momento da finalização da compra.""",
     },
 
-    # ── CATEGORIA: TROCAS E GARANTIA ──
+    # ── CATEGORIA: GARANTIA ──
     {
         "title": "Autonomia de Bateria e Padrões de Uso",
-        "category": "defeito_garantia",
+        "category": "garantia",
         "tags": ["bateria", "autonomia", "carregamento", "consumo", "reset"],
         "content": """1. Conceito de Autonomia
 A autonomia de bateria corresponde ao tempo médio de funcionamento do dispositivo em condições normais de uso. A duração pode variar conforme modelo do relógio, intensidade de uso, configurações ativas e condições ambientais. A autonomia divulgada é estimativa média, baseada em uso padrão.
@@ -105,7 +105,7 @@ Para melhor desempenho da bateria: utilizar carregador na especificação recome
     },
     {
         "title": "Política de Troca e Garantia – Carbon",
-        "category": "defeito_garantia",
+        "category": "garantia",
         "tags": ["garantia", "troca", "defeito", "mau_uso", "carbon_care", "12_meses"],
         "content": """1. Prazo para Solicitação
 
@@ -129,7 +129,7 @@ Etapas: relato do cliente, solicitação de evidências (fotos/vídeos), anális
     },
     {
         "title": "Como Funciona a Troca na Prática",
-        "category": "troca",
+        "category": "garantia",
         "tags": ["troca", "processo", "envio", "analise_tecnica", "postagem_reversa"],
         "content": """1. Abertura da Solicitação
 O cliente deve informar: número do pedido, descrição detalhada do problema e fotos/vídeos que evidenciem a situação. Solicitações sem evidências suficientes poderão não ser analisadas.
@@ -153,7 +153,7 @@ Observações: A troca depende de análise técnica. A Carbon não realiza envio
     },
     {
         "title": "Resistência à Água e Cuidados de Uso",
-        "category": "defeito_garantia",
+        "category": "garantia",
         "tags": ["agua", "resistencia", "ip", "atm", "banho", "vedacao", "cuidados"],
         "content": """1. Conceito de Resistência à Água
 Os relógios Carbon possuem certificação mínima de resistência à água de 1ATM ou superior, conforme o modelo. Resistência à água não significa que o produto seja à prova d'água ou indestrutível. A vedação depende das condições de uso, do estado de conservação e da integridade estrutural.
@@ -179,10 +179,10 @@ Estas orientações são preventivas e educacionais. Não devem ser usadas para 
 8. A resistência à água é uma característica técnica condicionada ao uso adequado. Não é garantida em situações fora das recomendações.""",
     },
 
-    # ── CATEGORIA: CANCELAMENTO E ARREPENDIMENTO ──
+    # ── CATEGORIA: FINANCEIRO ──
     {
         "title": "Política de Cancelamento – Carbon",
-        "category": "outros",
+        "category": "financeiro",
         "tags": ["cancelamento", "arrependimento", "estorno", "reembolso", "pix", "cartao"],
         "content": """Cancelamento Antes do Envio
 O pedido poderá ser cancelado sem ônus enquanto não tiver sido processado. Considera-se iniciado o processamento quando o pedido estiver com status "processado" ou já possuir código de rastreamento.
@@ -203,10 +203,10 @@ Pix: devolução para a mesma conta pagadora após processamento interno.
 Boleto bancário: reembolso mediante envio dos dados bancários do titular, podendo levar 2 a 3 dias úteis após processamento.""",
     },
 
-    # ── CATEGORIA: PEDIDO E ENVIO ──
+    # ── CATEGORIA: MEU PEDIDO ──
     {
         "title": "Alteração de Endereço Após a Compra",
-        "category": "rastreamento",
+        "category": "meu_pedido",
         "tags": ["endereco", "alteracao", "pedido", "processamento", "reenvio"],
         "content": """1. Antes do Processamento do Pedido
 A alteração somente poderá ser analisada se o pedido ainda não tiver sido processado. Considera-se iniciado o processamento quando o pedido estiver com status "processado" ou já houver código de rastreamento. A alteração não é automática e depende de validação interna.
@@ -222,7 +222,7 @@ Não é possível redirecionar para novo endereço. O cliente deverá acompanhar
     },
     {
         "title": "Produto ou Acessório em Desacordo com o Pedido",
-        "category": "outros",
+        "category": "reenvio",
         "tags": ["desacordo", "produto_errado", "modelo_diferente", "conferencia"],
         "content": """1. Conceito
 Considera-se produto em desacordo quando o item entregue não corresponde à confirmação de compra ou nota fiscal. Exemplos: modelo diferente, cor diferente da escolhida (quando constitui opção contratual) ou envio incorreto de acessório adquirido separadamente.
@@ -244,7 +244,7 @@ Sendo confirmado erro operacional: substituição pelo item correto ou solução
     },
     {
         "title": "Item Faltante ou Entrega Incompleta",
-        "category": "outros",
+        "category": "reenvio",
         "tags": ["faltante", "incompleto", "acessorio", "conferencia", "embalagem"],
         "content": """1. Conferência Inicial
 Ao receber o pedido, conferir: produto principal, acessórios inclusos no modelo e brindes promocionais (quando aplicável). Verificar o interior da embalagem, suportes internos e fundo da caixa antes de concluir que há item ausente.
@@ -264,10 +264,10 @@ Se confirmado erro operacional: item faltante será reenviado ou solução confo
 A análise considera apenas itens discriminados no pedido ou nota fiscal. A Carbon não se responsabiliza por itens que não constem na confirmação de compra.""",
     },
 
-    # ── CATEGORIA: ENTREGA E LOGÍSTICA ──
+    # ── CATEGORIA: MEU PEDIDO (LOGÍSTICA) ──
     {
         "title": "Origem da Marca e Fabricação dos Produtos",
-        "category": "outros",
+        "category": "duvida",
         "tags": ["origem", "fabricacao", "marca", "brasileira", "china", "asia"],
         "content": """1. A Marca Carbon
 A Carbon é uma empresa brasileira. A marca, o projeto, o posicionamento e a responsabilidade com o cliente são brasileiros. A empresa possui operação estruturada no Brasil, atendimento ao cliente no Brasil, suporte e garantia administrados no Brasil e controle de qualidade realizado no Brasil.
@@ -282,7 +282,7 @@ O que caracteriza a origem de um produto é quem desenvolve o projeto, quem defi
     },
     {
         "title": "Atraso, Extravio e Perda Logística",
-        "category": "rastreamento",
+        "category": "meu_pedido",
         "tags": ["atraso", "extravio", "perda", "transportadora", "rastreamento", "reenvio"],
         "content": """Quando é Considerado Atraso
 O pedido somente será considerado em atraso quando ultrapassar o prazo máximo estimado para a região. O prazo é contado a partir da coleta pela transportadora. Enquanto o pedido estiver dentro da janela estimada, em movimentação ou aguardando atualização de rastreio, não há caracterização de atraso.
@@ -302,10 +302,10 @@ Se o pedido retornar por insucesso na entrega, endereço incorreto ou recusa no 
 A Carbon não possui ingerência sobre prazos internos da transportadora, fluxo de fiscalização aduaneira ou tempo de apuração de ocorrência logística.""",
     },
 
-    # ── POLÍTICAS DO SITE ──
+    # ── CATEGORIA: GARANTIA (POLÍTICAS) ──
     {
         "title": "Política de Reembolso – Trocas, Devoluções e Garantia",
-        "category": "troca",
+        "category": "garantia",
         "tags": ["reembolso", "devolucao", "troca", "garantia", "arrependimento", "carbon_care"],
         "content": """Direito de Arrependimento
 Conforme o CDC, devolução em até 7 dias corridos após o recebimento. O produto deve: não apresentar sinais de uso, estar com embalagem original e conter todos os acessórios recebidos (pulseiras, cabo USB, películas e itens extras).
@@ -327,7 +327,7 @@ A garantia estendida (Carbon Care) cobre exclusivamente os relógios. Acessório
     },
     {
         "title": "Política de Frete e Entrega",
-        "category": "rastreamento",
+        "category": "meu_pedido",
         "tags": ["frete", "entrega", "envio", "prazo", "rastreamento", "transportadora"],
         "content": """Atualização Temporária: Alguns pedidos podem ter prazo de processamento de até 10 dias úteis antes do envio.
 
@@ -360,10 +360,10 @@ Informar corretamente: rua, número, complemento, bairro, CEP, cidade e estado. 
 Suporte: atendimento@carbonsmartwatch.com.br (resposta em até 24h úteis, seg–sex, 09h–17h).""",
     },
 
-    # ── PRODUTOS E PREÇOS ──
+    # ── CATEGORIA: DÚVIDA (PRODUTOS) ──
     {
         "title": "Catálogo de Produtos e Preços – Carbon",
-        "category": "outros",
+        "category": "duvida",
         "tags": ["produto", "preco", "modelo", "raptor", "atlas", "aurora", "one_max", "catalogo"],
         "content": """Smartwatches Carbon – Modelos e Preços Atuais
 

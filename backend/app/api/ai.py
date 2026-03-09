@@ -292,9 +292,13 @@ Regras:
         if ticket.sentiment in ("angry", "negative"):
             tips.append("Cliente insatisfeito. Use tom empático e proativo.")
         if ticket.category == "garantia":
-            tips.append("Verificar se está dentro do prazo de 1 ano e se não é mau uso.")
-        if ticket.category == "troca":
-            tips.append("Prazo de 7 dias por arrependimento (CDC).")
+            tips.append("Verificar se está dentro do prazo de 12 meses (ou 24 com Carbon Care) e se não é mau uso.")
+        if ticket.category == "reenvio":
+            tips.append("Confirmar se houve extravio, produto errado ou item faltante. Pedir evidências.")
+        if ticket.category == "financeiro":
+            tips.append("Arrependimento: 7 dias CDC. Estorno cartão até 3 faturas, Pix imediato.")
+        if ticket.category == "meu_pedido":
+            tips.append("Verificar status no Shopify e código de rastreamento antes de responder.")
         return {"tips": tips, "kb_articles": [], "actions": actions, "sentiment_alert": None, "next_step": None}
 
 
