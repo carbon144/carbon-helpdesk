@@ -160,6 +160,31 @@ async def fetch_emails(
         if existing_msg.scalars().first():
             continue
 
+        # === RECLAME AQUI DETECTION ===
+        # RA notification emails → create urgent RA ticket instead of regular ticket
+        from_email_lower = email_data.get("from_email", "").lower()
+        if "reclameaqui.com.br" in from_email_lower or "reclameaqui.com" in from_email_lower:
+            try:
+                from app.services.ra_monitor import _parse_ra_email, create_ra_ticket
+                complaint = _parse_ra_email(email_data)
+                if complaint:
+                    # Check if this RA complaint already has a ticket
+                    ra_tag = f"ra:{complaint['id']}"
+                    from sqlalchemy import text as sa_text
+                    existing_ra = await db.execute(
+                        select(Ticket).where(
+                            sa_text("tags @> ARRAY[:tag]::varchar[]").bindparams(tag=ra_tag)
+                        )
+                    )
+                    if not existing_ra.scalars().first():
+                        result = await create_ra_ticket(complaint, db)
+                        logger.info(f"RA ticket #{result['ticket_number']} created from Gmail: {result['title'][:80]}")
+                        created += 1
+                mark_as_read(gmail_message_id)
+            except Exception as e:
+                logger.warning(f"RA email processing failed, skipping: {e}")
+            continue
+
         # Check email thread matching via In-Reply-To header
         existing_ticket = None
         if in_reply_to:
