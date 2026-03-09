@@ -12,7 +12,7 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.core.database import engine, Base, async_session
-from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta, customers, agent_analysis, chat, chatbot, triage
+from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta, customers, agent_analysis, chat, chatbot, triage, ra_monitor
 from app.api.webhooks import whatsapp as wh_whatsapp, meta_dm as wh_meta_dm, tiktok as wh_tiktok, vapi as wh_vapi
 from app.services.seed import seed_database
 from app.services.ticket_number import init_ticket_sequence
@@ -902,6 +902,7 @@ app.include_router(wh_vapi.router)
 from app.api import voice_calls
 app.include_router(voice_calls.router, prefix="/api")
 app.include_router(triage.router, prefix="/api")
+app.include_router(ra_monitor.router, prefix="/api")
 app.include_router(ws.router)
 
 # Public CSAT rating page (no auth required - customer clicks email link)
