@@ -6,12 +6,7 @@ import {
   getAgentAnalysis, getTrends, getPatterns, getFullAIAnalysis,
   exportTicketsCsv, getAgentEmailMetrics,
 } from '../services/api'
-
-const CATEGORY_LABELS = {
-  garantia: 'Garantia', troca: 'Troca', mau_uso: 'Mau Uso', carregador: 'Carregador',
-  duvida: 'Dúvida', reclamacao: 'Reclamação', juridico: 'Jurídico',
-  suporte_tecnico: 'Suporte Técnico', financeiro: 'Financeiro',
-}
+import { CATEGORY_LABELS } from '../constants/ticket'
 const SENTIMENT_LABELS = { positive: 'Positivo', neutral: 'Neutro', negative: 'Negativo', angry: 'Irritado' }
 const SOURCE_LABELS = { web: 'Web', slack: 'Slack', gmail: 'Gmail' }
 const PRIORITY_LABELS = { urgent: 'Urgente', high: 'Alta', medium: 'Média', low: 'Baixa' }

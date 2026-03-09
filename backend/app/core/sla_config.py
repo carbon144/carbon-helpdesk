@@ -1,35 +1,16 @@
 """
-SLA Configuration by category as per Carbon requirements document.
-Each category has response_hours (first response) and resolution_hours (full resolution).
+SLA Configuration for Carbon Helpdesk.
+SLA follows PRIORITY, not category.
+Category = O QUÊ (routing). Priority = QUANDO (SLA).
 """
 from __future__ import annotations
 
-# SLA por categoria conforme documento de requisitos Carbon
-SLA_BY_CATEGORY = {
-    "chargeback": {"response_hours": 1, "resolution_hours": 24, "priority": "urgent"},
-    "reclame_aqui": {"response_hours": 2, "resolution_hours": 48, "priority": "urgent"},
-    "procon": {"response_hours": 2, "resolution_hours": 48, "priority": "urgent"},
-    "defeito_garantia": {"response_hours": 4, "resolution_hours": 72, "priority": "high"},
-    "troca": {"response_hours": 4, "resolution_hours": 72, "priority": "high"},
-    "reenvio": {"response_hours": 4, "resolution_hours": 72, "priority": "high"},
-    "mau_uso": {"response_hours": 8, "resolution_hours": 120, "priority": "medium"},
-    "duvida": {"response_hours": 8, "resolution_hours": 48, "priority": "medium"},
-    "rastreamento": {"response_hours": 4, "resolution_hours": 48, "priority": "medium"},
-    "carregador": {"response_hours": 4, "resolution_hours": 72, "priority": "high"},
-    "suporte_tecnico": {"response_hours": 8, "resolution_hours": 72, "priority": "medium"},
-    "financeiro": {"response_hours": 4, "resolution_hours": 72, "priority": "high"},
-    "reclamacao": {"response_hours": 4, "resolution_hours": 72, "priority": "high"},
-    "elogio": {"response_hours": 24, "resolution_hours": 168, "priority": "low"},
-    "sugestao": {"response_hours": 24, "resolution_hours": 168, "priority": "low"},
-    "outros": {"response_hours": 8, "resolution_hours": 72, "priority": "medium"},
-}
-
-# Default SLA by priority (fallback when category not matched)
+# SLA por prioridade — fonte única de verdade
 SLA_BY_PRIORITY = {
     "urgent": {"response_hours": 1, "resolution_hours": 24},
-    "high": {"response_hours": 4, "resolution_hours": 72},
-    "medium": {"response_hours": 8, "resolution_hours": 120},
-    "low": {"response_hours": 24, "resolution_hours": 168},
+    "high":   {"response_hours": 4, "resolution_hours": 72},
+    "medium": {"response_hours": 8, "resolution_hours": 72},
+    "low":    {"response_hours": 24, "resolution_hours": 168},
 }
 
 # Blacklist auto-rules
@@ -47,26 +28,20 @@ ESCALATION_RULES = {
     "low": {"warn_hours": 8, "escalate_hours": 24},
 }
 
-# Category routing — maps categories to specialties/inbox types
+# Category routing — maps categories to agent specialties.
+# Today all agents are generalists (specialty=geral/null), so this falls through
+# to round-robin. When specialized agents are hired, fill user.specialty in DB.
 CATEGORY_ROUTING = {
-    "chargeback": "juridico",
-    "procon": "juridico",
-    "reclame_aqui": "juridico",
-    "defeito_garantia": "tecnico",
-    "mau_uso": "tecnico",
-    "carregador": "tecnico",
-    "suporte_tecnico": "tecnico",
-    "troca": "logistica",
-    "reenvio": "logistica",
-    "rastreamento": "logistica",
+    "garantia":   "tecnico",
+    "reenvio":    "logistica",
+    "meu_pedido": "logistica",
     "financeiro": "financeiro",
 }
+# reclamacao and duvida → round-robin (any agent)
 
 
 def get_sla_for_ticket(category: str | None, priority: str) -> dict:
-    """Returns {'response_hours': int, 'resolution_hours': int, 'priority': str}"""
-    if category and category.lower() in SLA_BY_CATEGORY:
-        config = SLA_BY_CATEGORY[category.lower()]
-        return config
-    fallback = SLA_BY_PRIORITY.get(priority, SLA_BY_PRIORITY["medium"])
-    return {**fallback, "priority": priority}
+    """Returns {'response_hours': int, 'resolution_hours': int, 'priority': str}.
+    SLA is driven by priority only. Category param kept for backward compat."""
+    sla = SLA_BY_PRIORITY.get(priority, SLA_BY_PRIORITY["medium"])
+    return {**sla, "priority": priority}

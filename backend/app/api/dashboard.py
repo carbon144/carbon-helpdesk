@@ -50,10 +50,6 @@ async def get_stats(
             # Flags
             func.count(case((Ticket.sla_breached == True, 1))).label("sla_breached"),
             func.count(case((Ticket.legal_risk == True, 1))).label("legal_risk"),
-            # Categories
-            func.count(case((Ticket.category == "troca", 1))).label("c_troca"),
-            func.count(case((Ticket.category == "reclamacao", 1))).label("c_reclamacao"),
-            func.count(case((Ticket.category.in_(["garantia", "mau_uso", "suporte_tecnico", "carregador"]), 1))).label("c_problemas"),
             # Resolved today
             func.count(case((Ticket.resolved_at >= today_start, 1))).label("resolved_today"),
             # Unassigned open
@@ -168,9 +164,6 @@ async def get_stats(
         "avg_resolution_hours": avg_resolution_hours,
         "legal_risk_count": r.legal_risk,
         "daily_volume": daily_volume,
-        "trocas_count": r.c_troca,
-        "reclamacoes_count": r.c_reclamacao,
-        "problemas_count": r.c_problemas,
         "escalated_count": by_status.get("escalated", 0),
         "open_tickets": open_tickets,
         "resolved_today": r.resolved_today,

@@ -5,17 +5,9 @@ import { getDashboardStats, getAgentDashboardStats } from '../services/api'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
 import { useTheme } from '../contexts/ThemeContext'
 import { SkeletonDashboard } from '../components/Skeleton'
+import { CATEGORY_LABELS } from '../constants/ticket'
 
 const COLORS = ['#E5A800', '#e6c000', '#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#ef4444', '#14b8a6', '#f97316']
-
-const CATEGORY_LABELS = {
-  garantia: 'Garantia', troca: 'Troca', mau_uso: 'Mau Uso', carregador: 'Carregador',
-  duvida: 'Dúvida', reclamacao: 'Reclamação', juridico: 'Jurídico',
-  suporte_tecnico: 'Suporte Técnico', financeiro: 'Financeiro', chargeback: 'Chargeback',
-  reclame_aqui: 'Reclame Aqui', reenvio: 'Reenvio', procon: 'PROCON',
-  defeito_garantia: 'Defeito/Garantia', rastreamento: 'Rastreamento',
-  elogio: 'Elogio', sugestao: 'Sugestão', outros: 'Outros',
-}
 
 const STATUS_LABELS = {
   open: 'Aberto', in_progress: 'Em Andamento', waiting: 'Aguardando',
@@ -185,8 +177,8 @@ function AdminDashboard({ stats, goToTickets }) {
         {showSecondaryKPIs && (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <KPICard label="Total Tickets" value={stats.total_tickets} icon="fa-ticket" color="accent" onClick={() => goToTickets({})} />
-            <KPICard label="Trocas" value={stats.trocas_count} icon="fa-rotate" color="yellow" onClick={() => goToTickets({ category: 'troca' })} />
-            <KPICard label="Reclamações" value={stats.reclamacoes_count} icon="fa-face-angry" color="red" onClick={() => goToTickets({ category: 'reclamacao' })} />
+            <KPICard label="Garantia" value={stats.by_category?.garantia || 0} icon="fa-shield" color="orange" onClick={() => goToTickets({ category: 'garantia' })} />
+            <KPICard label="Reclamações" value={stats.by_category?.reclamacao || 0} icon="fa-face-angry" color="red" onClick={() => goToTickets({ category: 'reclamacao' })} />
             <KPICard label="Escalados" value={stats.escalated_count} icon="fa-arrow-up" color="red" onClick={() => goToTickets({ status: 'escalated' })} />
             <KPICard label="FCR" value={`${stats.fcr_rate || 0}%`} icon="fa-bullseye" color="green" />
             <KPICard label="Não Atribuídos" value={stats.unassigned_count || 0} icon="fa-user-slash" color="orange" onClick={() => goToTickets({ assigned_to: 'none' })} />
@@ -194,7 +186,7 @@ function AdminDashboard({ stats, goToTickets }) {
             <KPICard label="Respondidos Hoje" value={stats.responded_today || 0} icon="fa-paper-plane" color="blue" />
             <KPICard label="Tempo Resolução" value={`${stats.avg_resolution_hours}h`} icon="fa-check-double" color="purple" />
             <KPICard label="SLA Quebrados" value={stats.sla_breached} icon="fa-exclamation-triangle" color="red" onClick={() => goToTickets({ sla_breached: 'true' })} />
-            <KPICard label="Problemas" value={stats.problemas_count} icon="fa-triangle-exclamation" color="orange" onClick={() => goToTickets({ category: 'garantia' })} />
+            <KPICard label="Meu Pedido" value={stats.by_category?.meu_pedido || 0} icon="fa-box" color="blue" onClick={() => goToTickets({ category: 'meu_pedido' })} />
             <KPICard label="Resolv. 1ª Resp" value={stats.fcr_count || 0} icon="fa-bullseye" color="green" />
           </div>
         )}
@@ -362,9 +354,9 @@ function GestaoDashboard({ stats, goToTickets }) {
 
       <h3 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Resumo por Tipo</h3>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <CategoryCard label="Trocas" count={stats.trocas_count} icon="fa-rotate" color="#f59e0b" onClick={() => goToTickets({ category: 'troca' })} />
-        <CategoryCard label="Problemas Técnicos" count={stats.problemas_count} icon="fa-triangle-exclamation" color="#f97316" onClick={() => goToTickets({ category: 'garantia' })} />
-        <CategoryCard label="Reclamações" count={stats.reclamacoes_count} icon="fa-face-angry" color="#ef4444" onClick={() => goToTickets({ category: 'reclamacao' })} />
+        <CategoryCard label="Meu Pedido" count={stats.by_category?.meu_pedido || 0} icon="fa-box" color="#3b82f6" onClick={() => goToTickets({ category: 'meu_pedido' })} />
+        <CategoryCard label="Garantia" count={stats.by_category?.garantia || 0} icon="fa-shield" color="#f97316" onClick={() => goToTickets({ category: 'garantia' })} />
+        <CategoryCard label="Reclamações" count={stats.by_category?.reclamacao || 0} icon="fa-face-angry" color="#ef4444" onClick={() => goToTickets({ category: 'reclamacao' })} />
       </div>
     </>
   )
@@ -433,13 +425,13 @@ function TrocasDashboard({ stats, goToTickets }) {
           <i className="fas fa-rotate text-yellow-400 text-2xl" />
           <div>
             <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Painel de Trocas</h2>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{stats.trocas_count} tickets de troca no período</p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{stats.by_category?.garantia || 0} tickets de garantia/troca no período</p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <KPICard label="Trocas Totais" value={stats.trocas_count} icon="fa-rotate" color="yellow" onClick={() => goToTickets({ category: 'troca' })} />
+        <KPICard label="Garantia Total" value={stats.by_category?.garantia || 0} icon="fa-shield" color="orange" onClick={() => goToTickets({ category: 'garantia' })} />
         <KPICard label="Aguardando Reenvio" value={stats.by_status?.waiting_resend || 0} icon="fa-truck" color="orange" onClick={() => goToTickets({ status: 'waiting_resend' })} />
         <KPICard label="Ag. Fornecedor" value={stats.by_status?.waiting_supplier || 0} icon="fa-warehouse" color="purple" onClick={() => goToTickets({ status: 'waiting_supplier' })} />
         <KPICard label="SLA Cumprido" value={`${stats.sla_compliance}%`} icon="fa-clock" color="green" />
@@ -502,16 +494,16 @@ function ProblemasDashboard({ stats, goToTickets }) {
           <i className="fas fa-triangle-exclamation text-orange-400 text-2xl" />
           <div>
             <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Painel de Problemas</h2>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{stats.problemas_count} tickets de problemas técnicos no período</p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{stats.by_category?.garantia || 0} tickets de garantia no período</p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <KPICard label="Garantia" value={stats.by_category?.garantia || 0} icon="fa-shield" color="blue" onClick={() => goToTickets({ category: 'garantia' })} />
-        <KPICard label="Mau Uso" value={stats.by_category?.mau_uso || 0} icon="fa-ban" color="red" onClick={() => goToTickets({ category: 'mau_uso' })} />
-        <KPICard label="Suporte Técnico" value={stats.by_category?.suporte_tecnico || 0} icon="fa-wrench" color="accent" onClick={() => goToTickets({ category: 'suporte_tecnico' })} />
-        <KPICard label="Carregador" value={stats.by_category?.carregador || 0} icon="fa-bolt" color="yellow" onClick={() => goToTickets({ category: 'carregador' })} />
+        <KPICard label="Garantia" value={stats.by_category?.garantia || 0} icon="fa-shield" color="orange" onClick={() => goToTickets({ category: 'garantia' })} />
+        <KPICard label="Reenvio" value={stats.by_category?.reenvio || 0} icon="fa-truck" color="purple" onClick={() => goToTickets({ category: 'reenvio' })} />
+        <KPICard label="Meu Pedido" value={stats.by_category?.meu_pedido || 0} icon="fa-box" color="blue" onClick={() => goToTickets({ category: 'meu_pedido' })} />
+        <KPICard label="Financeiro" value={stats.by_category?.financeiro || 0} icon="fa-money-bill" color="green" onClick={() => goToTickets({ category: 'financeiro' })} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -569,16 +561,16 @@ function ReclamacoesDashboard({ stats, goToTickets }) {
           <i className="fas fa-face-angry text-red-400 text-2xl" />
           <div>
             <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Painel de Reclamações</h2>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{stats.reclamacoes_count} reclamações + {stats.legal_risk_count} risco jurídico no período</p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{stats.by_category?.reclamacao || 0} reclamações + {stats.legal_risk_count} risco jurídico no período</p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <KPICard label="Reclamações" value={stats.reclamacoes_count} icon="fa-face-angry" color="red" onClick={() => goToTickets({ category: 'reclamacao' })} />
+        <KPICard label="Reclamações" value={stats.by_category?.reclamacao || 0} icon="fa-face-angry" color="red" onClick={() => goToTickets({ category: 'reclamacao' })} />
         <KPICard label="Risco Jurídico" value={stats.legal_risk_count} icon="fa-gavel" color="red" onClick={() => goToTickets({ legal_risk: 'true' })} />
         <KPICard label="Escalados" value={stats.escalated_count} icon="fa-arrow-up" color="orange" onClick={() => goToTickets({ status: 'escalated' })} />
-        <KPICard label="Chargeback" value={stats.by_category?.chargeback || 0} icon="fa-credit-card" color="red" onClick={() => goToTickets({ category: 'chargeback' })} />
+        <KPICard label="Dúvidas" value={stats.by_category?.duvida || 0} icon="fa-question-circle" color="blue" onClick={() => goToTickets({ category: 'duvida' })} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

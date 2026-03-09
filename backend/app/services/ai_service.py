@@ -124,16 +124,21 @@ def apply_triage_results(ticket, triage: dict, customer=None):
         ticket.tags = list(set(existing + triage["tags"]))
     if triage.get("confidence"):
         ticket.ai_confidence = triage["confidence"]
+        # Low confidence → flag for human review
+        if triage["confidence"] < 0.5:
+            existing = list(ticket.tags or [])
+            ticket.tags = list(set(existing + ["revisao_manual"]))
 
-    # ── Priority override by keywords ──
+    # ── Priority override by keywords (only UPGRADE, never downgrade) ──
+    PRIORITY_RANK = {"low": 0, "medium": 1, "high": 2, "urgent": 3}
+    current_rank = PRIORITY_RANK.get(ticket.priority, 1)
     _text = f"{getattr(ticket, 'subject', '')} {triage.get('summary', '')}".lower()
-    HIGH_KEYWORDS = ["reclame aqui", "reclameaqui", "reembolso", "procon", "advogado", "juridico", "processo"]
-    if any(kw in _text for kw in HIGH_KEYWORDS):
+    URGENT_KEYWORDS = ["procon", "advogado", "processo", "juizado", "danos morais"]
+    HIGH_KEYWORDS = ["reclame aqui", "reclameaqui", "chargeback", "reembolso"]
+    if any(kw in _text for kw in URGENT_KEYWORDS) and current_rank < 3:
+        ticket.priority = "urgent"
+    elif any(kw in _text for kw in HIGH_KEYWORDS) and current_rank < 2:
         ticket.priority = "high"
-    elif ticket.priority == "medium":
-        MEDIUM_KEYWORDS = ["rastreio", "rastreamento", "status", "prazo", "entrega"]
-        if any(kw in _text for kw in MEDIUM_KEYWORDS):
-            ticket.priority = "medium"  # keep medium explicitly
 
     # Enrich customer data if available
     if customer:
@@ -147,78 +152,135 @@ def apply_triage_results(ticket, triage: dict, customer=None):
                 customer.name = ai_data["full_name"]
 
 
-TRIAGE_SYSTEM_PROMPT = """Você é um assistente de triagem para o suporte da Carbon Smartwatch, uma empresa brasileira de smartwatches.
+TRIAGE_SYSTEM_PROMPT = """Você é o triador do suporte da Carbon Smartwatch (empresa brasileira de smartwatches).
 
-Analise a mensagem do cliente e retorne APENAS um JSON válido (sem markdown, sem texto extra) com:
+Analise a mensagem e retorne APENAS JSON válido (sem markdown):
 
 {
   "category": "UMA das categorias abaixo",
   "priority": "low | medium | high | urgent",
   "sentiment": "positive | neutral | negative | angry",
   "legal_risk": true ou false,
-  "tags": ["tags relevantes da lista abaixo"],
+  "tags": ["tags da lista abaixo"],
   "confidence": 0.0 a 1.0,
-  "summary": "resumo em 1 frase do problema",
+  "summary": "problema → próximo passo pro agente",
   "customer_data": {
-    "cpf": "CPF se encontrado (apenas dígitos, 11 chars)",
-    "phone": "telefone se encontrado (apenas dígitos)",
-    "order_number": "número do pedido se encontrado (apenas dígitos)",
-    "full_name": "nome completo se identificado"
+    "cpf": "apenas dígitos, 11 chars",
+    "phone": "apenas dígitos",
+    "order_number": "apenas dígitos",
+    "full_name": "nome completo"
   }
 }
 
-CATEGORIAS (use exatamente estes valores):
-- defeito_garantia: produto com defeito dentro da garantia de 1 ano
-- troca: solicitação de troca (tamanho, cor, modelo)
-- reenvio: produto não chegou, extraviado, precisa reenviar
-- rastreamento: dúvida sobre status de entrega, código de rastreio
-- mau_uso: produto danificado por mau uso (tela quebrada, molhou além do IP, etc)
-- carregador: problema específico com carregador magnético
-- suporte_tecnico: problemas de software, app, bluetooth, configuração
-- chargeback: cliente abriu disputa no cartão
-- procon: mencionou PROCON, processo, advogado, danos morais
-- reclame_aqui: mencionou Reclame Aqui
-- financeiro: reembolso, estorno, pagamento, nota fiscal
-- duvida: dúvida geral sobre produto, funcionalidades, compra
-- reclamacao: reclamação genérica que não se encaixa nas acima
-- elogio: feedback positivo, elogio
+CATEGORIAS (exatamente estes valores):
+- meu_pedido: quer saber onde está o pedido, rastreio, nota fiscal, cancelar, pedido incompleto
+- garantia: defeito, troca, devolução, produto errado, carregador quebrado, assistência, mau uso
+- reenvio: produto extraviado, não chegou E quer que envie de novo
+- financeiro: estorno, reembolso, chargeback, dúvida de pagamento
+- duvida: pré-venda, como usar, funcionalidades, elogio, sugestão, feedback positivo
+- reclamacao: insatisfação, reclamação genérica, acha que é golpe, menciona GUACU
 
-TAGS possíveis: garantia, troca, carregador, mau_uso, procon, chargeback, reclame_aqui, reenvio, rastreamento, defeito, reembolso, duvida, elogio
+REGRA meu_pedido vs reenvio:
+- "Cadê meu pedido?" / "Quero rastreio" → meu_pedido (quer SABER onde está)
+- "Não chegou, quero que enviem de novo" → reenvio (quer NOVO ENVIO)
 
-Regras de prioridade:
-- urgent: risco jurídico (PROCON, chargeback, advogado, Reclame Aqui), cliente muito irritado
-- high: reclamação forte, defeito grave, cliente reincidente, produto não chegou
-- medium: trocas normais, problemas técnicos comuns, dúvidas sobre entrega
+CONTEXTO IMPORTANTE:
+- GUACU NEGOCIOS DIGITAIS LTDA = Carbon Smartwatch. Mesma empresa. Cliente que menciona GUACU/golpe/fraude → reclamacao + tag guacu
+- Garantia: 12 meses contra defeitos de fabricação
+- Não tem assistência técnica — troca direta na garantia
+- Houve atrasos em pedidos jan-fev 2026 por problema de importação. Já corrigido.
+
+TAGS (detalham o que a categoria não diz):
+guacu, procon, advogado, reclame_aqui, chargeback, mau_uso, carregador, defeito, troca, nf, reembolso, reincidente
+
+PRIORIDADE:
+- urgent: PROCON, chargeback, advogado, Reclame Aqui, juizado, danos morais
+- high: defeito grave, cliente reincidente, produto não chegou, reclamação forte
+- medium: trocas, problemas técnicos, dúvidas sobre entrega
 - low: dúvidas simples, elogios, feedback positivo
 
 legal_risk = true se menciona: PROCON, processo, advogado, Reclame Aqui, chargeback, danos morais, juizado
 
-Se não encontrar dados do cliente, retorne customer_data como null.
+SUMMARY — escreva como BRIEFING pro agente (problema → o que fazer):
+- BOM: "Pedido #54321 não entregue há 15 dias → buscar rastreio no Shopify"
+- BOM: "Relógio não liga após 3 meses → garantia ativa, iniciar troca via Troque"
+- BOM: "Acha que Carbon é golpe (GUACU) → explicar que é mesma empresa"
+- RUIM: "Cliente reclama que pedido não chegou" (não diz o que fazer)
 
-Contexto: smartwatches Carbon, carregadores magnéticos, pulseiras, garantia de 1 ano."""
+Se não encontrar dados do cliente, retorne customer_data como null."""
 
 
-SUGGEST_SYSTEM_PROMPT = """Você é um agente de suporte da Carbon Smartwatch. Sugira uma resposta profissional e empática para o ticket abaixo.
+SUGGEST_SYSTEM_PROMPT = """Você é um agente de suporte da Carbon Smartwatch. Sugira uma resposta empática e direta para o ticket abaixo.
 
 Regras:
-- Sempre cumprimente o cliente pelo nome
-- Seja empático e profissional
-- Use português brasileiro
-- Não invente informações sobre políticas que não conhece
-- Se for garantia: mencione que o prazo é de 1 ano
-- Se for mau uso: explique com delicadeza que não é coberto pela garantia
-- Se houver risco jurídico: seja extra cuidadoso e sugira escalar para supervisor
-- Mantenha a resposta concisa (máximo 5 parágrafhs)
-- NÃO use markdown, use texto simples
+- Cumprimente o cliente pelo nome
+- Tom casual e empático, direto ao ponto
+- Português brasileiro
+- Não invente informações que não conhece
+- Categorias do ticket: meu_pedido, garantia, reenvio, financeiro, duvida, reclamacao
+- Garantia: 12 meses contra defeitos de fabricação. Troca direta (sem assistência técnica)
+- Mau uso: não é coberto pela garantia. Explique com delicadeza
+- GUACU NEGOCIOS DIGITAIS = Carbon (mesma empresa, mesmo CNPJ). Não é golpe
+- Risco jurídico: seja extra cuidadoso, sugira escalar para supervisor
+- Máximo 4 parágrafos. Texto simples, sem markdown
 
-Retorne APENAS o texto da resposta sugerida, sem JSON, sem explicações."""
+Retorne APENAS o texto da resposta sugerida."""
+
+
+# ── Keyword fallback when AI is unavailable ──
+_KEYWORD_FALLBACK = {
+    "reclamacao": ["procon", "advogado", "processo", "juizado", "danos morais", "reclame aqui", "reclameaqui", "golpe", "guacu", "fraude", "enganosa"],
+    "financeiro": ["estorno", "reembolso", "cancelar", "cancelamento", "dinheiro de volta", "chargeback", "pagamento"],
+    "reenvio": ["extraviado", "não recebi", "nao recebi", "reenvio", "reenviar", "enviar de novo", "enviem novamente"],
+    "garantia": ["defeito", "garantia", "quebrou", "não liga", "nao liga", "não funciona", "nao funciona", "carregador", "troca", "trocar", "devolver", "devolução"],
+    "meu_pedido": ["rastreio", "rastreamento", "entrega", "pedido", "nota fiscal", "onde está", "onde esta", "cadê", "cade", "status"],
+    "duvida": ["dúvida", "duvida", "como funciona", "pergunta", "informação", "informacao"],
+}
+
+_LEGAL_KEYWORDS = ["procon", "advogado", "processo", "juizado", "danos morais", "reclame aqui", "reclameaqui", "chargeback"]
+
+
+def _fallback_triage(subject: str, body: str) -> dict:
+    """Keyword-based fallback when AI credits are exhausted."""
+    text = f"{subject} {body[:1000]}".lower()
+    category = "duvida"
+    priority = "medium"
+    legal_risk = False
+    tags = []
+
+    # Check legal risk first
+    if any(kw in text for kw in _LEGAL_KEYWORDS):
+        legal_risk = True
+        priority = "urgent"
+
+    # Match category (order matters: more specific first)
+    for cat, keywords in _KEYWORD_FALLBACK.items():
+        if any(kw in text for kw in keywords):
+            category = cat
+            break
+
+    if "guacu" in text or "golpe" in text:
+        tags.append("guacu")
+    if "reincidente" in text or "de novo" in text:
+        tags.append("reincidente")
+
+    return {
+        "category": category,
+        "priority": priority,
+        "sentiment": "neutral",
+        "legal_risk": legal_risk,
+        "tags": tags,
+        "confidence": 0.3,
+        "summary": f"{subject[:100]}",
+        "customer_data": None,
+    }
 
 
 async def triage_ticket(subject: str, body: str, customer_name: str = "", is_repeat: bool = False) -> dict | None:
-    """Classify a ticket using Claude AI."""
+    """Classify a ticket using Claude AI. Falls back to keywords if AI unavailable."""
     if is_credits_exhausted():
-        logger.warning("AI triage skipped: credits exhausted")
-        return None
+        logger.warning("AI triage unavailable, using keyword fallback")
+        return _fallback_triage(subject, body)
     try:
         ai = get_client()
 

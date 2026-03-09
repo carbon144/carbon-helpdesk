@@ -7,10 +7,7 @@ const CARRIER_LABELS = {
   correios: 'Correios', cainiao: 'Cainiao', '17track': '17Track', generic: 'Genérico', desconhecido: 'Desconhecido',
 }
 
-const CATEGORY_LABELS = {
-  garantia: 'Garantia', troca: 'Troca', mau_uso: 'Mau Uso', carregador: 'Carregador',
-  duvida: 'Dúvida', reclamacao: 'Reclamação', suporte_tecnico: 'Suporte Técnico',
-}
+import { CATEGORY_LABELS } from '../constants/ticket'
 
 const STATUS_LABELS = {
   open: 'Aberto', in_progress: 'Em Andamento', waiting: 'Aguardando',

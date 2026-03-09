@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { getArticles } from '../services/api'
 
-const CATEGORIES = ['garantia', 'troca', 'carregador', 'mau_uso', 'juridico', 'especificacoes', 'suporte_tecnico']
-
-const CATEGORY_LABELS = {
-  garantia: 'Garantia', troca: 'Troca', carregador: 'Carregador',
-  mau_uso: 'Mau Uso', juridico: 'Jurídico', especificacoes: 'Especificações',
-  suporte_tecnico: 'Suporte Técnico',
-}
+import { CATEGORY_LABELS } from '../constants/ticket'
+const CATEGORIES = Object.keys(CATEGORY_LABELS)
 
 export default function KBPage() {
   const [articles, setArticles] = useState([])

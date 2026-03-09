@@ -36,30 +36,21 @@ export const PRIORITY_LABELS = {
 }
 
 export const CATEGORY_LABELS = {
-  chargeback: 'Chargeback',
-  ra_procon_juridico: 'RA/Procon/Jurídico',
-  garantia_devolucoes: 'Garantia/Devoluções/Assistência',
-  cancelamento: 'Cancelamento',
-  entrega_rastreio: 'Entrega/Rastreio',
-  pre_venda: 'Pré-Venda',
-  // Legacy categories (mapped for backward compat)
-  reclame_aqui: 'RA/Procon/Jurídico',
-  procon: 'RA/Procon/Jurídico',
-  juridico: 'RA/Procon/Jurídico',
-  defeito_garantia: 'Garantia/Devoluções/Assistência',
-  troca: 'Garantia/Devoluções/Assistência',
-  garantia: 'Garantia/Devoluções/Assistência',
-  mau_uso: 'Garantia/Devoluções/Assistência',
-  reenvio: 'Entrega/Rastreio',
-  rastreamento: 'Entrega/Rastreio',
-  duvida: 'Pré-Venda',
-  sugestao: 'Pré-Venda',
-  elogio: 'Pré-Venda',
-  outros: 'Pré-Venda',
-  carregador: 'Garantia/Devoluções/Assistência',
-  reclamacao: 'RA/Procon/Jurídico',
-  suporte_tecnico: 'Garantia/Devoluções/Assistência',
-  financeiro: 'Cancelamento',
+  meu_pedido: 'Meu Pedido',
+  garantia: 'Garantia',
+  reenvio: 'Reenvio',
+  financeiro: 'Financeiro',
+  duvida: 'Dúvida',
+  reclamacao: 'Reclamação',
+}
+
+export const CATEGORY_COLORS = {
+  meu_pedido: 'bg-blue-500/10 text-blue-300',
+  garantia: 'bg-orange-500/10 text-orange-300',
+  reenvio: 'bg-purple-500/10 text-purple-300',
+  financeiro: 'bg-green-500/10 text-green-300',
+  duvida: 'bg-gray-500/10 text-gray-300',
+  reclamacao: 'bg-red-500/10 text-red-300',
 }
 
 export const SENTIMENT_LABELS = {
@@ -67,16 +58,21 @@ export const SENTIMENT_LABELS = {
 }
 
 export const TAG_COLORS = {
-  garantia: 'bg-blue-900/30 text-blue-300',
-  troca: 'bg-purple-900/30 text-purple-300',
-  carregador: 'bg-cyan-900/30 text-cyan-300',
-  mau_uso: 'bg-orange-900/30 text-orange-300',
+  guacu: 'bg-red-900/30 text-red-300',
   procon: 'bg-red-900/30 text-red-300',
+  advogado: 'bg-red-900/30 text-red-300',
+  reclame_aqui: 'bg-red-900/30 text-red-300',
   chargeback: 'bg-pink-900/30 text-pink-300',
-  duvida: 'bg-blue-900/30 text-blue-300',
-  reclamacao: 'bg-red-900/30 text-red-300',
-  juridico: 'bg-red-900/30 text-red-300',
-  suporte_tecnico: 'bg-cyan-900/30 text-cyan-300',
+  mau_uso: 'bg-orange-900/30 text-orange-300',
+  carregador: 'bg-cyan-900/30 text-cyan-300',
+  defeito: 'bg-orange-900/30 text-orange-300',
+  troca: 'bg-purple-900/30 text-purple-300',
+  nf: 'bg-blue-900/30 text-blue-300',
+  reembolso: 'bg-green-900/30 text-green-300',
+  reincidente: 'bg-yellow-900/30 text-yellow-300',
+  revisao_manual: 'bg-yellow-500/10 text-yellow-300',
+  ai_auto_reply: 'bg-cyan-500/10 text-cyan-300',
+  ai_ack: 'bg-cyan-500/10 text-cyan-300',
   BLACKLIST: 'bg-red-500/10 text-red-300',
   AUTO_ESCALADO: 'bg-orange-500/10 text-orange-300',
   SLA_ESTOURADO: 'bg-red-500/10 text-red-300',
@@ -87,10 +83,12 @@ export const TAG_COLORS = {
 }
 
 export const TAG_LABELS = {
-  garantia: 'Garantia', troca: 'Troca', carregador: 'Carregador',
-  mau_uso: 'Mau Uso', procon: 'PROCON', chargeback: 'Chargeback',
-  duvida: 'Dúvida', reclamacao: 'Reclamação', juridico: 'Jurídico',
-  suporte_tecnico: 'Suporte Técnico',
+  guacu: 'GUACU/Golpe', procon: 'PROCON', advogado: 'Advogado',
+  reclame_aqui: 'Reclame Aqui', chargeback: 'Chargeback',
+  mau_uso: 'Mau Uso', carregador: 'Carregador', defeito: 'Defeito',
+  troca: 'Troca', nf: 'Nota Fiscal', reembolso: 'Reembolso',
+  reincidente: 'Reincidente', revisao_manual: 'Revisão Manual',
+  ai_auto_reply: 'IA Respondeu', ai_ack: 'IA Confirmou',
   BLACKLIST: 'Blacklist', AUTO_ESCALADO: 'Auto-Escalado',
   SLA_ESTOURADO: 'SLA Estourado', SLA_ALERTA: 'Alerta SLA',
   chat_whatsapp: 'Via WhatsApp', chat_instagram: 'Via Instagram', chat_facebook: 'Via Facebook',
