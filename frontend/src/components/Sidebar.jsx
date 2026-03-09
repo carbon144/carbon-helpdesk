@@ -23,6 +23,7 @@ const NAV_GROUPS = [
       { to: '/kb', label: 'Base de Conhecimento', icon: 'fa-book', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
       { to: '/media', label: 'Biblioteca de Midia', icon: 'fa-photo-video', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
       { to: '/catalog', label: 'Catalogo', icon: 'fa-box-open', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
+      { to: '/macros', label: 'Respostas Rapidas', icon: 'fa-bolt', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
       { to: '/chatbot-flows', label: 'Chatbot Flows', icon: 'fa-robot', roles: ['super_admin', 'admin', 'supervisor'] },
       // { to: '/moderation', label: 'Moderacao Social', icon: 'fa-shield-alt', roles: ['super_admin', 'admin', 'supervisor'] },
     ],
