@@ -226,7 +226,7 @@ async def process_incoming_message(
 
     # Layer 0: Allow "menu/voltar" to reset back to chatbot even from agent/resolved
     _menu_words = ("menu", "voltar", "inicio", "início", "0", "oi", "olá", "ola", "meni", "memu")
-    if _text_lower in _menu_words and conversation.handler in ("agent", "chatbot", None):
+    if _text_lower in _menu_words and conversation.handler in ("agent", "chatbot", "ai", None):
         conversation.handler = "chatbot"
         conversation.ai_enabled = True
         conversation.status = "open"
@@ -474,18 +474,21 @@ async def process_incoming_message(
                     if not _skip_auto and field in ("order_number", "pedido") and conversation.channel == "whatsapp":
                         phone = getattr(customer, "phone", None)
                         if phone:
-                            auto_msgs = await _auto_lookup_by_phone(customer, phone)
-                            if auto_msgs:
-                                for msg in auto_msgs:
-                                    result["bot_messages"].append(msg)
-                                    await _save_bot_message(db, conversation, msg)
-                                # Clear chatbot state so it doesn't wait for input
-                                meta = conversation.metadata_ or {}
-                                meta.pop("chatbot_state", None)
-                                conversation.metadata_ = meta
-                                continue  # skip the collect_input prompt
+                            summary = await _quick_orders_summary(phone)
+                            if summary:
+                                result["bot_messages"].append(summary)
+                                await _save_bot_message(db, conversation, summary)
                     content = resp.get("content", "")
-                    if content:
+                    options = resp.get("options")
+                    if content and options:
+                        # Interactive buttons for collect_input
+                        await _save_bot_message(db, conversation, content)
+                        result["interactive_messages"].append({
+                            "type": "menu",
+                            "content": content,
+                            "options": options,
+                        })
+                    elif content:
                         result["bot_messages"].append(content)
                         await _save_bot_message(db, conversation, content)
 
@@ -507,6 +510,21 @@ async def process_incoming_message(
                         meta.pop("_force_escalate", None)
                         conversation.metadata_ = meta
                         return await _escalate_to_agent(db, conversation, result)
+
+                elif resp_type == "lookup_troque":
+                    from app.services.troque_service import search_by_order_number, search_by_phone, format_status_message
+                    collected_data = resp.get("collected_data", {})
+                    order_num = collected_data.get(resp.get("variable", "order_number"), "").strip().lstrip("#")
+                    # Try by order number first, then by phone
+                    reversals = await search_by_order_number(order_num) if order_num else []
+                    if not reversals:
+                        # Try matching by WhatsApp phone
+                        cust_phone = getattr(customer, "phone", "") or ""
+                        if cust_phone:
+                            reversals = await search_by_phone(cust_phone)
+                    status_msg = format_status_message(reversals)
+                    result["bot_messages"].append(status_msg)
+                    await _save_bot_message(db, conversation, status_msg)
 
                 elif resp_type == "lookup_invoice":
                     collected_data = resp.get("collected_data", {})
@@ -791,6 +809,25 @@ def _verify_invoice_owner(invoice: dict, customer_phone: str) -> bool:
     return req_digits[-9:] == inv_digits[-9:]
 
 
+async def _quick_orders_summary(phone: str) -> str | None:
+    """Return a short summary of customer orders (number + product) for flow context."""
+    from app.services import shopify_service
+    try:
+        result = await shopify_service.get_orders_by_phone(phone, limit=5)
+        orders = result.get("orders", [])
+        if not orders:
+            return None
+        lines = ["Encontrei seus pedidos:"]
+        for o in orders[:5]:
+            name = o.get("name", "")
+            items = ", ".join(li.get("title", "?") for li in (o.get("line_items") or [])[:2])
+            lines.append(f"• *{name}* — {items}")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.warning("Quick orders summary failed: %s", e)
+        return None
+
+
 async def _auto_lookup_by_phone(customer: Customer, phone: str) -> list[str]:
     """Try to find recent orders by customer phone number in Shopify."""
     from app.services import shopify_service
@@ -977,9 +1014,9 @@ async def _format_order_messages(order: dict) -> list[str]:
                 if eta and not is_delivered:
                     msg += f"\n*Previsão de entrega:* {eta}"
 
-                # Timeline
+                # Timeline (last 2 events only)
                 msg += f"\n\n*Rastreio:* {tracking}\n"
-                for ev in events[:5]:
+                for ev in events[:2]:
                     ev_date = _format_date_br(ev.get("date", ""))
                     ev_status = ev.get("status", "")
                     ev_loc = ev.get("location", "")
@@ -1466,6 +1503,33 @@ async def _create_ticket_from_conversation(db: AsyncSession, conversation: Conve
             body_html=body_html,
         )
         db.add(message)
+
+        # Send confirmation email to customer and start Gmail thread
+        customer_email = getattr(conversation.customer, "email", None)
+        if customer_email:
+            try:
+                from app.services.gmail_service import send_email as gmail_send
+                email_subject = f"Chamado #{next_number} — Carbon Smartwatch"
+                email_body = (
+                    f"Olá {customer_name},\n\n"
+                    f"Seu chamado #{next_number} foi aberto com sucesso.\n\n"
+                    f"Nosso time de atendimento vai analisar sua solicitação e "
+                    f"responder por aqui o mais breve possível.\n\n"
+                    f"Horário de atendimento: segunda a sexta, 9h às 18h.\n\n"
+                    f"Atenciosamente,\n"
+                    f"Carbon Smartwatch\n"
+                    f"atendimento@carbonsmartwatch.com.br"
+                )
+                email_result = gmail_send(to=customer_email, subject=email_subject, body_text=email_body)
+                if email_result:
+                    message.gmail_thread_id = email_result.get("threadId")
+                    message.gmail_message_id = email_result.get("id")
+                    logger.info("[ESCALATE] Confirmation email sent to %s for ticket #%s (thread=%s)",
+                                customer_email, next_number, email_result.get("threadId"))
+                else:
+                    logger.warning("[ESCALATE] Failed to send confirmation email to %s", customer_email)
+            except Exception as e:
+                logger.warning("[ESCALATE] Error sending confirmation email: %s", e)
 
         logger.info("[ESCALATE] Created ticket #%s from %s conversation %s", next_number, conversation.channel, conversation.id)
         return next_number

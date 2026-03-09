@@ -263,11 +263,14 @@ class ChatbotEngine:
         elif step_type == "collect_input":
             prompt = self._substitute_vars(step.get("prompt") or step.get("message") or "", collected_data)
             field = step.get("field") or step.get("variable") or "input"
-            return {
+            result = {
                 "type": "collect_input",
                 "content": prompt,
                 "field": field,
             }
+            if step.get("options"):
+                result["options"] = step["options"]
+            return result
 
         elif step_type == "wait_response":
             prompt = self._substitute_vars(step.get("prompt", ""), collected_data)
@@ -279,6 +282,15 @@ class ChatbotEngine:
                 "order_field": step.get("order_field", "order_number"),
                 "collected_data": collected_data,
                 "message": step.get("message", "Buscando informações do pedido..."),
+            }
+
+        elif step_type == "lookup_troque":
+            return {
+                "type": "lookup_troque",
+                "variable": step.get("variable", "order_number"),
+                "collected_data": collected_data,
+                "found_message": step.get("found_message", ""),
+                "not_found_message": step.get("not_found_message", ""),
             }
 
         elif step_type == "lookup_invoice":

@@ -880,6 +880,9 @@ app.include_router(wh_whatsapp.router)
 app.include_router(wh_meta_dm.router)
 app.include_router(wh_tiktok.router)
 app.include_router(wh_vapi.router)
+
+from app.api import voice_calls
+app.include_router(voice_calls.router, prefix="/api")
 app.include_router(ws.router)
 
 # Public CSAT rating page (no auth required - customer clicks email link)

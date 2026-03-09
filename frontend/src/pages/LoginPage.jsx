@@ -117,16 +117,7 @@ export default function LoginPage({ onLogin }) {
           }}>
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="w-14 h-14 rounded-xl flex items-center justify-center font-black text-xl mx-auto mb-4"
-              style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}>
-              C
-            </div>
-            <h1 className="text-3xl font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
-              CARBON
-            </h1>
-            <p className="text-sm font-semibold tracking-widest mt-0.5" style={{ color: 'var(--accent)' }}>
-              EXPERT HUB
-            </p>
+            <img src="/logo-black.png" alt="Carbon Expert Hub" className="h-12 mx-auto mb-4" />
             <p className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
               {mode === 'login' && 'Sistema de Atendimento'}
               {mode === 'forgot' && 'Recuperar Senha'}

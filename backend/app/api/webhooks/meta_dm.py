@@ -101,6 +101,10 @@ async def meta_webhook(request: Request):
     payload = await request.json()
     obj = payload.get("object", "")
     print(f"[WEBHOOK] object={obj}", flush=True)
+    # Debug: log full payload for IG/FB to diagnose missing messages
+    if obj in ("instagram", "page"):
+        import json as _json
+        print(f"[WEBHOOK-DEBUG] {obj} full payload: {_json.dumps(payload, default=str)[:2000]}", flush=True)
     if obj == "whatsapp_business_account":
         channel, messages = "whatsapp", await _whatsapp.process_webhook(payload)
     elif obj == "instagram":

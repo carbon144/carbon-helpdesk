@@ -29,7 +29,7 @@ export default function ChatInput({ onSendMessage, onSendNote, disabled }) {
   }
 
   return (
-    <div className="p-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+    <div className="p-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: '#1F1F23' }}>
       {isNote && (
         <div className="flex items-center gap-1.5 mb-2 px-1">
           <StickyNote className="w-3.5 h-3.5" style={{ color: '#E5A800' }} />

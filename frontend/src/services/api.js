@@ -223,6 +223,10 @@ export const refreshAllTrackings = () => api.post('/tracking/refresh-all')
 export const refreshSingleTracking = (ticketId) => api.post(`/tracking/refresh/${ticketId}`)
 export const syncShopifyTracking = (days = 30) => api.post('/tracking/sync-shopify', null, { params: { days } })
 
+// ── Voice Calls ──
+export const getVoiceCalls = (params) => api.get('/voice-calls', { params })
+export const getVoiceCall = (id) => api.get(`/voice-calls/${id}`)
+
 // ── E-commerce (Shopify + Yampi + Appmax) ──
 export const getEcommerceOrders = (email) => api.get('/ecommerce/orders', { params: { email } })
 export const getYampiOrders = (email) => api.get('/ecommerce/yampi/orders', { params: { email } })

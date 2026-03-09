@@ -12,8 +12,8 @@ const NAV_GROUPS = [
       { to: '/dashboard', label: 'Dashboard', icon: 'fa-chart-line', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
       { to: '/tickets', label: 'Caixa de Entrada', icon: 'fa-inbox', roles: ['super_admin', 'admin', 'supervisor', 'agent'], badge: 'tickets' },
       { to: '/chat', label: 'Chat ao Vivo', icon: 'fa-headset', roles: ['super_admin', 'admin', 'supervisor', 'agent'], badge: 'chat' },
-      { to: '/canais-ia', label: 'Canais IA', icon: 'fa-comments', roles: ['super_admin', 'admin', 'supervisor'], badge: 'meta' },
       { to: '/tracking', label: 'Rastreamento', icon: 'fa-truck-fast', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
+      { to: '/voice-calls', label: 'Ligacoes', icon: 'fa-phone', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
     ],
   },
   {
@@ -50,7 +50,8 @@ export default function Sidebar({ user, onLogout, ticketCount, metaCount, chatCo
       }}>
       {/* Logo */}
       <div className="px-5 py-5 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-        <img src="/assets/carbon-logo.svg" alt="Carbon Expert Hub" className="h-7" />
+        <img src="/logo-white.png" alt="Carbon Expert Hub" className="h-8" />
+        <p className="text-[10px] font-semibold tracking-[0.25em] mt-1 uppercase" style={{ color: 'rgba(255,255,255,0.45)' }}>ExpertHub</p>
       </div>
 
       {/* Navigation */}
