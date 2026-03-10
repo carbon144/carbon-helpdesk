@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 _adapter = WhatsAppAdapter()
 
+# Debounce: track recently processed sender+conversation to prevent duplicate greetings
+_recent_processed: dict[str, float] = {}  # key: "sender_id:conv_id" → timestamp
+_DEBOUNCE_SECONDS = 1.0
+
 
 def _verify_signature(payload: bytes, signature: str, secret: str) -> bool:
     if not signature.startswith("sha256="):
@@ -114,8 +118,46 @@ async def _process_message(db: AsyncSession, msg: dict, channel: str):
 
     wa_kwargs = {"phone_number_id": phone_number_id} if phone_number_id else {}
 
+    # Debounce: skip pipeline if same sender processed within 1 second
+    # (prevents duplicate greetings from burst messages)
+    import time
+    _debounce_key = f"{sender_id}:{conversation.id}"
+    _now_ts = time.time()
+    _last_ts = _recent_processed.get(_debounce_key, 0)
+    if _now_ts - _last_ts < _DEBOUNCE_SECONDS:
+        logger.debug("[DEBOUNCE] Skipping pipeline for %s (%.1fs since last)", _debounce_key, _now_ts - _last_ts)
+        return
+    _recent_processed[_debounce_key] = _now_ts
+    # Cleanup old entries (keep last 100)
+    if len(_recent_processed) > 200:
+        _sorted = sorted(_recent_processed.items(), key=lambda x: x[1])
+        _recent_processed.clear()
+        _recent_processed.update(_sorted[-100:])
+
     content = msg.get("content", "")
-    if content:
+    content_type = msg.get("content_type", "text")
+
+    # Handle media messages (image, video, audio, sticker) — even without caption
+    if not content and content_type in ("image", "video", "audio", "sticker", "document"):
+        from app.services.message_pipeline import process_incoming_message
+        cust_result = await db.execute(select(Customer).where(Customer.id == customer_id))
+        customer = cust_result.scalar_one_or_none()
+        if customer:
+            pipeline_result = await process_incoming_message(
+                db, conversation, customer, "", content_type=content_type,
+            )
+            if pipeline_result.get("bot_messages"):
+                from app.services.channels.dispatcher import dispatcher
+                for bot_msg in pipeline_result["bot_messages"]:
+                    await dispatcher.send(channel, sender_id, bot_msg, **wa_kwargs)
+            for im in pipeline_result.get("interactive_messages", []):
+                if im.get("type") == "menu":
+                    from app.services.channels.dispatcher import dispatcher
+                    await dispatcher.send_interactive(
+                        channel, sender_id, im["content"], im["options"], **wa_kwargs,
+                    )
+
+    elif content:
         from app.services.message_pipeline import process_incoming_message
         cust_result = await db.execute(select(Customer).where(Customer.id == customer_id))
         customer = cust_result.scalar_one_or_none()

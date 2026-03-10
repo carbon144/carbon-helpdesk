@@ -27,7 +27,7 @@ class ChatbotEngine:
         text_lower = message_text.lower().strip()
 
         # Allow user to reset to main menu anytime
-        if text_lower in ("menu", "voltar", "inicio", "início", "0"):
+        if text_lower in ("menu", "voltar", "voltar ao menu", "voltar menu", "inicio", "início", "0", "encerrar"):
             self._clear_state(conversation)
             flow = await self.match_flow(db, "oi", trigger_type="greeting")
             if flow:

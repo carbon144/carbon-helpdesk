@@ -192,6 +192,7 @@ async def process_incoming_message(
     customer: Customer,
     message_text: str,
     visitor_id: str | None = None,
+    content_type: str = "text",
 ) -> dict:
     result = {
         "handler": conversation.handler or "chatbot",
@@ -200,6 +201,34 @@ async def process_incoming_message(
         "document_messages": [],
         "escalated": False,
     }
+
+    # Layer -3: Handle media messages (image, video, audio, sticker) — acknowledge receipt
+    if content_type in ("image", "video", "audio", "sticker", "document") and not message_text.strip():
+        _media_labels = {
+            "image": "foto", "video": "vídeo", "audio": "áudio",
+            "sticker": "figurinha", "document": "documento",
+        }
+        media_label = _media_labels.get(content_type, "arquivo")
+        # If waiting for email during escalation, skip media — just acknowledge
+        _pre_meta = getattr(conversation, "metadata_", None) or {}
+        if _pre_meta.get("pending_escalation") or _pre_meta.get("pending_observation"):
+            msg = f"Recebi sua {media_label}! Vou encaminhar pro nosso time junto com seu chamado."
+            result["bot_messages"].append(msg)
+            await _save_bot_message(db, conversation, msg)
+            await db.commit()
+            return result
+        # General media acknowledgment — escalate to agent
+        msg = (
+            f"Recebi sua {media_label}! 👊\n\n"
+            f"Vou encaminhar pro nosso time analisar.\n"
+            f"Se quiser adicionar mais detalhes, pode mandar por texto."
+        )
+        result["bot_messages"].append(msg)
+        await _save_bot_message(db, conversation, msg)
+        return await _escalate_to_agent(
+            db, conversation, result,
+            escalation_message="Transferindo mídia para atendimento...",
+        )
 
     # Layer -2: Check if we're waiting for observation after email
     _conv_meta_pre = getattr(conversation, "metadata_", None)
@@ -225,7 +254,8 @@ async def process_incoming_message(
         )
 
     # Layer 0: Allow "menu/voltar" to reset back to chatbot even from agent/resolved
-    _menu_words = ("menu", "voltar", "inicio", "início", "0", "oi", "olá", "ola", "meni", "memu")
+    _menu_words = ("menu", "voltar", "voltar ao menu", "voltar menu", "inicio", "início",
+                    "0", "oi", "olá", "ola", "meni", "memu", "encerrar")
     if _text_lower in _menu_words and conversation.handler in ("agent", "chatbot", "ai", None):
         conversation.handler = "chatbot"
         conversation.ai_enabled = True
@@ -620,12 +650,12 @@ async def process_incoming_message(
                 await db.commit()
                 return result
 
-        # Check if chatbot matched the fallback ("any" trigger) with a long message
-        # If so, redirect to AI instead of showing "Não entendi" repeatedly
+        # Check if chatbot matched the fallback ("any" trigger)
+        # Redirect ALL fallback messages to AI instead of showing "Não entendi" repeatedly
         if chatbot_result and chatbot_result.get("matched"):
             _flow_name = chatbot_result.get("flow_name", "")
-            if _flow_name.lower() == "fallback" and len(message_text.strip()) > 10:
-                logger.info("[FALLBACK→AI] Long message '%s...' redirected to AI", message_text[:30])
+            if _flow_name.lower() == "fallback":
+                logger.info("[FALLBACK→AI] Message '%s...' redirected to AI", message_text[:30])
                 # Don't send fallback messages — let AI handle it
                 result["bot_messages"] = []
                 result["interactive_messages"] = []
@@ -1126,6 +1156,25 @@ async def _handle_pending_email(
 
     # Handle typed email
     text = message_text.strip()  # Use original case for email
+
+    # Allow escape from email loop: "menu", "voltar", "atendente"
+    text_escape = text.lower()
+    if text_escape in ("menu", "voltar", "voltar ao menu", "encerrar", "inicio", "início", "0"):
+        meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
+        meta.pop("pending_escalation", None)
+        conversation.metadata_ = meta
+        conversation.handler = "chatbot"
+        conversation.status = "open"
+        await db.commit()
+        # Re-process as menu reset
+        return await process_incoming_message(db, conversation, customer, text)
+    if text_escape in ("atendente", "falar com atendente", "humano", "pessoa"):
+        meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
+        meta.pop("pending_escalation", None)
+        conversation.metadata_ = meta
+        # Escalate without email — create ticket with phone only
+        return await _escalate_without_email(db, conversation, customer, result)
+
     if re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', text):
         # Save email to customer
         customer.email = text
@@ -1148,12 +1197,68 @@ async def _handle_pending_email(
         result["handler"] = "agent"
         return result
     else:
-        msg = "Não reconheci um e-mail válido. Por favor, digite seu e-mail (ex: nome@email.com):"
+        # Track email validation failures — max 3 attempts then escalate without email
+        from sqlalchemy.orm.attributes import flag_modified as _fm_email
+        meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
+        email_attempts = meta.get("_email_attempts", 0) + 1
+        meta["_email_attempts"] = email_attempts
+        conversation.metadata_ = meta
+        _fm_email(conversation, "metadata_")
+
+        if email_attempts >= 3:
+            meta.pop("pending_escalation", None)
+            meta.pop("_email_attempts", None)
+            conversation.metadata_ = meta
+            _fm_email(conversation, "metadata_")
+            return await _escalate_without_email(db, conversation, customer, result)
+
+        msg = (
+            "Não reconheci um e-mail válido. Por favor, digite seu e-mail (ex: nome@email.com):\n\n"
+            "Ou digite *menu* para voltar ao início, ou *atendente* para falar direto com a equipe."
+        )
         result["bot_messages"].append(msg)
         await _save_bot_message(db, conversation, msg)
         await db.commit()
         result["handler"] = "agent"
         return result
+
+
+async def _escalate_without_email(
+    db: AsyncSession, conversation: Conversation, customer: Customer, result: dict,
+) -> dict:
+    """Escalate when customer can't/won't provide email. Use phone as fallback."""
+    phone = getattr(customer, "phone", "") or ""
+    msg = (
+        "Sem problema! Vou abrir seu chamado usando seu número de WhatsApp.\n\n"
+        "Nosso time vai te responder por aqui mesmo. "
+        "Horário de atendimento: *segunda a sexta, 9h às 18h*."
+    )
+    result["bot_messages"].append(msg)
+    await _save_bot_message(db, conversation, msg)
+
+    # Create ticket even without email
+    ticket_number = await _create_ticket_from_conversation(db, conversation)
+    if ticket_number:
+        ticket_msg = f"Chamado *#{ticket_number}* criado! Aguarde nosso retorno."
+        result["bot_messages"].append(ticket_msg)
+        await _save_bot_message(db, conversation, ticket_msg)
+
+    conversation.handler = "agent"
+    conversation.status = "open"
+    await routing_service.auto_assign(db, conversation)
+
+    system_msg = ChatMessage(
+        conversation_id=conversation.id,
+        sender_type="system",
+        sender_id=None,
+        content_type="text",
+        content="Conversa transferida para atendimento humano (sem e-mail).",
+    )
+    db.add(system_msg)
+    await db.commit()
+    result["handler"] = "agent"
+    result["escalated"] = True
+    return result
 
 
 # ── Escalation + helpers ──
@@ -1422,6 +1527,18 @@ async def _create_ticket_from_conversation(db: AsyncSession, conversation: Conve
     from app.models.message import Message
 
     try:
+        # Dedup: check if ticket already exists for this conversation
+        existing = await db.execute(
+            select(Ticket).where(
+                Ticket.meta_conversation_id == conversation.id,
+                Ticket.status.in_(("open", "pending")),
+            )
+        )
+        existing_ticket = existing.scalar_one_or_none()
+        if existing_ticket:
+            logger.info("[TICKET-DEDUP] Ticket #%s already exists for conversation %s", existing_ticket.number, conversation.id)
+            return existing_ticket.number
+
         # Build conversation transcript
         messages = []
         for msg in (conversation.chat_messages or []):
@@ -1462,8 +1579,28 @@ async def _create_ticket_from_conversation(db: AsyncSession, conversation: Conve
             if any(w in flow for w in ("procon", "juridico", "chargeback")):
                 priority = "high"
 
-        # Determine category from tags or flow
+        # Determine category from chatbot flow
         category = None
+        flow_name = _meta.get("chatbot_state", {}).get("flow_name", "").lower()
+        if flow_name:
+            _flow_to_category = {
+                "meu pedido": "meu_pedido", "rastreio de pedido": "meu_pedido",
+                "nota fiscal": "meu_pedido", "questionamento nota fiscal": "meu_pedido",
+                "pedido incompleto": "meu_pedido", "não recebi / reenvio": "reenvio",
+                "defeito / não funciona": "garantia", "defeito questionário": "garantia",
+                "trocas e garantia": "garantia", "assistência técnica": "garantia",
+                "troca de modelo ou pulseira": "garantia", "cupom assistência": "garantia",
+                "consultar solicitação troque": "garantia",
+                "arrependimento / devolução": "garantia", "abrir arrependimento": "garantia",
+                "produto errado": "garantia", "abrir produto errado": "garantia",
+                "cancelamento": "financeiro", "estorno / reembolso": "financeiro",
+                "financeiro": "financeiro",
+                "procon / jurídico / reclame aqui": "reclamacao",
+                "dúvida geral (ia)": "duvida", "pré-venda": "duvida",
+                "suporte técnico": "duvida",
+            }
+            category = _flow_to_category.get(flow_name)
+
         tags_list = []
         if conversation.tags and isinstance(conversation.tags, list):
             tags_list = conversation.tags
@@ -1489,6 +1626,21 @@ async def _create_ticket_from_conversation(db: AsyncSession, conversation: Conve
         )
         db.add(ticket)
         await db.flush()  # Get ticket.id
+
+        # AI triage fallback if no category from flow
+        if not category:
+            try:
+                from app.services.ai_service import triage_ticket as ai_triage, apply_triage_results
+                triage = await ai_triage(
+                    subject=subject,
+                    body=transcript[:2000],
+                    customer_name=customer_name,
+                    is_repeat=getattr(conversation.customer, "is_repeat", False),
+                )
+                apply_triage_results(ticket, triage, customer=conversation.customer)
+                logger.info("[ESCALATE] AI triage applied: category=%s priority=%s", ticket.category, ticket.priority)
+            except Exception as e:
+                logger.warning("[ESCALATE] AI triage fallback failed: %s", e)
 
         # Add transcript as first message
         body_text = f"Conversa escalada do {channel_name}:\n\n{transcript}"
