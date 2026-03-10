@@ -54,7 +54,8 @@ class ChatbotEngine:
         return await self._execute_flow(db, conversation, flow, message_text, visitor_id)
 
     def _resolve_menu_selection(self, text_lower: str, meta: dict) -> Optional[str]:
-        """Check if text matches a menu option and return the option id for flow matching."""
+        """Check if text matches a menu option and return the option id for flow matching.
+        Supports: exact match, number, partial match, sim/não prefix match."""
         last_menu = meta.get("last_menu_options")
         if not last_menu:
             return None
@@ -62,11 +63,40 @@ class ChatbotEngine:
         num_match = re.match(r"^op[cç][aã]o\s*(\d+)$", text_lower)
         if num_match:
             text_lower = num_match.group(1)
+
+        # Pass 1: exact match on id, label, or number
         for i, opt in enumerate(last_menu):
             opt_id = (opt.get("id") or "").lower()
             opt_label = (opt.get("label") or "").lower()
             if text_lower == opt_id or text_lower == opt_label or text_lower == str(i + 1):
                 return opt_id
+
+        # Pass 2: partial match — user text contained in label or label contained in user text
+        for opt in last_menu:
+            opt_id = (opt.get("id") or "").lower()
+            opt_label = (opt.get("label") or "").lower()
+            opt_desc = (opt.get("description") or "").lower()
+            if not opt_label:
+                continue
+            if text_lower in opt_label or opt_label in text_lower:
+                return opt_id
+            if opt_desc and (text_lower in opt_desc or opt_desc in text_lower):
+                return opt_id
+
+        # Pass 3: sim/não prefix match — "sim" matches first option starting with "sim", etc.
+        text_clean = re.sub(r"[,\.!?\s]+", " ", text_lower).strip()
+        first_word = text_clean.split()[0] if text_clean else ""
+        if first_word in ("sim", "s", "yes"):
+            for opt in last_menu:
+                opt_label = (opt.get("label") or "").lower()
+                if opt_label.startswith("sim"):
+                    return (opt.get("id") or "").lower()
+        elif first_word in ("não", "nao", "n", "no"):
+            for opt in last_menu:
+                opt_label = (opt.get("label") or "").lower()
+                if opt_label.startswith("não") or opt_label.startswith("nao"):
+                    return (opt.get("id") or "").lower()
+
         return None
 
     async def match_flow(
