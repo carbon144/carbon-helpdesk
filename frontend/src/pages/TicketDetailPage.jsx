@@ -441,11 +441,16 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
       setSlaCountdown(`${h}h ${m}m`)
     }
     update()
-    const interval = setInterval(update, 60_000)
+    const interval = setInterval(update, 10_000)
     return () => clearInterval(interval)
   }, [ticket?.sla_deadline])
 
-  // serviceTimer removed — replaced by SLA indicator
+  // Auto-scroll to latest message when ticket loads or new message arrives
+  useEffect(() => {
+    if (ticket?.messages?.length && messagesEndRef.current) {
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+    }
+  }, [ticket?.messages?.length, ticket?.id])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -622,6 +627,7 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
 
   // Slash command filtered macros
   const slashListRef = useRef(null)
+  const messagesEndRef = useRef(null)
   const filteredSlashMacros = macros.filter(m =>
     !slashFilter || m.name.toLowerCase().includes(slashFilter.toLowerCase())
   )
@@ -877,7 +883,25 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
     }
   }
 
-  if (!ticket) return <div className="p-6 text-[var(--text-secondary)]">Carregando...</div>
+  if (!ticket) return (
+    <div className="p-6 space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-[var(--bg-tertiary)] animate-pulse" />
+        <div className="h-5 w-48 rounded bg-[var(--bg-tertiary)] animate-pulse" />
+        <div className="h-4 w-32 rounded bg-[var(--bg-tertiary)] animate-pulse ml-auto" />
+      </div>
+      <div className="flex gap-2">
+        <div className="h-6 w-16 rounded-full bg-[var(--bg-tertiary)] animate-pulse" />
+        <div className="h-6 w-20 rounded-full bg-[var(--bg-tertiary)] animate-pulse" />
+        <div className="h-6 w-24 rounded-full bg-[var(--bg-tertiary)] animate-pulse" />
+      </div>
+      <div className="space-y-3 mt-6">
+        <div className="flex justify-start"><div className="h-16 w-3/5 rounded-2xl bg-[var(--bg-tertiary)] animate-pulse" /></div>
+        <div className="flex justify-end"><div className="h-12 w-2/5 rounded-2xl bg-[var(--bg-tertiary)] animate-pulse" /></div>
+        <div className="flex justify-start"><div className="h-20 w-1/2 rounded-2xl bg-[var(--bg-tertiary)] animate-pulse" /></div>
+      </div>
+    </div>
+  )
 
   const slaBreached = ticket.sla_breached || slaCountdown === 'ESTOURADO'
   const slaUrgent = !slaBreached && ticket.sla_deadline && (new Date(ticket.sla_deadline) - new Date()) < MS_PER_HOUR
@@ -1198,6 +1222,7 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                     })
                   })()
                 )}
+                <div ref={messagesEndRef} />
               </div>
 
               {/* AI suggestion banner (collapsed inline, only if suggestion exists) */}
@@ -1677,7 +1702,7 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                   try { await updateTicket(ticketId, { category: e.target.value }); loadTicket() } catch { toast.error('Erro ao atualizar categoria') }
                 }}
                   className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50">
-                  {[['chargeback','Chargeback'],['ra_procon_juridico','RA/Procon/Jurídico'],['garantia_devolucoes','Garantia/Devoluções/Assistência'],['cancelamento','Cancelamento'],['entrega_rastreio','Entrega/Rastreio'],['pre_venda','Pré-Venda']].map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+                  {Object.entries(CATEGORY_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
               {/* Tags */}

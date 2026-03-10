@@ -9,7 +9,7 @@ import ImportHistoryModal from '../components/ImportHistoryModal'
 import ComposeEmailModal from '../components/ComposeEmailModal'
 import { STATUS_COLORS, PRIORITY_COLORS, STATUS_LABELS, PRIORITY_LABELS, CATEGORY_LABELS, TAG_COLORS, TAG_LABELS, PRIORITY_ORDER, STATUS_ORDER } from '../constants/ticket'
 
-const AUTO_REFRESH_MS = 60_000
+const AUTO_REFRESH_MS = 20_000
 const MS_PER_HOUR = 3_600_000
 const MS_PER_MINUTE = 60_000
 const SLA_URGENT_THRESHOLD_MS = MS_PER_HOUR
