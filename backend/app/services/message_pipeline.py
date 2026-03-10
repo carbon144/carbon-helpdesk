@@ -446,6 +446,102 @@ async def process_incoming_message(
                 await db.commit()
                 return result
 
+    # Layer 0.9: AI-first for messages with clear intent (not greetings/menu clicks)
+    # If the customer says something meaningful, try AI with full Shopify context
+    # before falling back to the menu-driven chatbot
+    if conversation.handler in ("chatbot", None) and not _has_active_flow:
+        _greetings = {
+            "oi", "ola", "olá", "bom dia", "boa tarde", "boa noite",
+            "hello", "hi", "hey", "oii", "oie", "opa", "eai", "e ai",
+            "menu", "voltar", "inicio", "início", "encerrar", "0",
+        }
+        _is_greeting = _text_lower in _greetings or _text_lower.split("\n")[0].strip() in _greetings
+        # Check if it's a menu button click (exact match on flow triggers)
+        _is_menu_click = False
+        _conv_meta_menu = getattr(conversation, "metadata_", None) or {}
+        _last_menu = _conv_meta_menu.get("last_menu_options")
+        if _last_menu:
+            for opt in _last_menu:
+                if _text_lower == (opt.get("id") or "").lower() or _text_lower == (opt.get("label") or "").lower():
+                    _is_menu_click = True
+                    break
+
+        if not _is_greeting and not _is_menu_click and len(message_text.strip()) > 3:
+            logger.info("[AI-FIRST] Trying AI for: '%s...'", message_text[:40])
+            try:
+                # Pre-load Shopify orders by phone for full context
+                _ai_shopify_data = getattr(customer, "shopify_data", None)
+                if not _ai_shopify_data:
+                    phone = getattr(customer, "phone", None)
+                    if phone:
+                        from app.services import shopify_service
+                        _orders_result = await shopify_service.get_orders_by_phone(phone, limit=5)
+                        _orders = _orders_result.get("orders", [])
+                        if _orders:
+                            _ai_shopify_data = {"recent_orders": [
+                                {
+                                    "name": o.get("name", ""),
+                                    "financial_status": o.get("financial_status", ""),
+                                    "fulfillment_status": o.get("fulfillment_status", ""),
+                                    "created_at": o.get("created_at", ""),
+                                    "total_price": o.get("total_price", ""),
+                                    "line_items": [
+                                        {"title": li.get("title", ""), "quantity": li.get("quantity", 1)}
+                                        for li in (o.get("line_items") or [])[:3]
+                                    ],
+                                    "tracking_numbers": [
+                                        f.get("tracking_number", "")
+                                        for f in (o.get("fulfillments") or [])
+                                        if f.get("tracking_number")
+                                    ],
+                                }
+                                for o in _orders[:3]
+                            ]}
+
+                kb_articles_ai = []
+                try:
+                    articles = await _search_kb(db, message_text, limit=3)
+                    kb_articles_ai = [{"title": a.title, "content": a.content} for a in articles]
+                except Exception:
+                    pass
+
+                _ai_history = await _build_history(db, conversation)
+                _ai_history.append({"role": "contact", "content": message_text})
+
+                ai_first_result = await ai_service.chat_auto_reply(
+                    messages=_ai_history,
+                    contact_shopify_data=_ai_shopify_data,
+                    kb_articles=kb_articles_ai if kb_articles_ai else None,
+                )
+
+                # Check for transfer intent
+                _ai_resp_text = (ai_first_result.get("response") or "").lower()
+                _wants_transfer = any(p in _ai_resp_text for p in (
+                    "vou transferir", "transferindo para", "um atendente vai",
+                    "atendente da carbon", "encaminhar para",
+                ))
+
+                if _wants_transfer:
+                    if ai_first_result.get("response"):
+                        result["bot_messages"].append(ai_first_result["response"])
+                        await _save_bot_message(db, conversation, ai_first_result["response"])
+                    return await _escalate_to_agent(db, conversation, result)
+
+                if ai_first_result.get("resolved") and ai_first_result.get("response"):
+                    logger.info("[AI-FIRST] Resolved without menu for conversation %s", conversation.id)
+                    conversation.handler = "ai"
+                    conversation.ai_enabled = True
+                    conversation.ai_attempts = 0
+                    result["handler"] = "ai"
+                    result["bot_messages"].append(ai_first_result["response"])
+                    await _save_bot_message(db, conversation, ai_first_result["response"])
+                    await db.commit()
+                    return result
+                # AI didn't resolve — fall through to chatbot menu
+                logger.info("[AI-FIRST] AI couldn't resolve, falling through to menu")
+            except Exception as e:
+                logger.warning("[AI-FIRST] Error: %s, falling through to menu", e)
+
     # Layer 1: Chatbot flows
     if conversation.handler in ("chatbot", None):
         chatbot_result = await _chatbot_engine.process_message(
