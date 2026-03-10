@@ -109,7 +109,8 @@ async def _run_scheduled_email_loop():
                             cc_list = [e.strip() for e in msg.cc.split(",") if e.strip()] if msg.cc else None
                             bcc_list = [e.strip() for e in msg.bcc.split(",") if e.strip()] if msg.bcc else None
 
-                            response = send_email(
+                            response = await asyncio.to_thread(
+                                send_email,
                                 to=ticket.customer.email,
                                 subject=f"Re: {ticket.subject}",
                                 body_text=msg.body_text or "",
@@ -322,12 +323,86 @@ async def _run_email_fetch_loop():
                                         if triage.get("confidence"):
                                             ticket.ai_confidence = triage["confidence"]
                                 except Exception as e:
+                                    triage = None
                                     logger.warning(f"AI triage skipped: {e}")
 
                                 try:
                                     await assign_protocol(ticket, db)
                                 except Exception as e:
                                     logger.warning(f"Protocol assign warning: {e}")
+
+                                # Apply triage rules (route to agent, set priority)
+                                try:
+                                    from app.services.triage_service import apply_triage_rules
+                                    triage_result = await apply_triage_rules(ticket, db)
+                                    if triage_result:
+                                        logger.info(f"Triage rules applied to ticket #{ticket.number}: {triage_result.get('actions', [])}")
+                                except Exception as e:
+                                    logger.warning(f"Triage rules skipped: {e}")
+
+                                # Reclame Aqui detection
+                                from_email_lower = email_data.get("from_email", "").lower()
+                                if "reclameaqui.com.br" in from_email_lower or "reclameaqui.com" in from_email_lower:
+                                    try:
+                                        from app.services.ra_monitor import _parse_ra_email, create_ra_ticket
+                                        complaint = _parse_ra_email(email_data)
+                                        if complaint:
+                                            from sqlalchemy import text as sa_text
+                                            ra_tag = f"ra:{complaint['id']}"
+                                            existing_ra = await db.execute(
+                                                select(Ticket).where(
+                                                    sa_text("tags @> ARRAY[:tag]::varchar[]").bindparams(tag=ra_tag)
+                                                )
+                                            )
+                                            if not existing_ra.scalars().first():
+                                                ticket.priority = "urgent"
+                                                ticket.tags = list(set((ticket.tags or []) + [ra_tag, "reclame_aqui"]))
+                                                logger.info(f"RA email detected in auto-fetch for ticket #{ticket.number}")
+                                    except Exception as e:
+                                        logger.warning(f"RA detection in auto-fetch skipped: {e}")
+
+                                # Email auto-reply
+                                try:
+                                    from app.services.email_auto_reply_service import generate_auto_reply, send_auto_reply
+                                    auto_reply_result = await generate_auto_reply(
+                                        subject=email_data["subject"],
+                                        body=email_data["body_text"][:2000],
+                                        customer_name=email_data["from_name"],
+                                        category=ticket.category or "duvida",
+                                        triage=triage if triage else None,
+                                        protocol=ticket.protocol,
+                                    )
+                                    if auto_reply_result and auto_reply_result["type"] in ("auto_reply", "ack"):
+                                        sent_reply = await asyncio.to_thread(
+                                            send_email,
+                                            to=email_data["from_email"],
+                                            subject=email_data["subject"] if email_data["subject"].startswith("Re:") else f"Re: {email_data['subject']}",
+                                            body_text=auto_reply_result["body"],
+                                            thread_id=gmail_thread_id,
+                                            in_reply_to=gmail_message_id,
+                                        )
+                                        if sent_reply:
+                                            auto_msg = Message(
+                                                ticket_id=ticket.id,
+                                                type="outbound",
+                                                sender_name="Carbon IA",
+                                                sender_email=settings.GMAIL_SUPPORT_EMAIL or "suporte@carbonsmartwatch.com.br",
+                                                body_text=auto_reply_result["body"],
+                                                gmail_message_id=sent_reply.get("id"),
+                                                gmail_thread_id=sent_reply.get("threadId") or gmail_thread_id,
+                                            )
+                                            db.add(auto_msg)
+                                            ticket.auto_replied = True
+                                            ticket.auto_reply_at = datetime.now(timezone.utc)
+                                            ticket.first_response_at = datetime.now(timezone.utc)
+                                            if auto_reply_result["type"] == "auto_reply":
+                                                ticket.status = "waiting"
+                                            existing_tags = list(ticket.tags or [])
+                                            existing_tags.append(auto_reply_result["type"])
+                                            ticket.tags = list(set(existing_tags))
+                                            logger.info(f"Auto-reply ({auto_reply_result['type']}) sent for ticket #{ticket.number} (auto-fetch)")
+                                except Exception as e:
+                                    logger.warning(f"Email auto-reply skipped in auto-fetch: {e}")
 
                                 await db.commit()
                                 created += 1
@@ -488,6 +563,7 @@ async def _run_chat_inactivity_loop():
                     )
                 )
                 stale_convs = list(result.scalars().all())
+                closed_count = 0
 
                 for conv in stale_convs:
                     try:
@@ -548,13 +624,15 @@ async def _run_chat_inactivity_loop():
                             except Exception as e:
                                 ilogger.warning("Failed to send inactivity msg for conv %s: %s", conv.id, e)
 
+                        await db.commit()
+                        closed_count += 1
                         ilogger.info("Auto-closed inactive conversation %s (%s)", conv.id, conv.channel)
                     except Exception as e:
+                        await db.rollback()
                         ilogger.error("Error closing conv %s: %s", conv.id, e)
 
-                if stale_convs:
-                    await db.commit()
-                    ilogger.info("Auto-closed %d inactive conversations", len(stale_convs))
+                if closed_count:
+                    ilogger.info("Auto-closed %d inactive conversations", closed_count)
 
         except Exception as e:
             ilogger.error("Chat inactivity loop error: %s", e)

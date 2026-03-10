@@ -185,7 +185,9 @@ async def send_auto_reply(
     """Send the auto-reply email via Gmail in the same thread."""
     reply_subject = subject if subject.startswith("Re:") else f"Re: {subject}"
 
-    result = send_email(
+    import asyncio
+    result = await asyncio.to_thread(
+        send_email,
         to=to_email,
         subject=reply_subject,
         body_text=body_text,

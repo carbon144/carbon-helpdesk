@@ -13,10 +13,11 @@ from app.models.chat_message import ChatMessage
 from app.models.channel_identity import ChannelIdentity
 from app.models.chatbot_flow import ChatbotFlow
 from app.models.triage_rule import TriageRule
+from app.models.voice_call import VoiceCall
 
 __all__ = [
     "User", "Customer", "Ticket", "Message", "Inbox", "AuditLog",
     "KBArticle", "Macro", "MediaItem", "TicketView",
     "Conversation", "ChatMessage", "ChannelIdentity", "ChatbotFlow",
-    "TriageRule",
+    "TriageRule", "VoiceCall",
 ]

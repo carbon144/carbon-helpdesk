@@ -424,12 +424,22 @@ async def fetch_emails(
             except Exception as e:
                 logger.warning(f"Email auto-reply skipped: {e}")
 
-            # Auto-assign to available agent
+            # Apply triage rules (route to agent, set priority)
             try:
-                from app.api.tickets import _auto_assign_single
-                await _auto_assign_single(ticket, db, user)
+                from app.services.triage_service import apply_triage_rules
+                triage_result = await apply_triage_rules(ticket, db)
+                if triage_result:
+                    logger.info(f"Triage rules applied to ticket #{ticket.number}: {triage_result.get('actions', [])}")
             except Exception as e:
-                logger.warning(f"Auto-assign skipped for gmail ticket: {e}")
+                logger.warning(f"Triage rules skipped for gmail ticket: {e}")
+
+            # Auto-assign to available agent (fallback if triage didn't assign)
+            if not ticket.assigned_to:
+                try:
+                    from app.api.tickets import _auto_assign_single
+                    await _auto_assign_single(ticket, db, user)
+                except Exception as e:
+                    logger.warning(f"Auto-assign skipped for gmail ticket: {e}")
 
             created += 1
 
