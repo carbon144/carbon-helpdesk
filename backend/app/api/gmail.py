@@ -1126,6 +1126,8 @@ async def batch_auto_reply(
             if not reply_subject.startswith("Re:"):
                 reply_subject = f"Re: {reply_subject}"
 
+            # Rate limiting: ~30 emails/min para evitar bloqueio do Gmail
+            await asyncio.sleep(2)
             sent_result = await asyncio.to_thread(
                 send_email,
                 to=inbound.sender_email,
