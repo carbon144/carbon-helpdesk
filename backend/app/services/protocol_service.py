@@ -12,15 +12,19 @@ logger = logging.getLogger(__name__)
 
 
 async def generate_protocol(db: AsyncSession) -> str:
-    """Generate a unique protocol number like CARBON-2026-000123."""
+    """Generate a unique protocol number like CARBON-2026-000123.
+    Uses advisory lock instead of FOR UPDATE to avoid locking all ticket rows."""
+    from sqlalchemy import text
     year = datetime.now(timezone.utc).year
     prefix = f"CARBON-{year}-"
 
-    # Use FOR UPDATE to prevent concurrent duplicate protocols
+    # Advisory lock keyed on year — lightweight, no row locks
+    await db.execute(text(f"SELECT pg_advisory_xact_lock({year})"))
+
     result = await db.execute(
         select(func.max(Ticket.protocol)).where(
             Ticket.protocol.like(f"{prefix}%")
-        ).with_for_update()
+        )
     )
     last = result.scalar()
 
@@ -52,13 +56,15 @@ async def assign_protocol(ticket: Ticket, db: AsyncSession):
         logger.info(f"Ticket #{ticket.number} already has protocol: {ticket.protocol}")
         return
     try:
-        protocol = await generate_protocol(db)
-        ticket.protocol = protocol
-        await db.flush()
+        # Use savepoint so failure doesn't abort the outer transaction
+        async with db.begin_nested():
+            protocol = await generate_protocol(db)
+            ticket.protocol = protocol
+            await db.flush()
         logger.info(f"Protocol {protocol} assigned to ticket #{ticket.number}")
     except Exception as e:
         logger.error(f"Failed to assign protocol to ticket #{ticket.number}: {e}")
-        raise
+        # Savepoint rolled back automatically — outer transaction stays valid
 
 
 def send_protocol_email(ticket: Ticket) -> bool:
