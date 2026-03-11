@@ -1,5 +1,6 @@
-import React from 'react'
-import { NavLink } from 'react-router-dom'
+import React, { useState, useEffect, useRef } from 'react'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { getTicketCounts } from '../services/api'
 
 const ROLE_LABELS = {
   super_admin: 'Super Admin', admin: 'Administrador', supervisor: 'Supervisor', agent: 'Agente',
@@ -38,8 +39,127 @@ const NAV_GROUPS = [
   },
 ]
 
+const VIEW_OPTIONS = [
+  { key: 'inbox', label: 'Caixa de Entrada', icon: 'fa-inbox' },
+  { key: 'sent', label: 'Enviados', icon: 'fa-paper-plane' },
+  { key: 'spam', label: 'Spam', icon: 'fa-shield-alt', color: 'text-red-400' },
+]
+
+const TAB_OPTIONS = [
+  { key: 'mine', label: 'Privado', icon: 'fa-lock', countKey: 'mine', color: 'text-indigo-400' },
+  { key: 'team', label: 'Equipe', icon: 'fa-users', countKey: 'team', color: 'text-teal-400' },
+  { key: 'active', label: 'Novos', icon: 'fa-inbox', countKey: 'unassigned', color: 'text-orange-400', adminOnly: true },
+  { key: 'escalated', label: 'Prioridade', icon: 'fa-exclamation-triangle', countKey: 'escalated', color: 'text-red-400' },
+  { key: 'resolved', label: 'Resolvidos', icon: 'fa-check-circle', countKey: 'resolved', color: 'text-green-400' },
+  { key: 'closed', label: 'Fechados', icon: 'fa-archive', countKey: 'closed', color: 'text-gray-400' },
+  { key: 'all', label: 'Todos', icon: 'fa-list', countKey: 'total_open', color: 'text-blue-400' },
+  { key: 'auto_reply', label: 'Auto-Reply IA', icon: 'fa-robot', countKey: 'auto_replied', color: 'text-purple-400' },
+]
+
+function TicketsFlyout({ open, onClose, userRole }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const flyoutRef = useRef(null)
+  const [counts, setCounts] = useState({})
+  const [loadingCounts, setLoadingCounts] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setLoadingCounts(true)
+    getTicketCounts()
+      .then(res => setCounts(res.data || res))
+      .catch(() => {})
+      .finally(() => setLoadingCounts(false))
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const handleMouseDown = (e) => {
+      if (flyoutRef.current && !flyoutRef.current.contains(e.target)) onClose()
+    }
+    const handleEscape = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('mousedown', handleMouseDown)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [open, onClose])
+
+  if (!open) return null
+
+  const currentParams = new URLSearchParams(location.search)
+  const currentView = currentParams.get('view') || 'inbox'
+  const currentTab = currentParams.get('tab') || ''
+
+  const goTo = (view, tab) => {
+    const params = new URLSearchParams()
+    params.set('view', view)
+    if (tab) params.set('tab', tab)
+    navigate(`/tickets?${params.toString()}`)
+    onClose()
+  }
+
+  const visibleTabs = TAB_OPTIONS.filter(t => !t.adminOnly || userRole !== 'agent')
+
+  return (
+    <div ref={flyoutRef}
+      className="absolute left-full top-0 ml-2 w-56 rounded-xl shadow-2xl border z-50 overflow-hidden"
+      style={{
+        background: 'linear-gradient(180deg, #1A1D27 0%, #161921 100%)',
+        borderColor: 'rgba(255,255,255,0.08)',
+      }}>
+      {/* Views */}
+      <div className="p-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+        <p className="text-[10px] font-bold uppercase tracking-wider px-2 py-1" style={{ color: '#475569' }}>Visualizar</p>
+        {VIEW_OPTIONS.map(v => (
+          <button key={v.key}
+            onClick={() => goTo(v.key, v.key === 'inbox' ? 'mine' : undefined)}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+              currentView === v.key && location.pathname === '/tickets'
+                ? 'bg-white/[0.08] text-white'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+            }`}>
+            <i className={`fas ${v.icon} w-4 text-center text-[11px] ${v.color || 'opacity-80'}`} />
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Inbox Tabs */}
+      <div className="p-2">
+        <p className="text-[10px] font-bold uppercase tracking-wider px-2 py-1" style={{ color: '#475569' }}>Caixas</p>
+        {visibleTabs.map(t => (
+          <button key={t.key}
+            onClick={() => goTo('inbox', t.key)}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+              currentView === 'inbox' && currentTab === t.key && location.pathname === '/tickets'
+                ? 'bg-white/[0.08] text-white'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+            }`}>
+            <span className="flex items-center gap-2.5">
+              <i className={`fas ${t.icon} w-4 text-center text-[11px] ${t.color}`} />
+              {t.label}
+            </span>
+            {t.countKey && counts[t.countKey] != null && (
+              <span className="text-[11px] font-semibold tabular-nums" style={{ color: '#64748B' }}>
+                {loadingCounts ? '...' : counts[t.countKey]}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function Sidebar({ user, onLogout, ticketCount, metaCount, chatCount }) {
   const userRole = user?.role || 'agent'
+  const location = useLocation()
+  const [flyoutOpen, setFlyoutOpen] = useState(false)
+  const ticketBtnRef = useRef(null)
+
+  const isTicketsActive = location.pathname.startsWith('/tickets')
 
   return (
     <div className="w-[248px] shrink-0 flex flex-col h-full"
@@ -65,38 +185,59 @@ export default function Sidebar({ user, onLogout, ticketCount, metaCount, chatCo
                 {group.label}
               </p>
               <div className="space-y-0.5">
-                {visibleItems.map(item => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `sidebar-nav-item w-full flex items-center justify-between gap-2.5 px-3 py-[9px] rounded-lg text-[13px] font-medium ${isActive ? 'sidebar-nav-active' : ''}`
-                    }
-                  >
-                    <span className="flex items-center gap-3">
-                      <i className={`fas ${item.icon} w-4 text-center text-[11px] opacity-80`} />
-                      {item.label}
-                    </span>
-                    {item.badge === 'tickets' && ticketCount > 0 && (
-                      <span className="text-[10px] font-bold px-[7px] py-[2px] rounded-full min-w-[20px] text-center"
-                        style={{ background: '#E5A800', color: '#FFFFFF' }}>
-                        {ticketCount}
+                {visibleItems.map(item => {
+                  if (item.to === '/tickets') {
+                    return (
+                      <div key={item.to} className="relative" ref={ticketBtnRef}>
+                        <button
+                          onClick={() => setFlyoutOpen(prev => !prev)}
+                          className={`sidebar-nav-item w-full flex items-center justify-between gap-2.5 px-3 py-[9px] rounded-lg text-[13px] font-medium ${isTicketsActive ? 'sidebar-nav-active' : ''}`}
+                        >
+                          <span className="flex items-center gap-3">
+                            <i className={`fas ${item.icon} w-4 text-center text-[11px] opacity-80`} />
+                            {item.label}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            {ticketCount > 0 && (
+                              <span className="text-[10px] font-bold px-[7px] py-[2px] rounded-full min-w-[20px] text-center"
+                                style={{ background: '#E5A800', color: '#FFFFFF' }}>
+                                {ticketCount}
+                              </span>
+                            )}
+                            <i className={`fas fa-chevron-right text-[9px] transition-transform ${flyoutOpen ? 'rotate-90' : ''}`} style={{ color: '#475569' }} />
+                          </span>
+                        </button>
+                        <TicketsFlyout open={flyoutOpen} onClose={() => setFlyoutOpen(false)} userRole={userRole} />
+                      </div>
+                    )
+                  }
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={({ isActive }) =>
+                        `sidebar-nav-item w-full flex items-center justify-between gap-2.5 px-3 py-[9px] rounded-lg text-[13px] font-medium ${isActive ? 'sidebar-nav-active' : ''}`
+                      }
+                    >
+                      <span className="flex items-center gap-3">
+                        <i className={`fas ${item.icon} w-4 text-center text-[11px] opacity-80`} />
+                        {item.label}
                       </span>
-                    )}
-                    {item.badge === 'chat' && chatCount > 0 && (
-                      <span className="text-[10px] font-bold px-[7px] py-[2px] rounded-full min-w-[20px] text-center"
-                        style={{ background: '#3B82F6', color: '#FFFFFF' }}>
-                        {chatCount}
-                      </span>
-                    )}
-                    {item.badge === 'meta' && metaCount > 0 && (
-                      <span className="text-[10px] font-bold px-[7px] py-[2px] rounded-full min-w-[20px] text-center"
-                        style={{ background: '#25D366', color: '#FFFFFF' }}>
-                        {metaCount}
-                      </span>
-                    )}
-                  </NavLink>
-                ))}
+                      {item.badge === 'chat' && chatCount > 0 && (
+                        <span className="text-[10px] font-bold px-[7px] py-[2px] rounded-full min-w-[20px] text-center"
+                          style={{ background: '#3B82F6', color: '#FFFFFF' }}>
+                          {chatCount}
+                        </span>
+                      )}
+                      {item.badge === 'meta' && metaCount > 0 && (
+                        <span className="text-[10px] font-bold px-[7px] py-[2px] rounded-full min-w-[20px] text-center"
+                          style={{ background: '#25D366', color: '#FFFFFF' }}>
+                          {metaCount}
+                        </span>
+                      )}
+                    </NavLink>
+                  )
+                })}
               </div>
             </div>
           )

@@ -22,15 +22,6 @@ const SORT_OPTIONS = [
   { value: 'updated', label: 'Última atualização', icon: 'fa-sync-alt' },
 ]
 
-const TABS = [
-  { key: 'mine', label: 'Privado', icon: 'fa-lock', countKey: 'mine' },
-  { key: 'team', label: 'Equipe', icon: 'fa-users', countKey: 'team' },
-  { key: 'active', label: 'Novos', icon: 'fa-inbox', countKey: 'unassigned' },
-  { key: 'responded', label: 'Respondidos', icon: 'fa-reply', countKey: 'waiting' },
-  { key: 'escalated', label: 'Prioridade', icon: 'fa-exclamation-triangle', countKey: 'escalated' },
-  { key: 'resolved', label: 'Arquivado', icon: 'fa-archive' },
-]
-
 function timeAgo(dateStr) {
   if (!dateStr) return ''
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -59,6 +50,8 @@ export default function TicketsPage({ user }) {
   const [selected, setSelected] = useState(new Set())
   const [agents, setAgents] = useState([])
   const [activeTab, setActiveTab] = useState(() => {
+    const paramTab = searchParams.get('tab')
+    if (paramTab) return paramTab
     try {
       const prefs = JSON.parse(localStorage.getItem('carbon_prefs') || '{}')
       return prefs.active_tab || prefs.default_tab || 'mine'
@@ -87,7 +80,7 @@ export default function TicketsPage({ user }) {
   const [showImportModal, setShowImportModal] = useState(false)
   const [showComposeModal, setShowComposeModal] = useState(false)
   const [editingCell, setEditingCell] = useState(null) // { ticketId, field }
-  const [topView, setTopView] = useState('inbox') // 'inbox' | 'sent' | 'spam'
+  const [topView, setTopView] = useState(() => searchParams.get('view') || 'inbox') // 'inbox' | 'sent' | 'spam'
   const [sentMessages, setSentMessages] = useState([])
   const [sentTotal, setSentTotal] = useState(0)
   const [sentPage, setSentPage] = useState(1)
@@ -118,9 +111,26 @@ export default function TicketsPage({ user }) {
     return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current) }
   }, [])
 
-  // Sync external filters from dashboard into local state
+  // Sync external filters from dashboard and sidebar into local state
   useEffect(() => {
     if (filters && Object.keys(filters).length > 0) {
+      // Sidebar flyout: view + tab params
+      if (filters.view) {
+        setTopView(filters.view)
+      }
+      if (filters.tab) {
+        setActiveTab(filters.tab)
+        setPage(1)
+        setSelected(new Set())
+        setFilterStatus('')
+        setFilterAgent('')
+        try {
+          const prefs = JSON.parse(localStorage.getItem('carbon_prefs') || '{}')
+          prefs.active_tab = filters.tab
+          localStorage.setItem('carbon_prefs', JSON.stringify(prefs))
+        } catch {}
+      }
+      // Dashboard filters: status, category, priority
       if (filters.status) {
         if (['escalated'].includes(filters.status)) {
           setActiveTab('escalated')
@@ -134,7 +144,7 @@ export default function TicketsPage({ user }) {
       if (filters.category) setFilterCategory(filters.category)
       if (filters.priority) setFilterPriority(filters.priority)
     }
-  }, [filters])
+  }, [searchParams])
 
   const loadTickets = async () => {
     // Cancel previous in-flight request
@@ -598,43 +608,6 @@ export default function TicketsPage({ user }) {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] p-8">
-      {/* Top-level tabs: Caixa de Entrada | Enviados */}
-      <div className="flex gap-1 mb-6">
-        <button
-          onClick={() => setTopView('inbox')}
-          className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            topView === 'inbox'
-              ? 'bg-indigo-600 text-white'
-              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
-          }`}
-        >
-          <i className="fas fa-inbox mr-2" />Caixa de Entrada
-        </button>
-        <button
-          onClick={() => setTopView('sent')}
-          className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            topView === 'sent'
-              ? 'bg-indigo-600 text-white'
-              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
-          }`}
-        >
-          <i className="fas fa-paper-plane mr-2" />Enviados
-        </button>
-        <button
-          onClick={() => setTopView('spam')}
-          className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            topView === 'spam'
-              ? 'bg-red-600 text-white'
-              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
-          }`}
-        >
-          <i className="fas fa-shield-alt mr-2" />Spam
-          {spamEmails.length > 0 && (
-            <span className="ml-2 bg-red-500/20 text-red-300 text-xs px-1.5 py-0.5 rounded-full">{spamEmails.length}</span>
-          )}
-        </button>
-      </div>
-
       {/* Spam View */}
       {topView === 'spam' ? (
         <div>
@@ -881,70 +854,6 @@ export default function TicketsPage({ user }) {
       <div>
       <div className="flex-1">
       <>
-      {/* Page Header with Counter Cards */}
-      <div className="mb-6">
-        <div className="grid grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
-          <button onClick={() => handleTabChange('mine')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-indigo-500/30 ${activeTab === 'mine' ? 'border-indigo-500/40 ring-1 ring-indigo-500/20' : ''}`}>
-            <div className="flex items-center gap-2 mb-1">
-              <i className="fas fa-lock text-indigo-400 text-xs" />
-              <span className="text-[var(--text-tertiary)] text-[11px]">Privado</span>
-            </div>
-            <p className="text-xl font-bold text-[var(--text-primary)]">{counts.mine}</p>
-          </button>
-          <button onClick={() => handleTabChange('team')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-teal-500/30 ${activeTab === 'team' ? 'border-teal-500/40 ring-1 ring-teal-500/20' : ''}`}>
-            <div className="flex items-center gap-2 mb-1">
-              <i className="fas fa-users text-teal-400 text-xs" />
-              <span className="text-[var(--text-tertiary)] text-[11px]">Equipe</span>
-            </div>
-            <p className="text-xl font-bold text-[var(--text-primary)]">{counts.team}</p>
-          </button>
-          {user?.role !== 'agent' && (
-          <button onClick={() => handleTabChange('active')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-orange-500/30 ${activeTab === 'active' ? 'border-orange-500/40 ring-1 ring-orange-500/20' : ''}`}>
-            <div className="flex items-center gap-2 mb-1">
-              <i className="fas fa-inbox text-orange-400 text-xs" />
-              <span className="text-[var(--text-tertiary)] text-[11px]">Novos</span>
-            </div>
-            <p className="text-xl font-bold text-orange-400">{counts.unassigned}</p>
-          </button>
-          )}
-          <button onClick={() => handleTabChange('escalated')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-red-500/30 ${activeTab === 'escalated' ? 'border-red-500/40 ring-1 ring-red-500/20' : ''}`}>
-            <div className="flex items-center gap-2 mb-1">
-              <i className="fas fa-exclamation-triangle text-red-400 text-xs" />
-              <span className="text-[var(--text-tertiary)] text-[11px]">Prioridade</span>
-            </div>
-            <p className="text-xl font-bold text-red-400">{counts.escalated}</p>
-          </button>
-          <button onClick={() => handleTabChange('resolved')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-green-500/30 ${activeTab === 'resolved' ? 'border-green-500/40 ring-1 ring-green-500/20' : ''}`}>
-            <div className="flex items-center gap-2 mb-1">
-              <i className="fas fa-check-circle text-green-400 text-xs" />
-              <span className="text-[var(--text-tertiary)] text-[11px]">Resolvidos</span>
-            </div>
-            <p className="text-xl font-bold text-green-400">{counts.resolved || 0}</p>
-          </button>
-          <button onClick={() => handleTabChange('closed')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-gray-500/30 ${activeTab === 'closed' ? 'border-gray-500/40 ring-1 ring-gray-500/20' : ''}`}>
-            <div className="flex items-center gap-2 mb-1">
-              <i className="fas fa-archive text-gray-400 text-xs" />
-              <span className="text-[var(--text-tertiary)] text-[11px]">Fechados</span>
-            </div>
-            <p className="text-xl font-bold text-gray-400">{counts.closed || 0}</p>
-          </button>
-          <button onClick={() => handleTabChange('all')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-blue-500/30 ${activeTab === 'all' ? 'border-blue-500/40 ring-1 ring-blue-500/20' : ''}`}>
-            <div className="flex items-center gap-2 mb-1">
-              <i className="fas fa-list text-blue-400 text-xs" />
-              <span className="text-[var(--text-tertiary)] text-[11px]">Todos</span>
-            </div>
-            <p className="text-xl font-bold text-[var(--text-primary)]">{counts.total_open}</p>
-          </button>
-          <button onClick={() => handleTabChange('auto_reply')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-purple-500/30 ${activeTab === 'auto_reply' ? 'border-purple-500/40 ring-1 ring-purple-500/20' : ''}`}>
-            <div className="flex items-center gap-2 mb-1">
-              <i className="fas fa-robot text-purple-400 text-xs" />
-              <span className="text-[var(--text-tertiary)] text-[11px]">Auto-Reply IA</span>
-            </div>
-            <p className="text-xl font-bold text-purple-400">{counts.auto_replied || 0}</p>
-          </button>
-        </div>
-      </div>
-
       {/* Top Action Bar */}
       <div className="mb-6 flex flex-col gap-4">
         {/* Agent filter - visible on team tab */}
