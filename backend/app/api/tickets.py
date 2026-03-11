@@ -123,7 +123,7 @@ async def get_ticket_counts(
     """Get ticket counts for dashboard cards — single query with CASE WHEN."""
     from sqlalchemy import case, literal_column
 
-    excluded = ["resolved", "closed", "archived"]
+    excluded = ["resolved", "closed", "archived", "merged"]
     waiting_statuses = ["waiting", "waiting_supplier", "waiting_resend"]
     meta_sources = ["whatsapp", "instagram", "facebook"]
 

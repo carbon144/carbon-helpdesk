@@ -175,9 +175,10 @@ async def _run_email_fetch_loop():
         "newsletter", "unsubscribe", "marketing",
     ]
     SPAM_SENDERS = [
-        "noreply@", "no-reply@", "mailer-daemon@",
+        "noreply@", "no-reply@", "no-reply-chargeback@", "mailer-daemon@",
         "notifications@", "alert@", "security@",
         "sefaz", "fazenda", "receita.fazenda",
+        "appmax.com.br", "appmax.com",
         "spotify.com", "netflix.com", "openai.com", "microsoft.com",
         "facebook.com", "meta.com", "instagram.com",
         "google.com", "apple.com", "amazon.com",
