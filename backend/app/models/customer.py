@@ -14,7 +14,7 @@ class Customer(Base):
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
     name: Mapped[str] = mapped_column(String(255))
-    email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, index=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     cpf: Mapped[Optional[str]] = mapped_column(String(14), nullable=True, index=True)
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     total_tickets: Mapped[int] = mapped_column(Integer, default=0)

@@ -72,7 +72,7 @@ class MessageResponse(BaseModel):
 class CustomerResponse(BaseModel):
     id: str
     name: str
-    email: str
+    email: str | None = None
     cpf: str | None = None
     phone: str | None = None
     total_tickets: int

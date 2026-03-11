@@ -198,6 +198,8 @@ export default function TicketsPage({ user }) {
         if (filterStatus) params.status = filterStatus
       }
 
+      // Hide WhatsApp tickets by default (bot-only channel, no human agents)
+      if (!params.source) params.exclude_sources = 'whatsapp'
       const { data } = await getTickets(params, { signal: controller.signal })
       // Ignore stale responses
       if (thisRequest !== requestIdRef.current) return

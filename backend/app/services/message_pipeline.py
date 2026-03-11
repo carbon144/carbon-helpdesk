@@ -446,10 +446,14 @@ async def process_incoming_message(
                 await db.commit()
                 return result
 
-    # Layer 0.9: AI-first for messages with clear intent (not greetings/menu clicks)
-    # If the customer says something meaningful, try AI with full Shopify context
-    # before falling back to the menu-driven chatbot
-    if conversation.handler in ("chatbot", None) and not _has_active_flow:
+    # Layer 0.9: AI-first for messages with clear intent
+    # Try AI before chatbot UNLESS: greeting, menu click, or chatbot waiting for specific input
+    _expecting_input = False
+    if _has_active_flow:
+        _chatbot_state = _conv_meta.get("chatbot_state", {})
+        _expecting_input = bool(_chatbot_state.get("expecting_field"))
+
+    if conversation.handler in ("chatbot", None) and not _expecting_input:
         _greetings = {
             "oi", "ola", "olá", "bom dia", "boa tarde", "boa noite",
             "hello", "hi", "hey", "oii", "oie", "opa", "eai", "e ai",
@@ -529,6 +533,13 @@ async def process_incoming_message(
 
                 if ai_first_result.get("resolved") and ai_first_result.get("response"):
                     logger.info("[AI-FIRST] Resolved without menu for conversation %s", conversation.id)
+                    # Clear chatbot state if AI took over mid-flow
+                    if _has_active_flow:
+                        from sqlalchemy.orm.attributes import flag_modified as _fm_ai
+                        _meta_clear = dict(getattr(conversation, "metadata_", None) or {})
+                        _meta_clear.pop("chatbot_state", None)
+                        conversation.metadata_ = _meta_clear
+                        _fm_ai(conversation, "metadata_")
                     conversation.handler = "ai"
                     conversation.ai_enabled = True
                     conversation.ai_attempts = 0
@@ -1211,9 +1222,20 @@ async def _handle_pending_email(
     # Handle confirmation of Shopify email
     if found_email:
         if text in ("sim", "sim, usar esse", "confirm_email_yes", "s", "1"):
-            customer.email = found_email
+            # Check if another customer already has this email
+            from sqlalchemy import select as _sel_email
+            _existing = await db.execute(
+                _sel_email(Customer).where(Customer.email == found_email, Customer.id != customer.id)
+            )
+            if _existing.scalar_one_or_none():
+                # Another customer has this email — skip update but still use for ticket
+                logger.warning("[EMAIL] Email %s belongs to another customer, using for ticket only", found_email)
+            else:
+                customer.email = found_email
             meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
             meta.pop("pending_escalation", None)
+            # Save email in metadata so ticket creation can always find it
+            meta["customer_observation_email"] = found_email
             # Transition to pending_observation
             meta["pending_observation"] = {
                 "email": found_email,
@@ -1272,11 +1294,20 @@ async def _handle_pending_email(
         return await _escalate_without_email(db, conversation, customer, result)
 
     if re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', text):
-        # Save email to customer
-        customer.email = text
+        # Save email to customer (check for duplicates first)
+        from sqlalchemy import select as _sel_email2
+        _existing2 = await db.execute(
+            _sel_email2(Customer).where(Customer.email == text, Customer.id != customer.id)
+        )
+        if _existing2.scalar_one_or_none():
+            logger.warning("[EMAIL] Email %s belongs to another customer, using for ticket only", text)
+        else:
+            customer.email = text
         # Transition to pending_observation
         meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
         meta.pop("pending_escalation", None)
+        # Save email in metadata so ticket creation can always find it
+        meta["customer_observation_email"] = text
         meta["pending_observation"] = {
             "email": text,
             "asked_at": datetime.now(timezone.utc).isoformat(),
@@ -1384,8 +1415,8 @@ async def _handle_pending_observation(
         obs_meta["customer_observation"] = text
         conversation.metadata_ = obs_meta
 
-    # Create ticket
-    ticket_number = await _create_ticket_from_conversation(db, conversation)
+    # Create ticket — pass the collected email explicitly
+    ticket_number = await _create_ticket_from_conversation(db, conversation, override_email=email)
     masked = _mask_email(email)
     is_open, hours_msg = _is_business_hours()
 
@@ -1508,86 +1539,36 @@ async def _escalate_to_agent(
     result: dict,
     escalation_message: str = "Vou transferir você para um de nossos atendentes. Um momento, por favor.",
 ) -> dict:
-    conversation.handler = "agent"
-    conversation.ai_enabled = True  # Keep AI in standby — agent responds via email, AI handles follow-ups
-    conversation.ai_attempts = 0
-
-    # Check business hours and inform customer
-    is_open, hours_msg = _is_business_hours()
-
-    await routing_service.auto_assign(db, conversation)
-
-    system_msg = ChatMessage(
-        conversation_id=conversation.id,
-        sender_type="system",
-        sender_id=None,
-        content_type="text",
-        content="Conversa transferida para atendimento humano.",
+    # Don't create tickets from WhatsApp — redirect to email
+    redirect_msg = (
+        "Aqui pelo WhatsApp o atendimento é *somente automatizado* (rastreio, dúvidas, status do pedido).\n\n"
+        "Pra falar com nosso time, manda um e-mail pra:\n"
+        "📧 *atendimento@carbonsmartwatch.com.br*\n\n"
+        "No e-mail, inclua:\n"
+        "• Seu *nome completo*\n"
+        "• *Número do pedido*\n"
+        "• *Descrição detalhada* do que aconteceu\n"
+        "• *Fotos ou vídeos* (se for defeito)\n\n"
+        "Prazo de resposta: *até 48 horas úteis*.\n"
+        "Horário de atendimento: *seg a sex, 9h às 18h*.\n\n"
+        "Se precisar de algo rápido (rastreio, dúvidas), é só mandar um *oi* aqui!"
     )
-    db.add(system_msg)
+    result["bot_messages"].append(redirect_msg)
+    await _save_bot_message(db, conversation, redirect_msg)
 
-    if is_open:
-        result["bot_messages"].append(escalation_message)
-        await _save_bot_message(db, conversation, escalation_message)
-    else:
-        # Outside business hours — inform and keep the message
-        result["bot_messages"].append(hours_msg)
-        await _save_bot_message(db, conversation, hours_msg)
+    # Reset to chatbot so customer can use self-service again
+    conversation.handler = "chatbot"
+    conversation.status = "open"
+    meta = dict(getattr(conversation, "metadata_", None) or {})
+    meta.pop("pending_escalation", None)
+    meta.pop("pending_observation", None)
+    meta.pop("chatbot_state", None)
+    conversation.metadata_ = meta
 
-    # Try to find/enrich customer email before creating ticket
-    customer = conversation.customer
-    customer_email = getattr(customer, "email", None) if customer else None
-
-    if not customer_email and customer:
-        # Try Shopify lookup by phone
-        phone = getattr(customer, "phone", None)
-        if phone:
-            found_email = await _find_email_by_phone(phone)
-            if found_email:
-                logger.info("[ESCALATE] Found email %s via Shopify for phone %s", found_email, phone)
-                # Ask customer to confirm the email
-                meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
-                meta["pending_escalation"] = {
-                    "escalation_message": escalation_message,
-                    "found_email": found_email,
-                }
-                conversation.metadata_ = meta
-                masked = _mask_email(found_email)
-                confirm_msg = f"Encontrei o e-mail *{masked}* no seu cadastro.\nPosso usar esse e-mail para abrir seu chamado?"
-                result["bot_messages"].append(confirm_msg)
-                await _save_bot_message(db, conversation, confirm_msg)
-                result["interactive_messages"].append({
-                    "type": "menu",
-                    "content": confirm_msg,
-                    "options": [
-                        {"id": "confirm_email_yes", "label": "Sim, usar esse"},
-                        {"id": "confirm_email_no", "label": "Não, usar outro"},
-                    ],
-                })
-                await db.commit()
-                result["handler"] = "agent"
-                result["escalated"] = True
-                return result
-
-    if not customer_email:
-        # Ask for email — save state so we can resume after they reply
-        meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
-        meta["pending_escalation"] = {
-            "escalation_message": escalation_message,
-        }
-        conversation.metadata_ = meta
-        # Keep handler as agent but flag we need email
-        ask_msg = (
-            "Para abrir seu chamado, preciso do seu e-mail.\n"
-            "Nosso time vai responder por lá.\n\n"
-            "Por favor, digite seu e-mail:"
-        )
-        result["bot_messages"].append(ask_msg)
-        await _save_bot_message(db, conversation, ask_msg)
-        await db.commit()
-        result["handler"] = "agent"
-        result["escalated"] = True
-        return result
+    await db.commit()
+    result["handler"] = "chatbot"
+    result["escalated"] = False
+    return result
 
     # Create email ticket from chat conversation
     ticket_number = await _create_ticket_from_conversation(db, conversation)
@@ -1617,7 +1598,7 @@ async def _escalate_to_agent(
     return result
 
 
-async def _create_ticket_from_conversation(db: AsyncSession, conversation: Conversation) -> int | None:
+async def _create_ticket_from_conversation(db: AsyncSession, conversation: Conversation, override_email: str | None = None) -> int | None:
     """Create an email ticket from a WhatsApp/IG/FB conversation so the team sees it."""
     from app.models.ticket import Ticket
     from app.models.message import Message
@@ -1742,18 +1723,24 @@ async def _create_ticket_from_conversation(db: AsyncSession, conversation: Conve
         body_text = f"Conversa escalada do {channel_name}:\n\n{transcript}"
         body_html = f"<p><strong>Conversa escalada do {channel_name}:</strong></p><pre>{transcript}</pre>"
 
+        _ticket_email = override_email or getattr(conversation.customer, "email", None) or f"{conversation.channel}@chat.internal"
         message = Message(
             ticket_id=ticket.id,
             type="inbound",
             sender_name=customer_name,
-            sender_email=getattr(conversation.customer, "email", None) or f"{conversation.channel}@chat.internal",
+            sender_email=_ticket_email,
             body_text=body_text,
             body_html=body_html,
         )
         db.add(message)
 
         # Send confirmation email to customer and start Gmail thread
-        customer_email = getattr(conversation.customer, "email", None)
+        # Use override_email (from pending_observation) if customer.email is empty
+        customer_email = override_email or getattr(conversation.customer, "email", None)
+        # Also check conversation metadata for collected email
+        if not customer_email:
+            _obs_meta = conversation.metadata_ if isinstance(conversation.metadata_, dict) else {}
+            customer_email = _obs_meta.get("pending_observation", {}).get("email") or _obs_meta.get("customer_observation_email")
         if customer_email:
             try:
                 from app.services.gmail_service import send_email as gmail_send

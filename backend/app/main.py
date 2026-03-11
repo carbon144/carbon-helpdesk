@@ -364,6 +364,7 @@ async def _run_email_fetch_loop():
                                 # Email auto-reply
                                 try:
                                     from app.services.email_auto_reply_service import generate_auto_reply, send_auto_reply
+                                    logger.info(f"[AUTO-REPLY] Generating for ticket #{ticket.number}, category={ticket.category}, triage={bool(triage)}")
                                     auto_reply_result = await generate_auto_reply(
                                         subject=email_data["subject"],
                                         body=email_data["body_text"][:2000],
@@ -372,6 +373,7 @@ async def _run_email_fetch_loop():
                                         triage=triage if triage else None,
                                         protocol=ticket.protocol,
                                     )
+                                    logger.info(f"[AUTO-REPLY] Result for #{ticket.number}: type={auto_reply_result.get('type') if auto_reply_result else 'None'}, reason={auto_reply_result.get('reason') if auto_reply_result else 'None'}")
                                     if auto_reply_result and auto_reply_result["type"] in ("auto_reply", "ack"):
                                         sent_reply = await asyncio.to_thread(
                                             send_email,
@@ -381,6 +383,7 @@ async def _run_email_fetch_loop():
                                             thread_id=gmail_thread_id,
                                             in_reply_to=gmail_message_id,
                                         )
+                                        logger.info(f"[AUTO-REPLY] Send result for #{ticket.number}: {bool(sent_reply)}")
                                         if sent_reply:
                                             auto_msg = Message(
                                                 ticket_id=ticket.id,

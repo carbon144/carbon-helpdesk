@@ -19,7 +19,7 @@ async def get_online_agents(db: AsyncSession) -> list[User]:
     result = await db.execute(
         select(User).where(
             User.is_active == True,
-            User.role.in_(["agent", "supervisor", "admin"]),
+            User.role.in_(["agent", "supervisor"]),
             User.last_activity_at >= threshold,
         )
     )

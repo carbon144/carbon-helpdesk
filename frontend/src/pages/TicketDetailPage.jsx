@@ -570,13 +570,21 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
       // Meta channel with AI paused: send via Meta API
       if (isMetaChannel && !ticket.ai_auto_mode) {
         await sendMetaReply({ ticket_id: ticket.id, message: reply })
+        toast.success('Resposta enviada via WhatsApp')
       } else {
         const payload = { body_text: reply, type: replyType }
         if (ccArr && ccArr.length) payload.cc = ccArr
         if (bccArr && bccArr.length) payload.bcc = bccArr
         if (scheduledAt) payload.scheduled_at = scheduledAt
         if (replyAttachments.length > 0) payload.attachments = replyAttachments
-        await addMessage(ticketId, payload)
+        const res = await addMessage(ticketId, payload)
+        const delivery = res?.data?.delivery
+        if (delivery?.email_sent_to) {
+          toast.success(`Email enviado para ${delivery.email_sent_to}`)
+        }
+        if (delivery?.wa_sent) {
+          toast.success('Resposta enviada no WhatsApp do cliente')
+        }
       }
       setReply(''); setReplyCc(''); setReplyBcc(''); setShowCcBcc(false); setShowSchedulePicker(false); setScheduleDate(''); setReplyAttachments([]); loadTicket(); onTicketUpdate?.()
       if (scheduledAt) toast.success('Mensagem programada com sucesso')
@@ -1073,7 +1081,7 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                     ? 'bg-emerald-500/10 border border-emerald-500/20'
                     : 'bg-yellow-500/10 border border-yellow-500/20'
                 }`}>
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-2 text-sm flex-wrap">
                     <MetaBadge source={ticket.source} size="lg" showLabel />
                     {ticket.ai_auto_mode ? (
                       <span className="text-emerald-400">
@@ -1084,6 +1092,17 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                       <span className="text-yellow-400">
                         <i className="fas fa-pause-circle mr-1" />
                         IA pausada — modo manual
+                      </span>
+                    )}
+                    {ticket.customer?.email ? (
+                      <span className="text-blue-400 text-xs ml-2">
+                        <i className="fas fa-envelope-circle-check mr-1" />
+                        {ticket.customer.email}
+                      </span>
+                    ) : (
+                      <span className="text-orange-400 text-xs ml-2">
+                        <i className="fas fa-envelope-circle-xmark mr-1" />
+                        Sem email vinculado
                       </span>
                     )}
                   </div>

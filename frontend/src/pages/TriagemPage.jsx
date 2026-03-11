@@ -263,7 +263,7 @@ export default function TriagemPage({ user }) {
             <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder="Nome da regra"
               className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none mb-5"
-              style={{ background: 'var(--bg-primary)', border: '1px solid rgba(255,255,255,0.08)', color: '#E2E8F0' }}
+              style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary, rgba(0,0,0,0.15))', color: 'var(--text-primary)' }}
             />
 
             {/* Category chips */}
@@ -291,7 +291,7 @@ export default function TriagemPage({ user }) {
             <p className="text-[11px] font-bold uppercase tracking-wider mb-2.5" style={{ color: '#64748B' }}>Atribuir a</p>
             <select value={form.assign_to} onChange={e => setForm(f => ({ ...f, assign_to: e.target.value }))}
               className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none mb-5 cursor-pointer"
-              style={{ background: 'var(--bg-primary)', border: '1px solid rgba(255,255,255,0.08)', color: '#E2E8F0' }}>
+              style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary, rgba(0,0,0,0.15))', color: 'var(--text-primary)' }}>
               <option value="">Automatico (round-robin)</option>
               {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>

@@ -1130,7 +1130,39 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
     # This way if email fails, the agent sees the error and can retry
     # Works for gmail tickets AND chat-escalated tickets that have a customer email
     email_result = None
-    _has_customer_email = ticket.customer and getattr(ticket.customer, "email", None)
+    _customer_email = getattr(ticket.customer, "email", None) if ticket.customer else None
+    # For WhatsApp-escalated tickets, customer.email may be empty even though email was collected.
+    # Find the email from the ticket's Gmail thread (confirmation email sent during escalation).
+    if not _customer_email and ticket.source in ("whatsapp", "instagram", "facebook", "chat"):
+        _thread_check = await db.execute(
+            select(Message).where(
+                Message.ticket_id == ticket.id,
+                Message.gmail_thread_id.isnot(None),
+            ).limit(1)
+        )
+        _thread_msg_check = _thread_check.scalars().first()
+        if _thread_msg_check and _thread_msg_check.sender_email and "@chat.internal" not in _thread_msg_check.sender_email:
+            _customer_email = _thread_msg_check.sender_email
+        # Also check conversation metadata for the collected email
+        if not _customer_email and ticket.meta_conversation_id:
+            from app.models.conversation import Conversation as _Conv
+            _conv_result = await db.execute(
+                select(_Conv).where(_Conv.id == ticket.meta_conversation_id)
+            )
+            _conv = _conv_result.scalar_one_or_none()
+            if _conv:
+                _conv_meta = _conv.metadata_ if isinstance(getattr(_conv, "metadata_", None), dict) else {}
+                _customer_email = _conv_meta.get("pending_observation", {}).get("email") or _conv_meta.get("customer_observation_email")
+        # Last resort: Shopify lookup by phone
+        if not _customer_email and ticket.customer and getattr(ticket.customer, "phone", None):
+            try:
+                from app.services.message_pipeline import _find_email_by_phone
+                _customer_email = await _find_email_by_phone(ticket.customer.phone)
+                if _customer_email:
+                    logger.info("[EMAIL-LOOKUP] Found %s via Shopify for phone %s", _customer_email, ticket.customer.phone)
+            except Exception:
+                pass
+    _has_customer_email = bool(_customer_email)
     _sendable_source = ticket.source == "gmail" or (ticket.source in ("whatsapp", "instagram", "facebook", "chat") and _has_customer_email)
     if body.type == "outbound" and not is_scheduled and _sendable_source and ticket.customer:
         from app.services.gmail_service import send_email
@@ -1145,7 +1177,7 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
         if user.email_signature:
             email_body += f"\n\n--\n{user.email_signature}"
         email_result = send_email(
-            to=ticket.customer.email,
+            to=_customer_email,
             subject=f"Re: {ticket.subject}",
             body_text=email_body,
             thread_id=first_msg.gmail_thread_id if first_msg else None,
@@ -1199,7 +1231,7 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
         except Exception as e:
             logger.error(f"Failed to send reply to Slack: {e}")
 
-        # Notify customer on WhatsApp when agent replies to a chat-escalated ticket
+        # Send agent reply to WhatsApp/Instagram/Facebook
         if ticket.source in ("whatsapp", "instagram", "facebook") and ticket.meta_conversation_id:
             try:
                 from app.models.channel_identity import ChannelIdentity
@@ -1212,12 +1244,10 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
                 )
                 ci = ci_result.scalar_one_or_none()
                 if ci:
-                    wa_msg = (
-                        f"Oi! Acabamos de responder seu chamado *#{ticket.number}* por e-mail.\n"
-                        f"Dá uma olhada na sua caixa de entrada 📩"
-                    )
+                    # Send the actual agent reply directly via WhatsApp
+                    wa_msg = body.body_text or ""
                     await meta_send(ticket.source, ci.channel_id, wa_msg)
-                    logger.info("[WA-NOTIFY] Sent reply notification to %s for ticket #%s", ci.channel_id, ticket.number)
+                    logger.info("[WA-REPLY] Sent agent reply to %s for ticket #%s", ci.channel_id, ticket.number)
             except Exception as e:
                 logger.warning("[WA-NOTIFY] Failed to notify customer on %s: %s", ticket.source, e)
 
@@ -1249,7 +1279,17 @@ async def add_message(ticket_id: str, body: MessageCreate, db: AsyncSession = De
     except Exception as e:
         logger.warning(f"Auto-summary failed: {e}")
 
-    return MessageResponse.model_validate(msg)
+    response = MessageResponse.model_validate(msg).model_dump()
+    # Add delivery info for frontend feedback
+    if body.type == "outbound" and not is_scheduled:
+        _delivery = {}
+        if email_result and _customer_email:
+            _delivery["email_sent_to"] = _customer_email
+        if ticket.source in ("whatsapp", "instagram", "facebook"):
+            _delivery["wa_sent"] = True
+        if _delivery:
+            response["delivery"] = _delivery
+    return response
 
 
 @router.post("/{ticket_id}/summarize")
