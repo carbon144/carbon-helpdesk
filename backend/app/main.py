@@ -364,6 +364,7 @@ async def _run_email_fetch_loop():
                                 # Email auto-reply
                                 try:
                                     from app.services.email_auto_reply_service import generate_auto_reply, send_auto_reply
+                                    from app.services.gmail_service import send_email
                                     logger.info(f"[AUTO-REPLY] Generating for ticket #{ticket.number}, category={ticket.category}, triage={bool(triage)}")
                                     auto_reply_result = await generate_auto_reply(
                                         subject=email_data["subject"],
