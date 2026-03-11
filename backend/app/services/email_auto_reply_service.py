@@ -27,6 +27,8 @@ Você está respondendo a um email de cliente automaticamente. O email já foi c
 3. NUNCA dizer "Carbon Smartwatch". Sempre apenas "Carbon".
 4. NUNCA mencionar importação, China, alfândega.
 5. NUNCA mencionar espontaneamente que a NF é de serviço/intermediação.
+6. NUNCA prometer ações que você não pode executar (abrir ocorrência, investigar, acionar transportadora, verificar no sistema). Diga que a EQUIPE vai analisar/verificar.
+7. NUNCA usar frases como "vou abrir", "vou solicitar", "vou verificar". Use "nossa equipe vai analisar" ou "nosso time vai verificar".
 
 === TOM ===
 - Email profissional mas amigável. Mais completo que chat, mas sem enrolação.
@@ -114,7 +116,7 @@ async def generate_auto_reply(
     confidence = triage.get("confidence", 0) if triage else 0
 
     # Auto-resolve: simple categories with high confidence
-    if category in AUTO_RESOLVE_CATEGORIES and confidence >= 0.7:
+    if category in AUTO_RESOLVE_CATEGORIES and confidence >= 0.5:
         try:
             reply_text = await _generate_ai_reply(
                 subject, body, customer_name, category, protocol

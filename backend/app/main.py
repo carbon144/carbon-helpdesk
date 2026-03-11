@@ -165,6 +165,79 @@ async def _run_email_fetch_loop():
         except Exception:
             return None
 
+    # Spam/automated email filter — skip these before creating tickets
+    SPAM_SUBJECTS = [
+        "sefaz", "nf-e", "nfe", "nota fiscal eletrônica", "validacao de nf",
+        "verification", "verify your", "confirm your account",
+        "account is at risk", "permanently disabled", "security alert",
+        "your account has been", "action required",
+        "spotify", "netflix", "openai", "microsoft 365",
+        "newsletter", "unsubscribe", "marketing",
+    ]
+    SPAM_SENDERS = [
+        "noreply@", "no-reply@", "mailer-daemon@",
+        "notifications@", "alert@", "security@",
+        "sefaz", "fazenda", "receita.fazenda",
+        "spotify.com", "netflix.com", "openai.com", "microsoft.com",
+        "facebook.com", "meta.com", "instagram.com",
+        "google.com", "apple.com", "amazon.com",
+    ]
+
+    def _is_spam_email(email_data: dict) -> bool:
+        """Filter out spam, phishing, newsletters, and automated emails."""
+        subject = (email_data.get("subject") or "").lower()
+        sender = (email_data.get("from_email") or "").lower()
+        body = (email_data.get("body_text") or "").lower()[:500]
+
+        # Check subject patterns
+        for pattern in SPAM_SUBJECTS:
+            if pattern in subject:
+                return True
+
+        # Check sender patterns
+        for pattern in SPAM_SENDERS:
+            if pattern in sender:
+                return True
+
+        # Empty body + no clear customer intent
+        if not body.strip() or len(body.strip()) < 10:
+            return True
+
+        # Phishing markers in body
+        phishing_markers = ["permanently disabled", "account has been", "click here to verify",
+                           "dmca", "copyright act", "your account is at risk"]
+        for marker in phishing_markers:
+            if marker in body:
+                return True
+
+        return False
+
+    def _sanitize_customer_name(name: str) -> str:
+        """Clean up customer name extracted from email headers."""
+        if not name or len(name.strip()) < 2:
+            return "Cliente"
+
+        # Remove common email artifacts
+        name = name.strip().strip('"').strip("'")
+
+        # Skip obvious non-names
+        bad_names = [
+            "business", "info", "contato", "admin", "suporte", "support",
+            "noreply", "no-reply", "cliente", "user", "customer",
+            "cerveja", "spotify", "openai", "meta", "facebook", "instagram",
+        ]
+        if name.lower() in bad_names:
+            return "Cliente"
+
+        # If name looks like an email address, extract first part
+        if "@" in name:
+            name = name.split("@")[0].replace(".", " ").replace("_", " ")
+
+        # Capitalize properly
+        name = " ".join(w.capitalize() for w in name.split() if len(w) > 1)
+
+        return name if name else "Cliente"
+
     while True:
         try:
             _email_health["last_check"] = datetime.now(timezone.utc).isoformat()
@@ -176,6 +249,16 @@ async def _run_email_fetch_loop():
                 for email_data in emails:
                     gmail_thread_id = email_data.get("thread_id")
                     gmail_message_id = email_data.get("gmail_id")
+
+                    # Skip spam/automated emails
+                    if _is_spam_email(email_data):
+                        logger.info(f"[SPAM-FILTER] Skipping email from {email_data.get('from_email', '?')}: {email_data.get('subject', '?')[:80]}")
+                        await asyncio.to_thread(mark_as_read, gmail_message_id)
+                        continue
+
+                    # Sanitize customer name
+                    email_data["from_name"] = _sanitize_customer_name(email_data.get("from_name", ""))
+
                     try:
                         async with async_session() as db:
                             # Check if already processed
