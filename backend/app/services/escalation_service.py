@@ -19,11 +19,13 @@ async def check_and_escalate(db: AsyncSession) -> dict:
     warned = 0
 
     # Get active tickets with an agent assigned but no response
+    # Skip tickets that already have auto_replied (IA already responded)
     result = await db.execute(
         select(Ticket).where(
             Ticket.status.in_(["open", "in_progress"]),
             Ticket.assigned_to.isnot(None),
             Ticket.first_response_at.is_(None),
+            Ticket.auto_replied == False,
         )
     )
     tickets = result.scalars().all()
@@ -32,7 +34,8 @@ async def check_and_escalate(db: AsyncSession) -> dict:
         rules = ESCALATION_RULES.get(ticket.priority, ESCALATION_RULES["medium"])
         time_since_created = (now - ticket.created_at).total_seconds() / 3600
 
-        if time_since_created >= rules["escalate_hours"] and ticket.status != "escalated":
+        already_escalated = "AUTO_ESCALADO" in (ticket.tags or [])
+        if time_since_created >= rules["escalate_hours"] and ticket.status != "escalated" and not already_escalated:
             ticket.status = "escalated"
             ticket.escalated_at = now
             ticket.escalation_reason = f"Sem resposta há {time_since_created:.0f}h (limite: {rules['escalate_hours']}h)"
