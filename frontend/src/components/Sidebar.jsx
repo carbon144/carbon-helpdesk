@@ -20,7 +20,6 @@ const NAV_GROUPS = [
     label: 'Ferramentas',
     items: [
       { to: '/kb', label: 'Base de Conhecimento', icon: 'fa-book', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
-      { to: '/media', label: 'Biblioteca de Midia', icon: 'fa-photo-video', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
       { to: '/macros', label: 'Respostas Rapidas', icon: 'fa-bolt', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
       { to: '/chatbot-flows', label: 'Chatbot Flows', icon: 'fa-robot', roles: ['super_admin', 'admin', 'supervisor'] },
       // { to: '/moderation', label: 'Moderacao Social', icon: 'fa-shield-alt', roles: ['super_admin', 'admin', 'supervisor'] },
@@ -247,7 +246,7 @@ export default function Sidebar({ user, onLogout, ticketCount, metaCount, chatCo
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
               style={{ background: 'linear-gradient(135deg, #E5A800 0%, #CC9600 100%)', color: '#FFFFFF' }}>
-              {user.name[0]}
+              {(user.name || '?')[0]}
             </div>
             <div className="min-w-0">
               <p className="text-[13px] font-semibold truncate" style={{ color: '#E2E8F0' }}>{user.name}</p>

@@ -91,7 +91,7 @@ async def _pick_online_agent(db: AsyncSession) -> User | None:
             )
         )
         load = count_result.scalar()
-        if load < agent.max_tickets:
+        if load < (agent.max_tickets or 20):
             agent_loads[agent.id] = (load, agent)
 
     if not agent_loads:

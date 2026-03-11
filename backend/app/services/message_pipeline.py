@@ -879,7 +879,7 @@ def _get_invoice_pdf_url(order_number: str) -> str | None:
     import os
     # Public URL that WhatsApp can fetch — proxies through helpdesk → carbon-nf → prefeitura
     helpdesk_host = os.environ.get("HELPDESK_PUBLIC_URL", "https://helpdesk.brutodeverdade.com.br")
-    nf_token = os.environ.get("NF_PDF_TOKEN", "carbon-nf-2026")
+    nf_token = os.environ.get("NF_PDF_TOKEN", "")
     return f"{helpdesk_host}/api/public/invoice-pdf?order_number={order_number}&token={nf_token}"
 
 

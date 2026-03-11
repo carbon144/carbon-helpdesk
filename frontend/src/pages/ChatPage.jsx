@@ -11,7 +11,10 @@ export default function ChatPage({ user }) {
     setSelectedConversation(conversation)
     if (customer) {
       setSelectedCustomer(customer)
-    } else if (conversation?.customer_id) {
+    } else {
+      setSelectedCustomer(null)
+    }
+    if (!customer && conversation?.customer_id) {
       try {
         const res = await api.get(`/customers/${conversation.customer_id}`)
         setSelectedCustomer(res.data)

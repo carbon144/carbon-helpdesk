@@ -181,9 +181,8 @@ async def forgot_password(body: ForgotPasswordRequest, request: Request, db: Asy
         algorithm=settings.JWT_ALGORITHM,
     )
 
-    # Monta o link de reset usando a origem do request
-    origin = request.headers.get("origin") or request.headers.get("referer", "").rstrip("/")
-    base_url = origin if origin and "localhost" not in origin else "https://helpdesk.brutodeverdade.com.br"
+    # Monta o link de reset usando URL fixa (não confiar no Origin header)
+    base_url = "https://helpdesk.brutodeverdade.com.br"
     reset_link = f"{base_url}?reset_token={reset_token}"
 
     # Envia email via Gmail

@@ -32,6 +32,7 @@ export default function ChatView({ conversation, customer, user, onConversationU
 
   const fetchMessages = useCallback(async () => {
     if (!conversation) return
+    setMessages([])
     setLoading(true)
     try {
       const res = await api.get(`/chat/conversations/${conversation.id}/messages`, {
@@ -116,7 +117,7 @@ export default function ChatView({ conversation, customer, user, onConversationU
         content,
         content_type: 'text',
       })
-      setMessages((prev) => [...prev, res.data])
+      setMessages((prev) => prev.some(m => m.id === res.data.id) ? prev : [...prev, res.data])
     } catch (err) {
       console.error('Failed to send message:', err)
     }
@@ -129,7 +130,7 @@ export default function ChatView({ conversation, customer, user, onConversationU
         content,
         content_type: 'note',
       })
-      setMessages((prev) => [...prev, res.data])
+      setMessages((prev) => prev.some(m => m.id === res.data.id) ? prev : [...prev, res.data])
     } catch (err) {
       console.error('Failed to send note:', err)
     }

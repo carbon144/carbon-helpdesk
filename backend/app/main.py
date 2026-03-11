@@ -1095,7 +1095,8 @@ async def public_invoice_pdf(order_number: str, token: str = ""):
     import os
     from fastapi.responses import Response
 
-    expected_token = os.environ.get("NF_PDF_TOKEN", "carbon-nf-2026")
+    from app.core.config import settings as _settings
+    expected_token = _settings.NF_PDF_TOKEN or os.environ.get("NF_PDF_TOKEN", "")
     if token != expected_token:
         raise HTTPException(status_code=403, detail="Forbidden")
 

@@ -1353,7 +1353,7 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                       <span key={i} className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 text-xs px-2.5 py-1 rounded-lg">
                         <i className="fas fa-paperclip text-[10px]" />
                         <span className="max-w-[150px] truncate">{att.name}</span>
-                        <span className="text-emerald-600 text-[10px]">({(att.size / 1024).toFixed(0)}KB)</span>
+                        <span className="text-emerald-600 text-[10px]">({att.size ? (att.size / 1024).toFixed(0) : '?'}KB)</span>
                         <button onClick={() => setReplyAttachments(prev => prev.filter((_, j) => j !== i))}
                           className="hover:text-red-400 transition ml-0.5">
                           <i className="fas fa-times text-[10px]" />

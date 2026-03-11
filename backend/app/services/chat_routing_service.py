@@ -43,15 +43,29 @@ async def auto_assign(
     db: AsyncSession, conversation: Conversation
 ) -> Optional[User]:
     """Pick the online agent with fewest active conversations (round-robin).
-    Assigns agent to conversation, returns agent or None if nobody available."""
+    Assigns agent to conversation, returns agent or None if nobody available.
+    Uses FOR UPDATE to prevent race conditions."""
+    # Lock the conversation row to prevent concurrent assignment
+    result = await db.execute(
+        select(Conversation)
+        .where(Conversation.id == conversation.id)
+        .with_for_update()
+    )
+    conv = result.scalar_one_or_none()
+    if not conv or conv.assigned_to:
+        # Already assigned by another request
+        return None
+
     agents = await get_available_agents(db)
     if not agents:
         return None
 
     agent = agents[0]  # least loaded
-    conversation.assigned_to = agent.id
+    conv.assigned_to = agent.id
     await db.commit()
-    await db.refresh(conversation)
+    await db.refresh(conv)
+    # Update the original reference too
+    conversation.assigned_to = conv.assigned_to
     return agent
 
 

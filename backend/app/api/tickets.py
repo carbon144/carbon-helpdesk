@@ -1096,9 +1096,15 @@ async def upload_attachment(
     uploads_dir = Path("uploads")
     uploads_dir.mkdir(exist_ok=True)
 
+    # Sanitize filename: strip path separators to prevent traversal attacks
+    raw_name = file.filename or "attachment"
+    clean_name = raw_name.replace("/", "_").replace("\\", "_").replace("\x00", "")
     # UUID prefix to avoid collisions
-    safe_name = f"{uuid.uuid4().hex[:8]}_{file.filename or 'attachment'}"
+    safe_name = f"{uuid.uuid4().hex[:8]}_{clean_name}"
     file_path = uploads_dir / safe_name
+    # Extra safety: ensure resolved path stays inside uploads_dir
+    if not file_path.resolve().is_relative_to(uploads_dir.resolve()):
+        raise HTTPException(400, "Nome de arquivo inválido")
     file_path.write_bytes(content)
 
     return {

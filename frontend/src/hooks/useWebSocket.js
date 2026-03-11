@@ -62,7 +62,13 @@ function _connect() {
 function _ensureConnection(token) {
   if (_token !== token) {
     _token = token
-    if (_ws) _ws.close()
+    if (_reconnectTimeout) { clearTimeout(_reconnectTimeout); _reconnectTimeout = null }
+    if (_ws) {
+      const oldWs = _ws
+      _ws = null
+      oldWs.onclose = () => {} // prevent auto-reconnect from old socket
+      oldWs.close()
+    }
     _connect()
   } else if (!_ws || _ws.readyState !== WebSocket.OPEN) {
     _connect()

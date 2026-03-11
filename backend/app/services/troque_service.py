@@ -1,12 +1,13 @@
 """TroqueCommerce API integration — consulta status de reversas."""
 
 import logging
+import os
 import httpx
 
 logger = logging.getLogger(__name__)
 
 TROQUE_BASE_URL = "https://www.troquecommerce.com.br/api/public"
-TROQUE_TOKEN = "0c95de77-d552-4813-96d4-42447f6ce9b7"
+TROQUE_TOKEN = os.environ.get("TROQUE_API_TOKEN", "")
 
 STATUS_MAP = {
     "Em Análise": "Em análise pelo nosso time",

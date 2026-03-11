@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '../components/Toast'
-import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, autoAssign, getUsers, exportTicketsCsv, fetchGmailEmails, updateTicket, getSentMessages, fetchSpamEmails, rescueFromSpam, bulkRescueFromSpam, rescueAndCreateTicket, markTicketViewed } from '../services/api'
+import { getTickets, getTicketCounts, bulkAssign, bulkUpdate, getUsers, exportTicketsCsv, fetchGmailEmails, updateTicket, getSentMessages, fetchSpamEmails, rescueFromSpam, bulkRescueFromSpam, rescueAndCreateTicket, markTicketViewed } from '../services/api'
 import MetaBadge from '../components/MetaBadge'
 import { SkeletonTicketList } from '../components/Skeleton'
-import AutoAssignModal from '../components/AutoAssignModal'
 import ImportHistoryModal from '../components/ImportHistoryModal'
 import ComposeEmailModal from '../components/ComposeEmailModal'
 import { STATUS_COLORS, PRIORITY_COLORS, STATUS_LABELS, PRIORITY_LABELS, CATEGORY_LABELS, TAG_COLORS, TAG_LABELS, PRIORITY_ORDER, STATUS_ORDER } from '../constants/ticket'
@@ -37,7 +36,7 @@ export default function TicketsPage({ user }) {
   const toast = useToast()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const filters = Object.fromEntries(searchParams.entries())
+  const filters = useMemo(() => Object.fromEntries(searchParams.entries()), [searchParams.toString()])
   const onOpenTicket = (id) => {
     markTicketViewed(id).catch(() => {})
     setTickets(prev => prev.map(t => t.id === id ? { ...t, is_unread: false } : t))
@@ -71,8 +70,6 @@ export default function TicketsPage({ user }) {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [customerName, setCustomerName] = useState('')
-  const [autoAssigning, setAutoAssigning] = useState(false)
-  const [showAutoAssignModal, setShowAutoAssignModal] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [sortField, setSortField] = useState('')
@@ -95,6 +92,7 @@ export default function TicketsPage({ user }) {
   const [loading, setLoading] = useState(true)
   const sentSearchTimerRef = useRef(null)
   const searchTimerRef = useRef(null)
+  const customerNameTimerRef = useRef(null)
   const abortRef = useRef(null)
   const requestIdRef = useRef(0)
 
@@ -216,7 +214,7 @@ export default function TicketsPage({ user }) {
       const { data } = await getTickets(params, { signal: controller.signal })
       // Ignore stale responses
       if (thisRequest !== requestIdRef.current) return
-      let filtered = data.tickets
+      let filtered = data.tickets || []
       if (filterResponse === 'awaiting') {
         filtered = filtered.filter(t => !t.first_response_at && !['resolved', 'closed', 'archived'].includes(t.status))
       } else if (filterResponse === 'responded') {
@@ -377,12 +375,11 @@ export default function TicketsPage({ user }) {
   useEffect(() => {
     if (topView === 'sent') loadSentMessages()
     if (topView === 'spam') loadSpamEmails()
-  }, [topView, sentPage, sentSearch])
+  }, [topView, sentPage])
 
   const handleSearch = (e) => {
     e.preventDefault()
     setPage(1)
-    loadTickets()
   }
 
   const handleTabChange = (tab) => {
@@ -427,25 +424,12 @@ export default function TicketsPage({ user }) {
       }
       setSelected(new Set())
       loadTickets()
+      getTicketCounts().then(r => setCounts(r.data)).catch(() => {})
     } catch (e) {
       toast.error('Falha na ação em lote')
     }
   }
 
-  const handleAutoAssign = async (agentIds) => {
-    setAutoAssigning(true)
-    setShowAutoAssignModal(false)
-    try {
-      const ids = agentIds && agentIds.length > 0 ? agentIds : null
-      const { data } = await autoAssign(ids)
-      loadTickets()
-      toast.success(`${data.assigned} ticket(s) atribuído(s) automaticamente`)
-    } catch (e) {
-      toast.error('Falha na atribuição automática')
-    } finally {
-      setAutoAssigning(false)
-    }
-  }
 
   const handleExportCsv = async () => {
     setExporting(true)
@@ -854,6 +838,77 @@ export default function TicketsPage({ user }) {
       <div>
       <div className="flex-1">
       <>
+      {/* Page Header with Counter Cards */}
+      <div className="mb-6">
+        <div className="grid grid-cols-4 lg:grid-cols-9 gap-3 mb-6">
+          <button onClick={() => handleTabChange('mine')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-indigo-500/30 ${activeTab === 'mine' ? 'border-indigo-500/40 ring-1 ring-indigo-500/20' : ''}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <i className="fas fa-lock text-indigo-400 text-xs" />
+              <span className="text-[var(--text-tertiary)] text-[11px]">Privado</span>
+            </div>
+            <p className="text-xl font-bold text-[var(--text-primary)]">{counts.mine}</p>
+          </button>
+          <button onClick={() => handleTabChange('team')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-teal-500/30 ${activeTab === 'team' ? 'border-teal-500/40 ring-1 ring-teal-500/20' : ''}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <i className="fas fa-users text-teal-400 text-xs" />
+              <span className="text-[var(--text-tertiary)] text-[11px]">Equipe</span>
+            </div>
+            <p className="text-xl font-bold text-[var(--text-primary)]">{counts.team}</p>
+          </button>
+          {user?.role !== 'agent' && (
+          <button onClick={() => handleTabChange('active')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-orange-500/30 ${activeTab === 'active' ? 'border-orange-500/40 ring-1 ring-orange-500/20' : ''}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <i className="fas fa-inbox text-orange-400 text-xs" />
+              <span className="text-[var(--text-tertiary)] text-[11px]">Novos</span>
+            </div>
+            <p className="text-xl font-bold text-orange-400">{counts.unassigned}</p>
+          </button>
+          )}
+          <button onClick={() => handleTabChange('escalated')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-red-500/30 ${activeTab === 'escalated' ? 'border-red-500/40 ring-1 ring-red-500/20' : ''}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <i className="fas fa-exclamation-triangle text-red-400 text-xs" />
+              <span className="text-[var(--text-tertiary)] text-[11px]">Prioridade</span>
+            </div>
+            <p className="text-xl font-bold text-red-400">{counts.escalated}</p>
+          </button>
+          <button onClick={() => handleTabChange('responded')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-yellow-500/30 ${activeTab === 'responded' ? 'border-yellow-500/40 ring-1 ring-yellow-500/20' : ''}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <i className="fas fa-hourglass-half text-yellow-400 text-xs" />
+              <span className="text-[var(--text-tertiary)] text-[11px]">Aguardando Cliente</span>
+            </div>
+            <p className="text-xl font-bold text-yellow-400">{counts.waiting || 0}</p>
+          </button>
+          <button onClick={() => handleTabChange('resolved')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-green-500/30 ${activeTab === 'resolved' ? 'border-green-500/40 ring-1 ring-green-500/20' : ''}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <i className="fas fa-check-circle text-green-400 text-xs" />
+              <span className="text-[var(--text-tertiary)] text-[11px]">Resolvidos</span>
+            </div>
+            <p className="text-xl font-bold text-green-400">{counts.resolved || 0}</p>
+          </button>
+          <button onClick={() => handleTabChange('closed')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-gray-500/30 ${activeTab === 'closed' ? 'border-gray-500/40 ring-1 ring-gray-500/20' : ''}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <i className="fas fa-archive text-gray-400 text-xs" />
+              <span className="text-[var(--text-tertiary)] text-[11px]">Fechados</span>
+            </div>
+            <p className="text-xl font-bold text-gray-400">{counts.closed || 0}</p>
+          </button>
+          <button onClick={() => handleTabChange('all')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-blue-500/30 ${activeTab === 'all' ? 'border-blue-500/40 ring-1 ring-blue-500/20' : ''}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <i className="fas fa-list text-blue-400 text-xs" />
+              <span className="text-[var(--text-tertiary)] text-[11px]">Todos</span>
+            </div>
+            <p className="text-xl font-bold text-[var(--text-primary)]">{counts.total_open}</p>
+          </button>
+          <button onClick={() => handleTabChange('auto_reply')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-purple-500/30 ${activeTab === 'auto_reply' ? 'border-purple-500/40 ring-1 ring-purple-500/20' : ''}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <i className="fas fa-robot text-purple-400 text-xs" />
+              <span className="text-[var(--text-tertiary)] text-[11px]">Auto-Reply IA</span>
+            </div>
+            <p className="text-xl font-bold text-purple-400">{counts.auto_replied || 0}</p>
+          </button>
+        </div>
+      </div>
+
       {/* Top Action Bar */}
       <div className="mb-6 flex flex-col gap-4">
         {/* Agent filter - visible on team tab */}
@@ -974,15 +1029,6 @@ export default function TicketsPage({ user }) {
               {exporting ? 'Exportando...' : 'Exportar'}
             </button>
 
-            <button
-              onClick={() => setShowAutoAssignModal(true)}
-              disabled={autoAssigning}
-              className="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-green-300 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 disabled:opacity-50"
-              title="Distribuir tickets sem agente automaticamente"
-            >
-              <i className={`fas fa-magic ${autoAssigning ? 'animate-spin' : ''} mr-2`} />
-              {autoAssigning ? 'Atribuindo...' : 'Auto-Atribuir'}
-            </button>
           </div>
         </div>
       </div>
@@ -999,7 +1045,11 @@ export default function TicketsPage({ user }) {
               <label className="text-[var(--text-secondary)] text-xs font-medium block mb-2">Nome do Cliente</label>
               <input
                 value={customerName}
-                onChange={(e) => { setCustomerName(e.target.value); setPage(1) }}
+                onChange={(e) => {
+                  setCustomerName(e.target.value)
+                  if (customerNameTimerRef.current) clearTimeout(customerNameTimerRef.current)
+                  customerNameTimerRef.current = setTimeout(() => setPage(1), 400)
+                }}
                 placeholder="Ex: João Silva"
                 className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
               />
@@ -1359,8 +1409,6 @@ export default function TicketsPage({ user }) {
       </div>
       )}
 
-      <AutoAssignModal open={showAutoAssignModal} onClose={() => setShowAutoAssignModal(false)} agents={agents}
-        onAssign={(ids) => handleAutoAssign(ids)} />
 
       <ImportHistoryModal open={showImportModal} onClose={() => setShowImportModal(false)} onSuccess={loadTickets} />
 

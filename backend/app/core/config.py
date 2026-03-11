@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     TRACK17_API_KEY: str = ""
     WONCA_API_KEY: str = ""
 
+    # TroqueCommerce
+    TROQUE_API_TOKEN: str = ""
+    # NF PDF proxy
+    NF_PDF_TOKEN: str = ""
+
     NOTION_TOKEN: str = ""
     NOTION_DATABASE_ID: str = ""  # Auto-created if empty
 

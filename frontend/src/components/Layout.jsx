@@ -12,7 +12,6 @@ const KBPage = lazy(() => import('../pages/KBPage'))
 const SettingsPage = lazy(() => import('../pages/SettingsPage'))
 const TrackingPage = lazy(() => import('../pages/TrackingPage'))
 const AssistantPage = lazy(() => import('../pages/AssistantPage'))
-const MediaPage = lazy(() => import('../pages/MediaPage'))
 const CanaisIAPage = lazy(() => import('../pages/CanaisIAPage'))
 const ChatPage = lazy(() => import('../pages/ChatPage'))
 const ChatbotFlowsPage = lazy(() => import('../pages/ChatbotFlowsPage'))
@@ -99,7 +98,6 @@ export default function Layout({ user, onLogout }) {
             <Route path="/tickets/:id" element={<TicketDetailPage user={user} />} />
             <Route path="/kb" element={<KBPage />} />
             <Route path="/assistant" element={<AssistantPage user={user} />} />
-            <Route path="/media" element={<MediaPage />} />
             <Route path="/tracking" element={<TrackingPage />} />
             <Route path="/canais-ia" element={<CanaisIAPage user={user} />} />
             <Route path="/macros" element={<MacrosPage />} />
