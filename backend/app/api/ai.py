@@ -35,7 +35,7 @@ async def ai_status(user: User = Depends(get_current_user)):
             "error": "Creditos IA esgotados. Recarregue em console.anthropic.com",
         }
 
-    result = test_ai_connection()
+    result = await test_ai_connection()
     return {
         "configured": True,
         "connected": result["ok"],
@@ -253,7 +253,9 @@ Regras:
 - sentiment_alert: alerta se tom do cliente precisa atenção especial
 - next_step: 1 frase com o próximo passo ideal"""
 
-        response = ai_client.messages.create(
+        import asyncio
+        response = await asyncio.to_thread(
+            ai_client.messages.create,
             model="claude-sonnet-4-20250514",
             max_tokens=500,
             messages=[{"role": "user", "content": prompt}],
@@ -370,7 +372,9 @@ async def assistant_chat(
         messages = [{"role": m["role"], "content": m["content"]} for m in body.history[-8:]]
         messages.append({"role": "user", "content": body.message})
 
-        response = ai_client.messages.create(
+        import asyncio
+        response = await asyncio.to_thread(
+            ai_client.messages.create,
             model="claude-sonnet-4-20250514",
             max_tokens=1024,
             system=system_prompt,

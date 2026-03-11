@@ -67,6 +67,98 @@ def _shopify_base():
     return f"{store}/admin/api/2024-01"
 
 
+def _format_order(o: dict) -> dict:
+    """Format a raw Shopify order into our standard structure."""
+    fulfillments = []
+    for f in o.get("fulfillments", []):
+        fulfillments.append({
+            "id": f.get("id"),
+            "status": f.get("status"),
+            "tracking_company": f.get("tracking_company", ""),
+            "tracking_numbers": f.get("tracking_numbers", []),
+            "tracking_urls": f.get("tracking_urls", []),
+            "created_at": f.get("created_at"),
+            "updated_at": f.get("updated_at"),
+            "shipment_status": f.get("shipment_status"),
+            "estimated_delivery_at": f.get("estimated_delivery_at"),
+        })
+
+    items = [
+        {
+            "title": li.get("title"),
+            "variant_title": li.get("variant_title"),
+            "quantity": li.get("quantity"),
+            "price": li.get("price"),
+            "sku": li.get("sku"),
+        }
+        for li in o.get("line_items", [])
+    ]
+
+    shipping = o.get("shipping_address") or {}
+    shipping_info = {
+        "name": shipping.get("name", ""),
+        "city": shipping.get("city", ""),
+        "province": shipping.get("province", ""),
+        "zip": shipping.get("zip", ""),
+        "country": shipping.get("country", "BR"),
+    } if shipping else None
+
+    shipping_lines = o.get("shipping_lines", [])
+    carrier = shipping_lines[0].get("title", "") if shipping_lines else ""
+
+    delivery_status = "pending"
+    tracking_code = ""
+    tracking_url = ""
+    estimated_delivery = None
+    last_tracking_update = None
+
+    if fulfillments:
+        last_f = fulfillments[0]
+        if last_f["tracking_numbers"]:
+            tracking_code = last_f["tracking_numbers"][0]
+        if last_f["tracking_urls"]:
+            tracking_url = last_f["tracking_urls"][0]
+        estimated_delivery = last_f.get("estimated_delivery_at")
+        last_tracking_update = last_f.get("updated_at")
+
+        shipment_status = last_f.get("shipment_status") or ""
+        fulfillment_status = last_f.get("status") or ""
+
+        if shipment_status == "delivered" or o.get("fulfillment_status") == "fulfilled":
+            delivery_status = "delivered"
+        elif shipment_status in ("in_transit", "out_for_delivery"):
+            delivery_status = shipment_status
+        elif shipment_status == "confirmed":
+            delivery_status = "shipped"
+        elif fulfillment_status == "success":
+            delivery_status = "shipped"
+        elif shipment_status == "failure":
+            delivery_status = "failed"
+
+    return {
+        "order_id": o.get("id"),
+        "order_number": o.get("name"),
+        "created_at": o.get("created_at"),
+        "updated_at": o.get("updated_at"),
+        "financial_status": o.get("financial_status"),
+        "fulfillment_status": o.get("fulfillment_status"),
+        "total_price": o.get("total_price"),
+        "currency": o.get("currency"),
+        "items": items,
+        "shipping_address": shipping_info,
+        "carrier": carrier,
+        "tracking_code": tracking_code,
+        "tracking_url": tracking_url,
+        "delivery_status": delivery_status,
+        "estimated_delivery": estimated_delivery,
+        "last_tracking_update": last_tracking_update,
+        "fulfillments": fulfillments,
+        "cancelled_at": o.get("cancelled_at"),
+        "note": o.get("note"),
+        "tags": o.get("tags", ""),
+    }
+
+
 async def get_orders_by_email(email: str, limit: int = 10) -> dict:
     """Busca pedidos no Shopify pelo email do cliente."""
     base = _shopify_base()
@@ -97,103 +189,7 @@ async def get_orders_by_email(email: str, limit: int = 10) -> dict:
         data = resp.json()
         raw_orders = data.get("orders", [])
 
-        orders = []
-        for o in raw_orders:
-            # Extrair fulfillments/tracking
-            fulfillments = []
-            for f in o.get("fulfillments", []):
-                tracking_numbers = f.get("tracking_numbers", [])
-                tracking_urls = f.get("tracking_urls", [])
-                tracking_company = f.get("tracking_company", "")
-                fulfillments.append({
-                    "id": f.get("id"),
-                    "status": f.get("status"),  # success, pending, open, failure, error
-                    "tracking_company": tracking_company,
-                    "tracking_numbers": tracking_numbers,
-                    "tracking_urls": tracking_urls,
-                    "created_at": f.get("created_at"),
-                    "updated_at": f.get("updated_at"),
-                    "shipment_status": f.get("shipment_status"),  # confirmed, in_transit, out_for_delivery, delivered, failure
-                    "estimated_delivery_at": f.get("estimated_delivery_at"),
-                })
-
-            # Itens do pedido
-            items = []
-            for li in o.get("line_items", []):
-                items.append({
-                    "title": li.get("title"),
-                    "variant_title": li.get("variant_title"),
-                    "quantity": li.get("quantity"),
-                    "price": li.get("price"),
-                    "sku": li.get("sku"),
-                })
-
-            # Endereço de envio
-            shipping = o.get("shipping_address") or {}
-            shipping_info = {
-                "name": shipping.get("name", ""),
-                "city": shipping.get("city", ""),
-                "province": shipping.get("province", ""),
-                "zip": shipping.get("zip", ""),
-                "country": shipping.get("country", "BR"),
-            } if shipping else None
-
-            # Transportadora
-            shipping_lines = o.get("shipping_lines", [])
-            carrier = shipping_lines[0].get("title", "") if shipping_lines else ""
-
-            # Status de entrega consolidado
-            delivery_status = "pending"
-            tracking_code = ""
-            tracking_url = ""
-            estimated_delivery = None
-            last_tracking_update = None
-
-            if fulfillments:
-                last_f = fulfillments[0]  # Mais recente
-                if last_f["tracking_numbers"]:
-                    tracking_code = last_f["tracking_numbers"][0]
-                if last_f["tracking_urls"]:
-                    tracking_url = last_f["tracking_urls"][0]
-                estimated_delivery = last_f.get("estimated_delivery_at")
-                last_tracking_update = last_f.get("updated_at")
-
-                shipment_status = last_f.get("shipment_status") or ""
-                fulfillment_status = last_f.get("status") or ""
-
-                if shipment_status == "delivered" or o.get("fulfillment_status") == "fulfilled":
-                    delivery_status = "delivered"
-                elif shipment_status in ("in_transit", "out_for_delivery"):
-                    delivery_status = shipment_status
-                elif shipment_status == "confirmed":
-                    delivery_status = "shipped"
-                elif fulfillment_status == "success":
-                    delivery_status = "shipped"
-                elif shipment_status == "failure":
-                    delivery_status = "failed"
-
-            orders.append({
-                "order_id": o.get("id"),
-                "order_number": o.get("name"),  # ex: #1001
-                "created_at": o.get("created_at"),
-                "updated_at": o.get("updated_at"),
-                "financial_status": o.get("financial_status"),  # paid, pending, refunded, etc.
-                "fulfillment_status": o.get("fulfillment_status"),  # fulfilled, partial, null
-                "total_price": o.get("total_price"),
-                "currency": o.get("currency"),
-                "items": items,
-                "shipping_address": shipping_info,
-                "carrier": carrier,
-                "tracking_code": tracking_code,
-                "tracking_url": tracking_url,
-                "delivery_status": delivery_status,
-                "estimated_delivery": estimated_delivery,
-                "last_tracking_update": last_tracking_update,
-                "fulfillments": fulfillments,
-                "cancelled_at": o.get("cancelled_at"),
-                "note": o.get("note"),
-                "tags": o.get("tags", ""),
-            })
+        orders = [_format_order(o) for o in raw_orders]
 
         return {
             "configured": True,
@@ -235,11 +231,9 @@ async def get_order_by_number(order_number: str) -> dict:
         if not orders:
             return {"error": "Pedido não encontrado"}
 
-        # Reusa a lógica do get_orders_by_email para o primeiro resultado
-        result = await get_orders_by_email(orders[0].get("email", ""), limit=1)
-        if result.get("orders"):
-            return result["orders"][0]
-        return {"error": "Erro ao processar pedido"}
+        # Format the exact order found (don't re-fetch by email which may return a different order)
+        o = orders[0]
+        return _format_order(o)
 
     except Exception as e:
         logger.error(f"Shopify order lookup error for {order_number}: {e}")

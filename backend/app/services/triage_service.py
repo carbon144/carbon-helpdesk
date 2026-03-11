@@ -55,8 +55,15 @@ async def _apply_rule(rule: TriageRule, ticket: Ticket, db: AsyncSession) -> dic
     result = {"rule_id": rule.id, "rule_name": rule.name, "actions": []}
 
     if rule.set_priority:
-        ticket.priority = rule.set_priority
-        result["actions"].append(f"priority={rule.set_priority}")
+        # Only escalate, never downgrade priority
+        PRIORITY_ORDER = {"low": 0, "medium": 1, "high": 2, "urgent": 3}
+        current_level = PRIORITY_ORDER.get(ticket.priority, 0)
+        new_level = PRIORITY_ORDER.get(rule.set_priority, 0)
+        if new_level > current_level:
+            ticket.priority = rule.set_priority
+            result["actions"].append(f"priority={rule.set_priority}")
+        else:
+            result["actions"].append(f"priority_kept={ticket.priority} (rule wanted {rule.set_priority})")
 
     if rule.assign_to:
         ticket.assigned_to = rule.assign_to

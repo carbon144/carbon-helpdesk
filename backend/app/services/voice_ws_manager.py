@@ -41,7 +41,11 @@ class VoiceCallManager:
     def add_transcript(self, call_id: str, role: str, text: str):
         call = self.active_calls.get(call_id)
         if call:
-            call["transcript_lines"].append({"role": role, "text": text})
+            lines = call["transcript_lines"]
+            lines.append({"role": role, "text": text})
+            # Cap at 500 lines to prevent unbounded memory growth
+            if len(lines) > 500:
+                call["transcript_lines"] = lines[-500:]
 
     async def broadcast(self, data: dict):
         disconnected = []

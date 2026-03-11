@@ -228,7 +228,7 @@ async def fetch_emails(
                         matched_ticket.sla_deadline = now + timedelta(hours=sla["resolution_hours"])
                         matched_ticket.sla_response_deadline = now + timedelta(hours=sla["response_hours"])
                         matched_ticket.sla_breached = False
-                        matched_ticket.first_response_at = None
+                        # Don't reset first_response_at — it tracks when WE first responded, not the client
                         matched_ticket.updated_at = now
 
                     emails_to_mark_read.append(gmail_message_id)

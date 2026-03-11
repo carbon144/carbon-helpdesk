@@ -186,7 +186,7 @@ async def track_17track(code: str) -> dict:
 
             # Step 2: Wait for 17track to process (Cainiao needs more time)
             import asyncio
-            wait_time = 8 if detect_carrier(code) == "cainiao" else 3
+            wait_time = 5 if detect_carrier(code) == "cainiao" else 2
             await asyncio.sleep(wait_time)
 
             # Step 3: Get tracking info (with carrier hint)

@@ -1577,21 +1577,26 @@ async def unmerge_ticket(
     if not target:
         raise HTTPException(status_code=404, detail="Ticket destino não encontrado")
 
-    # Find the merge audit log to know which messages were moved
+    # Find the merge audit log — details structure: {target_ticket_id, sources: [{source_ticket_id, moved_message_ids}]}
     audit_result = await db.execute(
         select(AuditLog)
         .where(
             AuditLog.action == "ticket_merge",
-            AuditLog.details["source_ticket_id"].as_string() == ticket_id,
+            AuditLog.details["target_ticket_id"].as_string() == target_id,
         )
         .order_by(AuditLog.created_at.desc())
         .limit(1)
     )
     audit = audit_result.scalar_one_or_none()
 
-    # Move messages back using the exact IDs stored in the merge audit log
+    # Extract moved_message_ids for this specific source from the sources array
     restored_count = 0
-    moved_ids = audit.details.get("moved_message_ids", []) if audit and audit.details else []
+    moved_ids = []
+    if audit and audit.details:
+        for src in audit.details.get("sources", []):
+            if src.get("source_ticket_id") == ticket_id:
+                moved_ids = src.get("moved_message_ids", [])
+                break
 
     if moved_ids:
         msgs_result = await db.execute(

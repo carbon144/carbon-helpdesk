@@ -773,13 +773,15 @@ class CreditExhaustedError(Exception):
     pass
 
 
-def test_ai_connection() -> dict:
-    """Test if Claude AI is reachable."""
+async def test_ai_connection() -> dict:
+    """Test if Claude AI is reachable (async to avoid blocking event loop)."""
     if is_credits_exhausted():
         return {"ok": False, "error": "credits_exhausted", "credits_exhausted": True}
     try:
+        import asyncio
         ai = get_client()
-        response = ai.messages.create(
+        response = await asyncio.to_thread(
+            ai.messages.create,
             model=settings.ANTHROPIC_MODEL,
             max_tokens=10,
             messages=[{"role": "user", "content": "Diga apenas 'ok'"}],
