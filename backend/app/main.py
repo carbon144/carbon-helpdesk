@@ -173,15 +173,20 @@ async def _run_email_fetch_loop():
         "your account has been", "action required",
         "spotify", "netflix", "openai", "microsoft 365",
         "newsletter", "unsubscribe", "marketing",
+        "delivery status notification", "mail delivery failed",
+        "undeliverable", "returned mail", "failure notice",
+        "meta verified", "verifique sua página",
     ]
     SPAM_SENDERS = [
         "noreply@", "no-reply@", "no-reply-chargeback@", "mailer-daemon@",
         "notifications@", "alert@", "security@",
+        "postmaster@", "bounce@", "daemon@",
         "sefaz", "fazenda", "receita.fazenda",
         "no-reply-chargeback@appmax.com.br", "atendimento@appmax.com.br", "faturamento@appmax.com.br",
         "spotify.com", "netflix.com", "openai.com", "microsoft.com",
         "facebook.com", "meta.com", "instagram.com",
         "google.com", "apple.com", "amazon.com",
+        "amazonses.com",
     ]
 
     def _is_spam_email(email_data: dict) -> bool:
