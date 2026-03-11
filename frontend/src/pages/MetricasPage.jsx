@@ -26,17 +26,26 @@ const CARDS_CONFIG = [
   { key: 'auto_replies_hoje', label: 'Auto-Replies Hoje', icon: 'fa-robot', color: '#8B5CF6' },
 ]
 
+const PERIOD_OPTIONS = [
+  { label: '7d', value: 7 },
+  { label: '14d', value: 14 },
+  { label: '30d', value: 30 },
+  { label: '90d', value: 90 },
+]
+
 export default function MetricasPage() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [days, setDays] = useState(30)
   const chart = useChartStyles()
 
   useEffect(() => {
-    api.get('/dashboard/metricas')
+    setLoading(true)
+    api.get('/dashboard/metricas', { params: { days } })
       .then(res => setData(res.data))
       .catch(err => console.error('Erro ao carregar metricas:', err))
       .finally(() => setLoading(false))
-  }, [])
+  }, [days])
 
   if (loading) {
     return (
@@ -56,7 +65,24 @@ export default function MetricasPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Metricas</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Metricas</h1>
+        <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+          {PERIOD_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setDays(opt.value)}
+              className="px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+              style={{
+                background: days === opt.value ? '#E5A800' : 'transparent',
+                color: days === opt.value ? '#FFFFFF' : 'var(--text-secondary)',
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -107,7 +133,7 @@ export default function MetricasPage() {
 
       {/* Grafico Volume Diario */}
       <div className="rounded-xl p-4" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
-        <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Volume Diario (30 dias)</h2>
+        <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Volume Diario ({days} dias)</h2>
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={data.volume_diario}>
             <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />

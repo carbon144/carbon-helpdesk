@@ -1,7 +1,7 @@
 """Endpoint único de métricas simplificadas."""
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case, and_
 
@@ -16,13 +16,14 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 @router.get("/metricas")
 async def get_metricas(
+    days: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=today_start.weekday())
-    thirty_days_ago = today_start - timedelta(days=30)
+    period_start = today_start - timedelta(days=days)
 
     # --- Cards ---
     cards_q = await db.execute(
@@ -84,7 +85,7 @@ async def get_metricas(
     )
     res_week_map = dict(res_week_q.all())
 
-    # Tempo médio resposta por agente (últimos 7 dias)
+    # Tempo médio resposta por agente (período selecionado)
     avg_resp_q = await db.execute(
         select(
             Ticket.assigned_to,
@@ -93,7 +94,7 @@ async def get_metricas(
         .where(
             Ticket.assigned_to.in_(agent_ids),
             Ticket.first_response_at.isnot(None),
-            Ticket.created_at >= today_start - timedelta(days=7),
+            Ticket.created_at >= period_start,
         )
         .group_by(Ticket.assigned_to)
     )
@@ -117,7 +118,7 @@ async def get_metricas(
             func.count().label("criados"),
             func.count(case((Ticket.status.in_(["resolved", "closed"]), 1))).label("resolvidos"),
         )
-        .where(Ticket.created_at >= thirty_days_ago)
+        .where(Ticket.created_at >= period_start)
         .group_by(func.date(Ticket.created_at))
         .order_by(func.date(Ticket.created_at))
     )

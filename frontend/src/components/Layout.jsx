@@ -9,12 +9,10 @@ import api, { getTicketCounts } from '../services/api'
 import { SkeletonDashboard } from './Skeleton'
 
 const KBPage = lazy(() => import('../pages/KBPage'))
-const IntegrationsPage = lazy(() => import('../pages/IntegrationsPage'))
 const SettingsPage = lazy(() => import('../pages/SettingsPage'))
 const TrackingPage = lazy(() => import('../pages/TrackingPage'))
 const AssistantPage = lazy(() => import('../pages/AssistantPage'))
 const MediaPage = lazy(() => import('../pages/MediaPage'))
-const CatalogPage = lazy(() => import('../pages/CatalogPage'))
 const CanaisIAPage = lazy(() => import('../pages/CanaisIAPage'))
 const ChatPage = lazy(() => import('../pages/ChatPage'))
 const ChatbotFlowsPage = lazy(() => import('../pages/ChatbotFlowsPage'))
@@ -102,10 +100,8 @@ export default function Layout({ user, onLogout }) {
             <Route path="/kb" element={<KBPage />} />
             <Route path="/assistant" element={<AssistantPage user={user} />} />
             <Route path="/media" element={<MediaPage />} />
-            <Route path="/catalog" element={<CatalogPage />} />
             <Route path="/tracking" element={<TrackingPage />} />
             <Route path="/canais-ia" element={<CanaisIAPage user={user} />} />
-            <Route path="/integrations" element={<IntegrationsPage />} />
             <Route path="/macros" element={<MacrosPage />} />
             <Route path="/triagem" element={<TriagemPage user={user} />} />
             <Route path="/metricas" element={<MetricasPage />} />

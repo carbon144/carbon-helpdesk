@@ -134,10 +134,6 @@ export const triageTicket = (ticketId) => api.post(`/ai/triage/${ticketId}`)
 export const suggestReply = (ticketId, partialText) => api.post(`/ai/suggest/${ticketId}`, partialText ? { partial_text: partialText } : {})
 export const getCopilotInsights = (ticketId, lastMessage) => api.post('/ai/copilot', { ticket_id: ticketId, last_message: lastMessage })
 
-// ── Catalog ──
-export const getProducts = (category) => api.get('/catalog/products', { params: category ? { category } : {} })
-export const getProduct = (id) => api.get(`/catalog/products/${id}`)
-
 // ── Gamification ──
 export const getLeaderboard = (days = 7) => api.get('/gamification/leaderboard', { params: { days } })
 export const getMyStats = () => api.get('/gamification/my-stats')

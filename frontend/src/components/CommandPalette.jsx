@@ -10,11 +10,9 @@ const PAGES = [
   { label: 'Assistente IA', icon: 'fa-robot', path: '/assistant' },
   { label: 'Base de Conhecimento', icon: 'fa-book', path: '/kb' },
   { label: 'Biblioteca de Mídia', icon: 'fa-photo-video', path: '/media' },
-  { label: 'Catálogo', icon: 'fa-box-open', path: '/catalog' },
   { label: 'Moderação Social', icon: 'fa-shield-alt', path: '/moderation' },
   { label: 'Performance', icon: 'fa-gamepad', path: '/leaderboard' },
   { label: 'Relatórios', icon: 'fa-chart-bar', path: '/reports' },
-  { label: 'Integrações', icon: 'fa-plug', path: '/integrations' },
   { label: 'Configurações', icon: 'fa-cog', path: '/settings' },
 ]
 
