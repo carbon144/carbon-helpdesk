@@ -92,7 +92,7 @@ async def triage_single_ticket(
     from datetime import datetime, timezone, timedelta
     from app.core.config import settings as cfg
     hours_map = {"urgent": cfg.SLA_URGENT_HOURS, "high": cfg.SLA_HIGH_HOURS, "medium": cfg.SLA_MEDIUM_HOURS, "low": cfg.SLA_LOW_HOURS}
-    hours = hours_map.get(triage.get("priority", "medium"), 24)
+    hours = hours_map.get(ticket.priority or "medium", 24)
     ticket.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=hours)
 
     await db.commit()

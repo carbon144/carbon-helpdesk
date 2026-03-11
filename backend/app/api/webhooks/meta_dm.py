@@ -98,6 +98,8 @@ async def meta_webhook(request: Request):
         sig = request.headers.get("X-Hub-Signature-256", "")
         if not _verify_signature(body, sig, settings.META_APP_SECRET):
             raise HTTPException(403, "Invalid signature")
+    else:
+        logger.warning("META_APP_SECRET not set — webhook signature verification DISABLED")
     payload = await request.json()
     obj = payload.get("object", "")
     print(f"[WEBHOOK] object={obj}", flush=True)
@@ -149,8 +151,9 @@ async def _process_whatsapp_message(db: AsyncSession, msg: dict):
 
     result = await db.execute(
         select(Conversation).where(Conversation.customer_id == customer_id, Conversation.channel == channel, Conversation.status == "open")
+        .order_by(Conversation.last_message_at.desc().nullslast())
     )
-    conversation = result.scalar_one_or_none()
+    conversation = result.scalars().first()
     if not conversation:
         conversation = Conversation(customer_id=customer_id, channel=channel, status="open",
                                      metadata_={"phone_number_id": phone_number_id} if phone_number_id else None)
@@ -255,8 +258,9 @@ async def _process_meta_message(db: AsyncSession, msg: dict, channel: str):
 
     result = await db.execute(
         select(Conversation).where(Conversation.customer_id == customer_id, Conversation.channel == channel, Conversation.status == "open")
+        .order_by(Conversation.last_message_at.desc().nullslast())
     )
-    conversation = result.scalar_one_or_none()
+    conversation = result.scalars().first()
     if not conversation:
         conversation = Conversation(customer_id=customer_id, channel=channel, status="open")
         db.add(conversation)

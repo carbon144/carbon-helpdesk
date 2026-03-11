@@ -49,6 +49,8 @@ async def whatsapp_webhook(request: Request):
         sig = request.headers.get("X-Hub-Signature-256", "")
         if not _verify_signature(body, sig, settings.META_APP_SECRET):
             raise HTTPException(403, "Invalid signature")
+    else:
+        logger.warning("META_APP_SECRET not set — webhook signature verification DISABLED")
     payload = await request.json()
     messages = await _adapter.process_webhook(payload)
     if messages:
@@ -78,12 +80,14 @@ async def _process_message(db: AsyncSession, msg: dict, channel: str):
 
     result = await db.execute(
         select(Conversation).where(Conversation.customer_id == customer_id, Conversation.channel == channel, Conversation.status == "open")
+        .order_by(Conversation.last_message_at.desc().nullslast())
     )
-    conversation = result.scalar_one_or_none()
+    conversation = result.scalars().first()
     if not conversation:
         conversation = Conversation(customer_id=customer_id, channel=channel, status="open",
                                      metadata_={"phone_number_id": phone_number_id} if phone_number_id else None)
         db.add(conversation)
+        await db.flush()
     elif phone_number_id:
         meta = conversation.metadata_ or {}
         if meta.get("phone_number_id") != phone_number_id:

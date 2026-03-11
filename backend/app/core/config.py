@@ -88,8 +88,12 @@ def validate_settings():
     logger = logging.getLogger(__name__)
 
     if not settings.DATABASE_URL:
+        if settings.ENVIRONMENT == "production":
+            raise RuntimeError("DATABASE_URL is required in production")
         logger.critical("DATABASE_URL is not set! Application will not work.")
     if not settings.JWT_SECRET:
+        if settings.ENVIRONMENT == "production":
+            raise RuntimeError("JWT_SECRET is required in production")
         logger.critical("JWT_SECRET is not set! Authentication will not work.")
     if settings.JWT_SECRET and len(settings.JWT_SECRET) < 32:
         logger.warning("JWT_SECRET is short. Use at least 32 characters for security.")

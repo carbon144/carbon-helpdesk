@@ -1539,41 +1539,17 @@ async def _escalate_to_agent(
     result: dict,
     escalation_message: str = "Vou transferir você para um de nossos atendentes. Um momento, por favor.",
 ) -> dict:
-    # Don't create tickets from WhatsApp — redirect to email
-    redirect_msg = (
-        "Aqui pelo WhatsApp o atendimento é *somente automatizado* (rastreio, dúvidas, status do pedido).\n\n"
-        "Pra falar com nosso time, manda um e-mail pra:\n"
-        "📧 *atendimento@carbonsmartwatch.com.br*\n\n"
-        "No e-mail, inclua:\n"
-        "• Seu *nome completo*\n"
-        "• *Número do pedido*\n"
-        "• *Descrição detalhada* do que aconteceu\n"
-        "• *Fotos ou vídeos* (se for defeito)\n\n"
-        "Prazo de resposta: *até 48 horas úteis*.\n"
-        "Horário de atendimento: *seg a sex, 9h às 18h*.\n\n"
-        "Se precisar de algo rápido (rastreio, dúvidas), é só mandar um *oi* aqui!"
-    )
-    result["bot_messages"].append(redirect_msg)
-    await _save_bot_message(db, conversation, redirect_msg)
-
-    # Reset to chatbot so customer can use self-service again
-    conversation.handler = "chatbot"
-    conversation.status = "open"
-    meta = dict(getattr(conversation, "metadata_", None) or {})
-    meta.pop("pending_escalation", None)
-    meta.pop("pending_observation", None)
-    meta.pop("chatbot_state", None)
-    conversation.metadata_ = meta
-
-    await db.commit()
-    result["handler"] = "chatbot"
-    result["escalated"] = False
-    return result
-
     # Create email ticket from chat conversation
     ticket_number = await _create_ticket_from_conversation(db, conversation)
 
-    masked = _mask_email(customer_email)
+    customer_email = ""
+    if conversation.customer_id:
+        cust_result = await db.execute(select(Customer).where(Customer.id == conversation.customer_id))
+        cust = cust_result.scalar_one_or_none()
+        if cust:
+            customer_email = cust.email or ""
+
+    masked = _mask_email(customer_email) if customer_email else ""
     if ticket_number:
         ticket_msg = (
             f"Criei o chamado *#{ticket_number}* para você.\n"
@@ -1590,6 +1566,10 @@ async def _escalate_to_agent(
 
     result["bot_messages"].append(ticket_msg)
     await _save_bot_message(db, conversation, ticket_msg)
+
+    # Mark conversation as escalated
+    conversation.handler = "agent"
+    conversation.status = "escalated"
 
     await db.commit()
 

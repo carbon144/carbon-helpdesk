@@ -50,7 +50,7 @@ def _handle_credit_error(error: Exception) -> bool:
     """Check if error is credit-related. Returns True if it is."""
     global _credits_exhausted, _credits_exhausted_at
     error_str = str(error).lower()
-    credit_keywords = ["credit", "balance", "billing", "insufficient", "exceeded", "quota", "rate_limit"]
+    credit_keywords = ["credit", "balance", "billing", "insufficient", "exceeded", "quota"]
     if any(kw in error_str for kw in credit_keywords):
         if not _credits_exhausted:
             _credits_exhausted = True
@@ -726,9 +726,25 @@ async def chat_auto_reply(
 
         # Try to parse JSON response
         try:
-            json_match = _re.search(r"\{[^}]+\}", text)
-            if json_match:
-                parsed = json.loads(json_match.group(0))
+            # Try parsing the full text as JSON first
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError:
+                # Find JSON by matching balanced braces
+                start = text.find("{")
+                if start >= 0:
+                    depth = 0
+                    for i, ch in enumerate(text[start:], start):
+                        if ch == "{": depth += 1
+                        elif ch == "}": depth -= 1
+                        if depth == 0:
+                            parsed = json.loads(text[start:i+1])
+                            break
+                    else:
+                        parsed = None
+                else:
+                    parsed = None
+            if parsed:
                 confidence = parsed.get("confidence", "medium")
                 if confidence not in ("high", "medium", "low"):
                     confidence = "medium"

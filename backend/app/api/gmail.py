@@ -143,59 +143,122 @@ async def fetch_emails(
 
     created = 0
     updated = 0
+    emails_to_mark_read = []
 
     for email_data in emails:
-        gmail_thread_id = email_data.get("thread_id")
-        gmail_message_id = email_data.get("gmail_id")
+        try:
+            gmail_thread_id = email_data.get("thread_id")
+            gmail_message_id = email_data.get("gmail_id")
 
-        # Extract email thread headers
-        email_message_id = email_data.get("message_id")  # Message-ID header
-        in_reply_to = email_data.get("in_reply_to")  # In-Reply-To header
-        email_references = email_data.get("references")  # References header
+            # Extract email thread headers
+            email_message_id = email_data.get("message_id")  # Message-ID header
+            in_reply_to = email_data.get("in_reply_to")  # In-Reply-To header
+            email_references = email_data.get("references")  # References header
 
-        # Check if this message was already processed
-        existing_msg = await db.execute(
-            select(Message).where(Message.gmail_message_id == gmail_message_id)
-        )
-        if existing_msg.scalars().first():
-            continue
-
-        # === RECLAME AQUI DETECTION ===
-        # RA notification emails → create urgent RA ticket instead of regular ticket
-        from_email_lower = email_data.get("from_email", "").lower()
-        if "reclameaqui.com.br" in from_email_lower or "reclameaqui.com" in from_email_lower:
-            try:
-                from app.services.ra_monitor import _parse_ra_email, create_ra_ticket
-                complaint = _parse_ra_email(email_data)
-                if complaint:
-                    # Check if this RA complaint already has a ticket
-                    ra_tag = f"ra:{complaint['id']}"
-                    from sqlalchemy import text as sa_text
-                    existing_ra = await db.execute(
-                        select(Ticket).where(
-                            sa_text("tags @> ARRAY[:tag]::varchar[]").bindparams(tag=ra_tag)
-                        )
-                    )
-                    if not existing_ra.scalars().first():
-                        result = await create_ra_ticket(complaint, db)
-                        logger.info(f"RA ticket #{result['ticket_number']} created from Gmail: {result['title'][:80]}")
-                        created += 1
-                mark_as_read(gmail_message_id)
-            except Exception as e:
-                logger.warning(f"RA email processing failed, skipping: {e}")
-            continue
-
-        # Check email thread matching via In-Reply-To header
-        existing_ticket = None
-        if in_reply_to:
-            ref_msg_result = await db.execute(
-                select(Message).where(Message.email_message_id == in_reply_to)
+            # Check if this message was already processed
+            existing_msg = await db.execute(
+                select(Message).where(Message.gmail_message_id == gmail_message_id)
             )
-            ref_msg = ref_msg_result.scalar_one_or_none()
-            if ref_msg:
-                # Add as reply to existing ticket instead of creating new one
+            if existing_msg.scalars().first():
+                continue
+
+            # === RECLAME AQUI DETECTION ===
+            # RA notification emails → create urgent RA ticket instead of regular ticket
+            from_email_lower = email_data.get("from_email", "").lower()
+            if "reclameaqui.com.br" in from_email_lower or "reclameaqui.com" in from_email_lower:
+                try:
+                    from app.services.ra_monitor import _parse_ra_email, create_ra_ticket
+                    complaint = _parse_ra_email(email_data)
+                    if complaint:
+                        # Check if this RA complaint already has a ticket
+                        ra_tag = f"ra:{complaint['id']}"
+                        from sqlalchemy import text as sa_text
+                        existing_ra = await db.execute(
+                            select(Ticket).where(
+                                sa_text("tags @> ARRAY[:tag]::varchar[]").bindparams(tag=ra_tag)
+                            )
+                        )
+                        if not existing_ra.scalars().first():
+                            result = await create_ra_ticket(complaint, db)
+                            logger.info(f"RA ticket #{result['ticket_number']} created from Gmail: {result['title'][:80]}")
+                            created += 1
+                    emails_to_mark_read.append(gmail_message_id)
+                except Exception as e:
+                    logger.warning(f"RA email processing failed, skipping: {e}")
+                continue
+
+            # Check email thread matching via In-Reply-To header
+            existing_ticket = None
+            if in_reply_to:
+                ref_msg_result = await db.execute(
+                    select(Message).where(Message.email_message_id == in_reply_to)
+                )
+                ref_msg = ref_msg_result.scalar_one_or_none()
+                if ref_msg:
+                    # Add as reply to existing ticket instead of creating new one
+                    msg = Message(
+                        ticket_id=ref_msg.ticket_id,
+                        type="inbound",
+                        sender_name=email_data["from_name"],
+                        sender_email=email_data["from_email"],
+                        body_text=email_data["body_text"],
+                        body_html=email_data.get("body_html"),
+                        gmail_message_id=gmail_message_id,
+                        gmail_thread_id=gmail_thread_id,
+                        email_message_id=email_message_id,
+                        email_references=email_references,
+                    )
+                    db.add(msg)
+
+                    # Update the ticket
+                    ticket_result = await db.execute(
+                        select(Ticket).where(Ticket.id == ref_msg.ticket_id)
+                    )
+                    matched_ticket = ticket_result.scalar_one_or_none()
+                    if matched_ticket:
+                        was_resolved = matched_ticket.status == "resolved"
+                        was_closed = matched_ticket.status == "closed"
+                        if matched_ticket.status in ("resolved", "closed", "waiting", "waiting_supplier", "waiting_resend"):
+                            matched_ticket.status = "open"
+                        if was_resolved or was_closed:
+                            matched_ticket.resolved_at = None
+                        now = datetime.now(timezone.utc)
+                        from app.core.sla_config import get_sla_for_ticket
+                        sla = get_sla_for_ticket(matched_ticket.category, matched_ticket.priority)
+                        matched_ticket.sla_deadline = now + timedelta(hours=sla["resolution_hours"])
+                        matched_ticket.sla_response_deadline = now + timedelta(hours=sla["response_hours"])
+                        matched_ticket.sla_breached = False
+                        matched_ticket.first_response_at = None
+                        matched_ticket.updated_at = now
+
+                    emails_to_mark_read.append(gmail_message_id)
+                    updated += 1
+                    continue
+
+            # Check if there's an existing ticket for this Gmail thread
+            if gmail_thread_id:
+                result = await db.execute(
+                    select(Ticket).join(Message).where(Message.gmail_thread_id == gmail_thread_id)
+                )
+                existing_ticket = result.scalars().first()
+
+            # If no thread match, try to find open ticket from same customer
+            if not existing_ticket:
+                resolved_customer = await _find_or_create_customer(
+                    db, email_data["from_email"], email_data["from_name"]
+                )
+                result = await db.execute(
+                    select(Ticket).where(
+                        Ticket.customer_id == resolved_customer.id,
+                        Ticket.status.notin_(["resolved", "closed", "archived", "merged"]),
+                    ).order_by(Ticket.updated_at.desc())
+                )
+                existing_ticket = result.scalars().first()
+
+            if existing_ticket:
+                # Add message to existing ticket
                 msg = Message(
-                    ticket_id=ref_msg.ticket_id,
+                    ticket_id=existing_ticket.id,
                     type="inbound",
                     sender_name=email_data["from_name"],
                     sender_email=email_data["from_email"],
@@ -208,245 +271,195 @@ async def fetch_emails(
                 )
                 db.add(msg)
 
-                # Update the ticket
-                ticket_result = await db.execute(
-                    select(Ticket).where(Ticket.id == ref_msg.ticket_id)
-                )
-                matched_ticket = ticket_result.scalar_one_or_none()
-                if matched_ticket:
-                    was_resolved = matched_ticket.status == "resolved"
-                    was_closed = matched_ticket.status == "closed"
-                    if matched_ticket.status in ("resolved", "closed", "waiting", "waiting_supplier", "waiting_resend"):
-                        matched_ticket.status = "open"
-                    if was_resolved or was_closed:
-                        matched_ticket.resolved_at = None
-                    now = datetime.now(timezone.utc)
-                    from app.core.sla_config import get_sla_for_ticket
-                    sla = get_sla_for_ticket(matched_ticket.category, matched_ticket.priority)
-                    matched_ticket.sla_deadline = now + timedelta(hours=sla["resolution_hours"])
-                    matched_ticket.sla_response_deadline = now + timedelta(hours=sla["response_hours"])
-                    matched_ticket.sla_breached = False
-                    matched_ticket.first_response_at = None
-                    matched_ticket.updated_at = now
+                # Reopen if resolved/closed or move back from waiting (Respondidos → Novos)
+                if existing_ticket.status in ("resolved", "closed"):
+                    existing_ticket.status = "open"
+                    existing_ticket.resolved_at = None
+                elif existing_ticket.status in ("waiting", "waiting_supplier", "waiting_resend"):
+                    existing_ticket.status = "open"
 
-                mark_as_read(gmail_message_id)
+                # Reset SLA on new inbound email — starts from now
+                now = datetime.now(timezone.utc)
+                from app.core.sla_config import get_sla_for_ticket
+                sla = get_sla_for_ticket(existing_ticket.category, existing_ticket.priority)
+                existing_ticket.sla_deadline = now + timedelta(hours=sla["resolution_hours"])
+                existing_ticket.sla_response_deadline = now + timedelta(hours=sla["response_hours"])
+                existing_ticket.sla_breached = False
+                existing_ticket.first_response_at = None  # Reset first response tracking
+
+                existing_ticket.updated_at = now
                 updated += 1
-                continue
-
-        # Check if there's an existing ticket for this Gmail thread
-        if gmail_thread_id:
-            result = await db.execute(
-                select(Ticket).join(Message).where(Message.gmail_thread_id == gmail_thread_id)
-            )
-            existing_ticket = result.scalars().first()
-
-        # If no thread match, try to find open ticket from same customer
-        if not existing_ticket:
-            resolved_customer = await _find_or_create_customer(
-                db, email_data["from_email"], email_data["from_name"]
-            )
-            result = await db.execute(
-                select(Ticket).where(
-                    Ticket.customer_id == resolved_customer.id,
-                    Ticket.status.notin_(["resolved", "closed", "archived", "merged"]),
-                ).order_by(Ticket.updated_at.desc())
-            )
-            existing_ticket = result.scalars().first()
-
-        if existing_ticket:
-            # Add message to existing ticket
-            msg = Message(
-                ticket_id=existing_ticket.id,
-                type="inbound",
-                sender_name=email_data["from_name"],
-                sender_email=email_data["from_email"],
-                body_text=email_data["body_text"],
-                body_html=email_data.get("body_html"),
-                gmail_message_id=gmail_message_id,
-                gmail_thread_id=gmail_thread_id,
-                email_message_id=email_message_id,
-                email_references=email_references,
-            )
-            db.add(msg)
-
-            # Reopen if resolved/closed or move back from waiting (Respondidos → Novos)
-            if existing_ticket.status in ("resolved", "closed"):
-                existing_ticket.status = "open"
-                existing_ticket.resolved_at = None
-            elif existing_ticket.status in ("waiting", "waiting_supplier", "waiting_resend"):
-                existing_ticket.status = "open"
-
-            # Reset SLA on new inbound email — starts from now
-            now = datetime.now(timezone.utc)
-            from app.core.sla_config import get_sla_for_ticket
-            sla = get_sla_for_ticket(existing_ticket.category, existing_ticket.priority)
-            existing_ticket.sla_deadline = now + timedelta(hours=sla["resolution_hours"])
-            existing_ticket.sla_response_deadline = now + timedelta(hours=sla["response_hours"])
-            existing_ticket.sla_breached = False
-            existing_ticket.first_response_at = None  # Reset first response tracking
-
-            existing_ticket.updated_at = now
-            updated += 1
-        else:
-            # Extract customer data from email body for matching
-            body_text = email_data.get("body_text", "")
-            extracted_data = extract_customer_data(body_text)
-
-            # Try to find matching customer by extracted data (CPF, phone, email)
-            matched_customer = None
-            if any(extracted_data.get(k) for k in ("cpf", "phone", "email")):
-                try:
-                    matched_customer = await find_matching_customer(
-                        db,
-                        cpf=extracted_data.get("cpf"),
-                        phone=extracted_data.get("phone"),
-                        email=extracted_data.get("email"),
-                        shopify_order_id=extracted_data.get("shopify_order_id"),
-                    )
-                except Exception as e:
-                    logger.warning(f"Customer matching failed: {e}")
-
-            if matched_customer:
-                customer = matched_customer
-                # Update customer data if we found new info
-                if extracted_data.get("cpf") and not customer.cpf:
-                    customer.cpf = extracted_data["cpf"]
-                if extracted_data.get("phone") and not customer.phone:
-                    customer.phone = extracted_data["phone"]
             else:
-                # Create new ticket
-                customer = await _find_or_create_customer(
-                    db, email_data["from_email"], email_data["from_name"]
-                )
-                # Enrich new customer with extracted data
-                if extracted_data.get("cpf") and not customer.cpf:
-                    customer.cpf = extracted_data["cpf"]
-                if extracted_data.get("phone") and not customer.phone:
-                    customer.phone = extracted_data["phone"]
+                # Extract customer data from email body for matching
+                body_text = email_data.get("body_text", "")
+                extracted_data = extract_customer_data(body_text)
 
-            from app.services.ticket_number import get_next_ticket_number
-            next_num = await get_next_ticket_number(db)
-
-            sla_deadline = datetime.now(timezone.utc) + timedelta(hours=settings.SLA_MEDIUM_HOURS)
-
-            email_date = _parse_email_date(email_data.get("date", ""))
-
-            ticket = Ticket(
-                number=next_num,
-                subject=email_data["subject"][:500],
-                status="open",
-                priority="medium",
-                customer_id=customer.id,
-                source="gmail",
-                sla_deadline=sla_deadline,
-                received_at=email_date or datetime.now(timezone.utc),
-            )
-            db.add(ticket)
-            await db.flush()
-
-            msg = Message(
-                ticket_id=ticket.id,
-                type="inbound",
-                sender_name=email_data["from_name"],
-                sender_email=email_data["from_email"],
-                body_text=email_data["body_text"],
-                body_html=email_data.get("body_html"),
-                gmail_message_id=gmail_message_id,
-                gmail_thread_id=gmail_thread_id,
-                email_message_id=email_message_id,
-                email_references=email_references,
-            )
-            db.add(msg)
-
-            # AI Triage for new ticket
-            triage = None
-            try:
-                from app.services.ai_service import triage_ticket as ai_triage, apply_triage_results
-                triage = await ai_triage(
-                    subject=email_data["subject"],
-                    body=email_data["body_text"][:2000],
-                    customer_name=email_data["from_name"],
-                    is_repeat=customer.is_repeat,
-                )
-                apply_triage_results(ticket, triage, customer=customer)
-                if triage and triage.get("priority"):
-                    from app.core.config import settings as cfg
-                    hours_map = {"urgent": cfg.SLA_URGENT_HOURS, "high": cfg.SLA_HIGH_HOURS, "medium": cfg.SLA_MEDIUM_HOURS, "low": cfg.SLA_LOW_HOURS}
-                    ticket.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=hours_map.get(triage["priority"], 24))
-            except Exception as e:
-                logger.warning(f"AI triage skipped for gmail ticket: {e}")
-
-            # Generate protocol (email sent later by agent)
-            try:
-                await assign_protocol(ticket, db)
-            except Exception as e:
-                logger.warning(f"Protocol assignment skipped: {e}")
-
-            # === EMAIL AUTO-REPLY ===
-            try:
-                from app.services.email_auto_reply_service import generate_auto_reply, send_auto_reply
-                auto_reply_result = await generate_auto_reply(
-                    subject=email_data["subject"],
-                    body=email_data["body_text"][:2000],
-                    customer_name=email_data["from_name"],
-                    category=ticket.category or "duvida",
-                    triage=triage if triage else None,
-                    protocol=ticket.protocol,
-                )
-                if auto_reply_result and auto_reply_result["type"] in ("auto_reply", "ack"):
-                    sent = await send_auto_reply(
-                        to_email=email_data["from_email"],
-                        subject=email_data["subject"],
-                        body_text=auto_reply_result["body"],
-                        gmail_thread_id=gmail_thread_id,
-                        gmail_message_id=gmail_message_id,
-                    )
-                    if sent:
-                        auto_msg = Message(
-                            ticket_id=ticket.id,
-                            type="outbound",
-                            sender_name="Carbon IA",
-                            sender_email=settings.GMAIL_SUPPORT_EMAIL or "suporte@carbonsmartwatch.com.br",
-                            body_text=auto_reply_result["body"],
-                            gmail_message_id=sent.get("id"),
-                            gmail_thread_id=sent.get("threadId") or gmail_thread_id,
+                # Try to find matching customer by extracted data (CPF, phone, email)
+                matched_customer = None
+                if any(extracted_data.get(k) for k in ("cpf", "phone", "email")):
+                    try:
+                        matched_customer = await find_matching_customer(
+                            db,
+                            cpf=extracted_data.get("cpf"),
+                            phone=extracted_data.get("phone"),
+                            email=extracted_data.get("email"),
+                            shopify_order_id=extracted_data.get("shopify_order_id"),
                         )
-                        db.add(auto_msg)
-                        ticket.auto_replied = True
-                        ticket.auto_reply_at = datetime.now(timezone.utc)
-                        ticket.first_response_at = datetime.now(timezone.utc)
-                        if auto_reply_result["type"] == "auto_reply":
-                            ticket.status = "waiting"
-                        existing_tags = list(ticket.tags or [])
-                        existing_tags.append(auto_reply_result["type"])
-                        ticket.tags = list(set(existing_tags))
-                        logger.info(f"Auto-reply ({auto_reply_result['type']}) sent for ticket #{ticket.number}")
-            except Exception as e:
-                logger.warning(f"Email auto-reply skipped: {e}")
+                    except Exception as e:
+                        logger.warning(f"Customer matching failed: {e}")
 
-            # Apply triage rules (route to agent, set priority)
-            try:
-                from app.services.triage_service import apply_triage_rules
-                triage_result = await apply_triage_rules(ticket, db)
-                if triage_result:
-                    logger.info(f"Triage rules applied to ticket #{ticket.number}: {triage_result.get('actions', [])}")
-            except Exception as e:
-                logger.warning(f"Triage rules skipped for gmail ticket: {e}")
+                if matched_customer:
+                    customer = matched_customer
+                    # Update customer data if we found new info
+                    if extracted_data.get("cpf") and not customer.cpf:
+                        customer.cpf = extracted_data["cpf"]
+                    if extracted_data.get("phone") and not customer.phone:
+                        customer.phone = extracted_data["phone"]
+                else:
+                    # Create new ticket
+                    customer = await _find_or_create_customer(
+                        db, email_data["from_email"], email_data["from_name"]
+                    )
+                    # Enrich new customer with extracted data
+                    if extracted_data.get("cpf") and not customer.cpf:
+                        customer.cpf = extracted_data["cpf"]
+                    if extracted_data.get("phone") and not customer.phone:
+                        customer.phone = extracted_data["phone"]
 
-            # Auto-assign to available agent (fallback if triage didn't assign)
-            if not ticket.assigned_to:
+                from app.services.ticket_number import get_next_ticket_number
+                next_num = await get_next_ticket_number(db)
+
+                sla_deadline = datetime.now(timezone.utc) + timedelta(hours=settings.SLA_MEDIUM_HOURS)
+
+                email_date = _parse_email_date(email_data.get("date", ""))
+
+                ticket = Ticket(
+                    number=next_num,
+                    subject=email_data["subject"][:500],
+                    status="open",
+                    priority="medium",
+                    customer_id=customer.id,
+                    source="gmail",
+                    sla_deadline=sla_deadline,
+                    received_at=email_date or datetime.now(timezone.utc),
+                )
+                db.add(ticket)
+                await db.flush()
+
+                msg = Message(
+                    ticket_id=ticket.id,
+                    type="inbound",
+                    sender_name=email_data["from_name"],
+                    sender_email=email_data["from_email"],
+                    body_text=email_data["body_text"],
+                    body_html=email_data.get("body_html"),
+                    gmail_message_id=gmail_message_id,
+                    gmail_thread_id=gmail_thread_id,
+                    email_message_id=email_message_id,
+                    email_references=email_references,
+                )
+                db.add(msg)
+
+                # AI Triage for new ticket
+                triage = None
                 try:
-                    from app.api.tickets import _auto_assign_single
-                    await _auto_assign_single(ticket, db, user)
+                    from app.services.ai_service import triage_ticket as ai_triage, apply_triage_results
+                    triage = await ai_triage(
+                        subject=email_data["subject"],
+                        body=email_data["body_text"][:2000],
+                        customer_name=email_data["from_name"],
+                        is_repeat=customer.is_repeat,
+                    )
+                    apply_triage_results(ticket, triage, customer=customer)
+                    if triage and triage.get("priority"):
+                        from app.core.config import settings as cfg
+                        hours_map = {"urgent": cfg.SLA_URGENT_HOURS, "high": cfg.SLA_HIGH_HOURS, "medium": cfg.SLA_MEDIUM_HOURS, "low": cfg.SLA_LOW_HOURS}
+                        ticket.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=hours_map.get(triage["priority"], 24))
                 except Exception as e:
-                    logger.warning(f"Auto-assign skipped for gmail ticket: {e}")
+                    logger.warning(f"AI triage skipped for gmail ticket: {e}")
 
-            created += 1
+                # Generate protocol (email sent later by agent)
+                try:
+                    await assign_protocol(ticket, db)
+                except Exception as e:
+                    logger.warning(f"Protocol assignment skipped: {e}")
 
-        # Mark as read in Gmail
-        mark_as_read(gmail_message_id)
+                # === EMAIL AUTO-REPLY ===
+                try:
+                    from app.services.email_auto_reply_service import generate_auto_reply, send_auto_reply
+                    auto_reply_result = await generate_auto_reply(
+                        subject=email_data["subject"],
+                        body=email_data["body_text"][:2000],
+                        customer_name=email_data["from_name"],
+                        category=ticket.category or "duvida",
+                        triage=triage if triage else None,
+                        protocol=ticket.protocol,
+                    )
+                    if auto_reply_result and auto_reply_result["type"] in ("auto_reply", "ack"):
+                        sent = await send_auto_reply(
+                            to_email=email_data["from_email"],
+                            subject=email_data["subject"],
+                            body_text=auto_reply_result["body"],
+                            gmail_thread_id=gmail_thread_id,
+                            gmail_message_id=gmail_message_id,
+                        )
+                        if sent:
+                            auto_msg = Message(
+                                ticket_id=ticket.id,
+                                type="outbound",
+                                sender_name="Carbon IA",
+                                sender_email=settings.GMAIL_SUPPORT_EMAIL or "suporte@carbonsmartwatch.com.br",
+                                body_text=auto_reply_result["body"],
+                                gmail_message_id=sent.get("id"),
+                                gmail_thread_id=sent.get("threadId") or gmail_thread_id,
+                            )
+                            db.add(auto_msg)
+                            ticket.auto_replied = True
+                            ticket.auto_reply_at = datetime.now(timezone.utc)
+                            ticket.first_response_at = datetime.now(timezone.utc)
+                            if auto_reply_result["type"] == "auto_reply":
+                                ticket.status = "waiting"
+                            existing_tags = list(ticket.tags or [])
+                            existing_tags.append(auto_reply_result["type"])
+                            ticket.tags = list(set(existing_tags))
+                            logger.info(f"Auto-reply ({auto_reply_result['type']}) sent for ticket #{ticket.number}")
+                except Exception as e:
+                    logger.warning(f"Email auto-reply skipped: {e}")
+
+                # Apply triage rules (route to agent, set priority)
+                try:
+                    from app.services.triage_service import apply_triage_rules
+                    triage_result = await apply_triage_rules(ticket, db)
+                    if triage_result:
+                        logger.info(f"Triage rules applied to ticket #{ticket.number}: {triage_result.get('actions', [])}")
+                except Exception as e:
+                    logger.warning(f"Triage rules skipped for gmail ticket: {e}")
+
+                # Auto-assign to available agent (fallback if triage didn't assign)
+                if not ticket.assigned_to:
+                    try:
+                        from app.api.tickets import _auto_assign_single
+                        await _auto_assign_single(ticket, db, user)
+                    except Exception as e:
+                        logger.warning(f"Auto-assign skipped for gmail ticket: {e}")
+
+                created += 1
+
+            # Collect gmail_message_id to mark as read after commit
+            emails_to_mark_read.append(gmail_message_id)
+
+        except Exception as e:
+            logger.error(f"Error processing email {email_data.get('gmail_id', '?')}: {e}")
+            continue
 
     await db.commit()
+
+    # Mark emails as read only AFTER successful db commit
+    for gid in emails_to_mark_read:
+        try:
+            mark_as_read(gid)
+        except Exception as e:
+            logger.warning(f"Failed to mark email {gid} as read: {e}")
 
     if created or updated:
         from app.services.cache import cache_delete_pattern
@@ -759,6 +772,26 @@ async def send_gmail_reply(
 
     if not response:
         raise HTTPException(500, "Falha ao enviar email")
+
+    # Save sent message to DB so it appears in ticket thread
+    sent_msg = Message(
+        ticket_id=ticket.id,
+        type="outbound",
+        sender_name=user.name or user.email,
+        sender_email=settings.GMAIL_SUPPORT_EMAIL or user.email,
+        body_text=full_message,
+        gmail_message_id=response.get("id"),
+        gmail_thread_id=response.get("threadId") or gmail_thread_id,
+    )
+    db.add(sent_msg)
+
+    # Track first response for SLA
+    now = datetime.now(timezone.utc)
+    if not ticket.first_response_at:
+        ticket.first_response_at = now
+    ticket.updated_at = now
+
+    await db.commit()
 
     return {"ok": True, "gmail_id": response.get("id")}
 

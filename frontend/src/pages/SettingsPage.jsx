@@ -191,6 +191,9 @@ export default function SettingsPage({ user }) {
     setBhSaving(false)
   }
 
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+  const isSuperAdmin = user?.role === 'super_admin'
+
   useEffect(() => {
     if (isAdmin) {
       getUsers().then(r => setAgents(r.data)).catch(() => {})
@@ -318,9 +321,6 @@ export default function SettingsPage({ user }) {
       toast.error(e.response?.data?.detail || 'Erro ao alterar senha')
     } finally { setChangingPw(false) }
   }
-
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
-  const isSuperAdmin = user?.role === 'super_admin'
 
   return (
     <div className="p-6 flex gap-6">

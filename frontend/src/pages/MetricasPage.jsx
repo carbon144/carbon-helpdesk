@@ -5,7 +5,7 @@ import api from '../services/api'
 
 function useChartStyles() {
   const { theme } = useTheme()
-  const isDark = theme === 'dark'
+  const isDark = theme === 'dark' || theme === 'carbon'
   return {
     tooltip: {
       background: isDark ? '#1a1a1f' : '#ffffff',
@@ -94,7 +94,7 @@ export default function MetricasPage() {
               </div>
             </div>
             <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-              {data.cards[card.key]}{card.suffix || ''}
+              {data.cards?.[card.key] ?? '-'}{card.suffix || ''}
             </p>
             <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{card.label}</p>
           </div>
@@ -115,7 +115,7 @@ export default function MetricasPage() {
             </tr>
           </thead>
           <tbody>
-            {data.agentes.map((ag, i) => (
+            {(data.agentes || []).map((ag, i) => (
               <tr key={i} style={{ borderBottom: '1px solid var(--border-primary)' }}>
                 <td className="px-4 py-2.5 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{ag.nome}</td>
                 <td className="px-4 py-2.5 text-sm" style={{ color: 'var(--text-secondary)' }}>{ag.abertos}</td>
@@ -135,7 +135,7 @@ export default function MetricasPage() {
       <div className="rounded-xl p-4" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
         <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Volume Diario ({days} dias)</h2>
         <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={data.volume_diario}>
+          <BarChart data={data.volume_diario || []}>
             <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
             <XAxis
               dataKey="data"

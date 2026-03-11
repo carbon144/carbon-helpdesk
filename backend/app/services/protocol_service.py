@@ -16,10 +16,11 @@ async def generate_protocol(db: AsyncSession) -> str:
     year = datetime.now(timezone.utc).year
     prefix = f"CARBON-{year}-"
 
+    # Use FOR UPDATE to prevent concurrent duplicate protocols
     result = await db.execute(
         select(func.max(Ticket.protocol)).where(
             Ticket.protocol.like(f"{prefix}%")
-        )
+        ).with_for_update()
     )
     last = result.scalar()
 
@@ -31,7 +32,18 @@ async def generate_protocol(db: AsyncSession) -> str:
     else:
         seq = 1
 
-    return f"{prefix}{seq:06d}"
+    protocol = f"{prefix}{seq:06d}"
+
+    # Verify uniqueness before returning
+    existing = await db.execute(
+        select(Ticket.id).where(Ticket.protocol == protocol).limit(1)
+    )
+    if existing.scalar():
+        # Collision detected — increment again
+        seq += 1
+        protocol = f"{prefix}{seq:06d}"
+
+    return protocol
 
 
 async def assign_protocol(ticket: Ticket, db: AsyncSession):
