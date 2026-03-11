@@ -194,6 +194,9 @@ export default function TicketsPage({ user }) {
         params.status = 'escalated'
       } else if (activeTab === 'archived') {
         params.status = 'archived'
+      } else if (activeTab === 'auto_reply') {
+        params.auto_replied = true
+        params.sort = 'newest'
       } else {
         if (filterStatus) params.status = filterStatus
       }
@@ -880,7 +883,7 @@ export default function TicketsPage({ user }) {
       <>
       {/* Page Header with Counter Cards */}
       <div className="mb-6">
-        <div className="grid grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+        <div className="grid grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
           <button onClick={() => handleTabChange('mine')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-indigo-500/30 ${activeTab === 'mine' ? 'border-indigo-500/40 ring-1 ring-indigo-500/20' : ''}`}>
             <div className="flex items-center gap-2 mb-1">
               <i className="fas fa-lock text-indigo-400 text-xs" />
@@ -931,6 +934,13 @@ export default function TicketsPage({ user }) {
               <span className="text-[var(--text-tertiary)] text-[11px]">Todos</span>
             </div>
             <p className="text-xl font-bold text-[var(--text-primary)]">{counts.total_open}</p>
+          </button>
+          <button onClick={() => handleTabChange('auto_reply')} className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3 text-left transition hover:border-purple-500/30 ${activeTab === 'auto_reply' ? 'border-purple-500/40 ring-1 ring-purple-500/20' : ''}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <i className="fas fa-robot text-purple-400 text-xs" />
+              <span className="text-[var(--text-tertiary)] text-[11px]">Auto-Reply IA</span>
+            </div>
+            <p className="text-xl font-bold text-purple-400">{counts.auto_replied || 0}</p>
           </button>
         </div>
       </div>

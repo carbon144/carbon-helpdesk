@@ -143,6 +143,7 @@ async def get_ticket_counts(
             func.count().filter(Ticket.status == "resolved").label("resolved"),
             func.count().filter(Ticket.status.in_(["closed", "archived"])).label("closed"),
             func.count().filter(is_open & Ticket.source.in_(meta_sources)).label("meta_channels"),
+            func.count().filter(Ticket.auto_replied == True).label("auto_replied"),
         ).select_from(Ticket)
     )
     row = result.one()
@@ -174,6 +175,7 @@ async def get_ticket_counts(
         "resolved": row.resolved or 0,
         "closed": row.closed or 0,
         "meta_channels": row.meta_channels or 0,
+        "auto_replied": row.auto_replied or 0,
         "unread": unread,
     }
 
@@ -281,6 +283,7 @@ async def list_tickets(
     exclude_sources: str | None = None,
     sla_breached: bool | None = None,
     legal_risk: bool | None = None,
+    auto_replied: bool | None = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -325,6 +328,8 @@ async def list_tickets(
         query = query.where(Ticket.sla_breached == sla_breached)
     if legal_risk is not None:
         query = query.where(Ticket.legal_risk == legal_risk)
+    if auto_replied is not None:
+        query = query.where(Ticket.auto_replied == auto_replied)
     if date_from:
         try:
             dt = datetime.fromisoformat(date_from)

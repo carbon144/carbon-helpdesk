@@ -45,12 +45,36 @@ const playSound = (type) => {
       osc2.start(ctx.currentTime + 0.1)
       osc2.stop(ctx.currentTime + 0.25)
     } else if (type === 'error') {
-      osc.frequency.value = 330
-      osc.type = 'square'
-      gain.gain.setValueAtTime(0.06, ctx.currentTime)
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+      // Comic "wah-wah-waaah" trombone fail
+      osc.frequency.value = 440
+      osc.type = 'sine'
+      gain.gain.setValueAtTime(0.07, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15)
       osc.start(ctx.currentTime)
-      osc.stop(ctx.currentTime + 0.3)
+      osc.stop(ctx.currentTime + 0.15)
+      const osc2 = ctx.createOscillator()
+      const gain2 = ctx.createGain()
+      osc2.connect(gain2)
+      gain2.connect(ctx.destination)
+      osc2.frequency.value = 380
+      osc2.type = 'sine'
+      gain2.gain.setValueAtTime(0.07, ctx.currentTime + 0.13)
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28)
+      osc2.start(ctx.currentTime + 0.13)
+      osc2.stop(ctx.currentTime + 0.28)
+      const osc3 = ctx.createOscillator()
+      const gain3 = ctx.createGain()
+      osc3.connect(gain3)
+      gain3.connect(ctx.destination)
+      osc3.frequency.value = 300
+      osc3.type = 'sine'
+      // Slide down for comic effect
+      osc3.frequency.setValueAtTime(300, ctx.currentTime + 0.26)
+      osc3.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.55)
+      gain3.gain.setValueAtTime(0.08, ctx.currentTime + 0.26)
+      gain3.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55)
+      osc3.start(ctx.currentTime + 0.26)
+      osc3.stop(ctx.currentTime + 0.55)
     } else if (type === 'warning') {
       osc.frequency.value = 660
       osc.type = 'triangle'

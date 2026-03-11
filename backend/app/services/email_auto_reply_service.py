@@ -116,6 +116,24 @@ async def generate_auto_reply(
 
     confidence = triage.get("confidence", 0) if triage else 0
 
+    # Detect complex topics that should NOT be auto-resolved, even if category is "simple"
+    _text = f"{subject} {body}".lower()
+    ESCALATE_KEYWORDS = [
+        "garantia", "carbon care", "carboncare", "defeito", "quebrou", "parou de funcionar",
+        "nao funciona", "não funciona", "tela apagou", "nao liga", "não liga",
+        "reembolso", "estorno", "dinheiro de volta", "cancelar compra",
+        "procon", "reclame aqui", "advogado", "juridico", "jurídico",
+        "troca", "devolu", "arrependimento", "produto errado",
+        "nota fiscal", "termo de garantia", "certificado",
+    ]
+    if any(kw in _text for kw in ESCALATE_KEYWORDS):
+        name = customer_name.split()[0] if customer_name else "Cliente"
+        extra_info = ""
+        if protocol:
+            extra_info = f"\nSeu protocolo de atendimento: {protocol}"
+        ack_body = ACK_TEMPLATE.format(name=name, extra_info=extra_info)
+        return {"type": "ack", "body": ack_body, "reason": f"escalate_keyword_detected"}
+
     # Auto-resolve: simple categories with high confidence
     if category in AUTO_RESOLVE_CATEGORIES and confidence >= 0.5:
         try:

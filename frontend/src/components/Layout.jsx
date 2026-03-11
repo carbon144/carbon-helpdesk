@@ -10,24 +10,18 @@ import { SkeletonDashboard } from './Skeleton'
 
 const KBPage = lazy(() => import('../pages/KBPage'))
 const IntegrationsPage = lazy(() => import('../pages/IntegrationsPage'))
-const ReportsPage = lazy(() => import('../pages/ReportsPage'))
 const SettingsPage = lazy(() => import('../pages/SettingsPage'))
 const TrackingPage = lazy(() => import('../pages/TrackingPage'))
 const AssistantPage = lazy(() => import('../pages/AssistantPage'))
 const MediaPage = lazy(() => import('../pages/MediaPage'))
 const CatalogPage = lazy(() => import('../pages/CatalogPage'))
-const LeaderboardPage = lazy(() => import('../pages/LeaderboardPage'))
-const ModerationPage = lazy(() => import('../pages/ModerationPage'))
 const CanaisIAPage = lazy(() => import('../pages/CanaisIAPage'))
-const DashboardPage = lazy(() => import('../pages/DashboardPage'))
-const AgentAnalysisPage = lazy(() => import('../pages/AgentAnalysisPage'))
 const ChatPage = lazy(() => import('../pages/ChatPage'))
 const ChatbotFlowsPage = lazy(() => import('../pages/ChatbotFlowsPage'))
 const VoiceCallsPage = lazy(() => import('../pages/VoiceCallsPage'))
 const MacrosPage = lazy(() => import('../pages/MacrosPage'))
 const TriagemPage = lazy(() => import('../pages/TriagemPage'))
-const LeaderDashboardPage = lazy(() => import('../pages/LeaderDashboardPage'))
-const RAMonitorPage = lazy(() => import('../pages/RAMonitorPage'))
+const MetricasPage = lazy(() => import('../pages/MetricasPage'))
 
 const AUTO_REFRESH_MS = 30_000
 
@@ -57,7 +51,7 @@ export default function Layout({ user, onLogout }) {
       if (gPending) {
         gPending = false
         clearTimeout(gTimer)
-        if (e.key === 'd') { e.preventDefault(); navigate('/dashboard') }
+        if (e.key === 'd') { e.preventDefault(); navigate('/metricas') }
         else if (e.key === 't') { e.preventDefault(); navigate('/tickets') }
         else if (e.key === 'k') { e.preventDefault(); navigate('/kb') }
         return
@@ -100,7 +94,6 @@ export default function Layout({ user, onLogout }) {
       <main className="flex-1 overflow-auto" style={{ background: 'var(--bg-primary)' }}>
         <Suspense fallback={<SkeletonDashboard />}>
           <Routes>
-            <Route path="/dashboard" element={<DashboardPage user={user} />} />
             <Route path="/tickets" element={<TicketsPage user={user} />} />
             <Route path="/chat" element={<ChatPage user={user} />} />
             <Route path="/chatbot-flows" element={<ChatbotFlowsPage />} />
@@ -110,19 +103,15 @@ export default function Layout({ user, onLogout }) {
             <Route path="/assistant" element={<AssistantPage user={user} />} />
             <Route path="/media" element={<MediaPage />} />
             <Route path="/catalog" element={<CatalogPage />} />
-            <Route path="/leaderboard" element={<LeaderboardPage user={user} />} />
             <Route path="/tracking" element={<TrackingPage />} />
             <Route path="/canais-ia" element={<CanaisIAPage user={user} />} />
-            {/* <Route path="/moderation" element={<ModerationPage />} /> */}
-            <Route path="/agent-analysis" element={<AgentAnalysisPage user={user} />} />
-            <Route path="/reports" element={<ReportsPage />} />
             <Route path="/integrations" element={<IntegrationsPage />} />
             <Route path="/macros" element={<MacrosPage />} />
             <Route path="/triagem" element={<TriagemPage user={user} />} />
-            <Route path="/leader" element={<LeaderDashboardPage />} />
-            <Route path="/ra-monitor" element={<RAMonitorPage />} />
+            <Route path="/metricas" element={<MetricasPage />} />
             <Route path="/settings" element={<SettingsPage user={user} />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Navigate to="/metricas" replace />} />
+            <Route path="*" element={<Navigate to="/tickets" replace />} />
           </Routes>
         </Suspense>
       </main>

@@ -12,7 +12,7 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.core.database import engine, Base, async_session
-from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta, customers, agent_analysis, chat, chatbot, triage, ra_monitor
+from app.api import auth, tickets, inboxes, dashboard, kb, slack, gmail, ai, reports, export, ws, tracking, shopify, media, ecommerce, catalog, gamification, rewards, meta, customers, agent_analysis, chat, chatbot, triage, ra_monitor, metricas
 from app.api.webhooks import whatsapp as wh_whatsapp, meta_dm as wh_meta_dm, tiktok as wh_tiktok, vapi as wh_vapi
 from app.services.seed import seed_database
 from app.services.ticket_number import init_ticket_sequence
@@ -1047,6 +1047,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(tickets.router, prefix="/api")
 app.include_router(inboxes.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
+app.include_router(metricas.router, prefix="/api")
 app.include_router(kb.router, prefix="/api")
 app.include_router(slack.router, prefix="/api")
 app.include_router(gmail.router, prefix="/api")

@@ -9,7 +9,6 @@ const NAV_GROUPS = [
   {
     label: 'Atendimento',
     items: [
-      { to: '/dashboard', label: 'Dashboard', icon: 'fa-chart-line', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
       { to: '/tickets', label: 'Caixa de Entrada', icon: 'fa-inbox', roles: ['super_admin', 'admin', 'supervisor', 'agent'], badge: 'tickets' },
       { to: '/chat', label: 'Chat ao Vivo', icon: 'fa-headset', roles: ['super_admin', 'admin', 'supervisor', 'agent'], badge: 'chat' },
       { to: '/tracking', label: 'Rastreamento', icon: 'fa-truck-fast', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
@@ -31,12 +30,8 @@ const NAV_GROUPS = [
   {
     label: 'Gestao',
     items: [
+      { to: '/metricas', label: 'Metricas', icon: 'fa-chart-line', roles: ['super_admin', 'admin', 'supervisor'] },
       { to: '/triagem', label: 'Triagem', icon: 'fa-filter', roles: ['super_admin', 'admin', 'supervisor'] },
-      { to: '/leader', label: 'Painel do Lider', icon: 'fa-users-gear', roles: ['super_admin', 'admin', 'supervisor'] },
-      { to: '/ra-monitor', label: 'Reclame Aqui', icon: 'fa-shield-alt', roles: ['super_admin', 'admin', 'supervisor'] },
-      { to: '/leaderboard', label: 'Performance', icon: 'fa-gamepad', roles: ['super_admin', 'admin', 'supervisor'] },
-      { to: '/agent-analysis', label: 'Analise de Equipe', icon: 'fa-microscope', roles: ['super_admin'] },
-      { to: '/reports', label: 'Relatorios', icon: 'fa-chart-bar', roles: ['super_admin', 'admin', 'supervisor'] },
       { to: '/integrations', label: 'Integracoes', icon: 'fa-plug', roles: ['super_admin'] },
       { to: '/settings', label: 'Configuracoes', icon: 'fa-cog', roles: ['super_admin', 'admin', 'supervisor', 'agent'] },
     ],
