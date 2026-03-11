@@ -1081,6 +1081,18 @@ async def batch_auto_reply(
 
     for ticket in candidates:
         try:
+            # Re-check: skip if already has outbound (race condition with auto-fetch)
+            await db.refresh(ticket)
+            if ticket.auto_replied:
+                skipped += 1
+                continue
+            recheck = await db.execute(
+                select(Message.id).where(Message.ticket_id == ticket.id, Message.type == "outbound").limit(1)
+            )
+            if recheck.scalar():
+                skipped += 1
+                continue
+
             # Get inbound message + customer email
             in_msg = await db.execute(
                 select(Message).where(Message.ticket_id == ticket.id, Message.type == "inbound").order_by(Message.created_at).limit(1)
