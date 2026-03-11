@@ -1044,3 +1044,112 @@ async def _find_or_create_customer(db: AsyncSession, email: str, name: str) -> C
         # Follow merge chain — if customer was merged, use the target customer
         customer = await _follow_merge_chain(db, customer)
     return customer
+
+
+@router.post("/batch-auto-reply")
+async def batch_auto_reply(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Batch send auto-replies to open tickets that never got any response."""
+    import asyncio
+    from app.services.email_auto_reply_service import generate_auto_reply
+
+    # Find open tickets without any outbound message, in auto-resolvable categories
+    result = await db.execute(
+        select(Ticket).where(
+            Ticket.status.in_(["open", "pending"]),
+            Ticket.source != "whatsapp",
+            Ticket.auto_replied == False,
+            Ticket.category.in_(["meu_pedido", "duvida", "reenvio"]),
+        ).order_by(Ticket.created_at)
+    )
+    tickets = result.scalars().all()
+
+    # Filter: only tickets with NO outbound messages
+    candidates = []
+    for t in tickets:
+        out_check = await db.execute(
+            select(Message.id).where(Message.ticket_id == t.id, Message.type == "outbound").limit(1)
+        )
+        if not out_check.scalar():
+            candidates.append(t)
+
+    sent = 0
+    skipped = 0
+    errors = 0
+
+    for ticket in candidates:
+        try:
+            # Get inbound message + customer email
+            in_msg = await db.execute(
+                select(Message).where(Message.ticket_id == ticket.id, Message.type == "inbound").order_by(Message.created_at).limit(1)
+            )
+            inbound = in_msg.scalar_one_or_none()
+            if not inbound or not inbound.sender_email:
+                skipped += 1
+                continue
+
+            # Get customer name
+            cust = await db.execute(select(Customer).where(Customer.id == ticket.customer_id))
+            customer = cust.scalar_one_or_none()
+            customer_name = customer.name if customer else "Cliente"
+
+            # Generate auto-reply
+            reply_result = await generate_auto_reply(
+                subject=ticket.subject or "",
+                body=(inbound.body_text or "")[:2000],
+                customer_name=customer_name,
+                category=ticket.category or "duvida",
+                triage={"confidence": 0.8},
+                protocol=ticket.protocol,
+            )
+
+            if not reply_result or reply_result["type"] == "skip":
+                skipped += 1
+                continue
+
+            # Send via Gmail in the same thread
+            reply_subject = ticket.subject or ""
+            if not reply_subject.startswith("Re:"):
+                reply_subject = f"Re: {reply_subject}"
+
+            sent_result = await asyncio.to_thread(
+                send_email,
+                to=inbound.sender_email,
+                subject=reply_subject,
+                body_text=reply_result["body"],
+                thread_id=inbound.gmail_thread_id,
+                in_reply_to=inbound.gmail_message_id,
+            )
+
+            if sent_result:
+                # Save outbound message
+                auto_msg = Message(
+                    ticket_id=ticket.id,
+                    type="outbound",
+                    sender_name="Carbon IA",
+                    sender_email=settings.GMAIL_SUPPORT_EMAIL or "suporte@carbonsmartwatch.com.br",
+                    body_text=reply_result["body"],
+                    gmail_message_id=sent_result.get("id"),
+                    gmail_thread_id=sent_result.get("threadId") or inbound.gmail_thread_id,
+                )
+                db.add(auto_msg)
+                ticket.auto_replied = True
+                ticket.auto_reply_at = datetime.now(timezone.utc)
+                ticket.first_response_at = datetime.now(timezone.utc)
+                if reply_result["type"] == "auto_reply":
+                    ticket.status = "waiting"
+                existing_tags = list(ticket.tags or [])
+                existing_tags.append(reply_result["type"])
+                ticket.tags = list(set(existing_tags))
+                await db.commit()
+                sent += 1
+            else:
+                skipped += 1
+
+        except Exception as e:
+            errors += 1
+            logger.error(f"Batch auto-reply error for ticket #{ticket.number}: {e}")
+
+    return {"total_candidates": len(candidates), "sent": sent, "skipped": skipped, "errors": errors}
