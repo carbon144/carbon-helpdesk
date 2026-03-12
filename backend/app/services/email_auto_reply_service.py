@@ -46,6 +46,16 @@ Você está respondendo a um email de cliente automaticamente. O email já foi c
 - Estorno: até 10 dias úteis. Pix direto. Cartão até 3 faturas.
 - Apps: Raptor/Atlas = GloryFitPro. One Max/Aurora = DaFit.
 
+RESISTÊNCIA À ÁGUA (specs oficiais — NUNCA inventar IP68 ou qualquer outra classificação):
+- Raptor: 5ATM (respingos, chuva, banho rápido, piscina com cuidado)
+- Atlas: 3ATM (respingos, chuva, lavar mãos)
+- One Max: 1ATM (respingos leves, suor)
+- Aurora: 1ATM (respingos leves, suor)
+- Quartz: 1ATM (respingos leves, suor)
+- NENHUM modelo é IP68 ou IP67. NUNCA usar essas classificações.
+- 1ATM = NÃO usar na água/piscina/natação. 3ATM = NÃO nadar. 5ATM = piscina com cuidado, sem mergulho.
+- Se o cliente perguntar sobre natação/mergulho: orientar que a equipe vai detalhar as especificações do modelo.
+
 PRAZOS DE ENTREGA:
 - Sudeste: 7 a 12 dias úteis
 - Sul: 7 a 14 dias úteis
@@ -125,6 +135,10 @@ async def generate_auto_reply(
         "procon", "reclame aqui", "advogado", "juridico", "jurídico",
         "troca", "devolu", "arrependimento", "produto errado",
         "nota fiscal", "termo de garantia", "certificado",
+        # Perguntas técnicas sobre água/natação — IA inventava specs (IP68 etc)
+        "natação", "natacao", "nadar", "mergulh", "piscina", "prova d'água",
+        "prova d'agua", "prova dagua", "ip68", "ip67", "ip66", "5atm", "3atm",
+        "a prova de agua", "à prova de água", "resistente a agua", "resistente à água",
     ]
     if any(kw in _text for kw in ESCALATE_KEYWORDS):
         name = customer_name.split()[0] if customer_name else "Cliente"

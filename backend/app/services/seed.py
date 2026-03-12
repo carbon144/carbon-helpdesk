@@ -139,7 +139,7 @@ async def seed_database(db: AsyncSession):
         KBArticle(title="Direitos do Consumidor - CDC", category="juridico", tags=["cdc", "procon", "juridico"],
             content="Art. 18 CDC: fornecedor responde por vícios de qualidade em 30 dias. Art. 49: direito de arrependimento em 7 dias para compras online."),
         KBArticle(title="Resistência à Água dos Modelos", category="especificacoes", tags=["agua", "especificacoes"],
-            content="Carbon Watch X1: IP68, até 1.5m por 30min. Carbon Watch S2: IP67, respingos apenas. Carbon Watch Pro: 5ATM, natação."),
+            content="Raptor: 5ATM (respingos, chuva, banho rápido, piscina com cuidado). Atlas: 3ATM (respingos, chuva, lavar mãos). One Max: 1ATM (respingos leves, suor). Aurora: 1ATM (respingos leves, suor). Quartz: 1ATM (respingos leves, suor). NENHUM modelo é IP68 ou IP67. 1ATM = NÃO usar na água. 3ATM = NÃO nadar. 5ATM = piscina com cuidado, sem mergulho."),
         KBArticle(title="Troubleshooting: Sincronização Bluetooth", category="suporte_tecnico", tags=["bluetooth", "sincronizacao"],
             content="1. Remova o pareamento no telefone. 2. Reinicie o relógio (segurar botão 10s). 3. Abra o app Carbon e pareie novamente. 4. Certifique-se que o app tem permissão de Bluetooth."),
     ]
@@ -190,7 +190,7 @@ async def seed_database(db: AsyncSession):
 
         # ── duvida ──
         Macro(name="Informações do Produto", category="duvida",
-            content="{{cliente}}, sobre o Carbon Watch:\n\n- Bluetooth 5.0 para conexão com o celular\n- Monitor cardíaco e oxímetro (SpO2)\n- Resistente a respingos (IP67) - NÃO submergir\n- Bateria: 3 a 5 dias de uso normal\n- Compatível com Android e iOS\n\nTem alguma dúvida específica?"),
+            content="{{cliente}}, sobre o Carbon Watch:\n\n- Bluetooth 5.0 para conexão com o celular\n- Monitor cardíaco e oxímetro (SpO2)\n- Resistência à água varia por modelo (1ATM a 5ATM)\n- Bateria: 3 a 5 dias de uso normal\n- Compatível com Android e iOS\n\nTem alguma dúvida específica?"),
         Macro(name="Como Usar o Relógio", category="duvida",
             content="{{cliente}}, para começar a usar seu Carbon Watch:\n\n1. Carregue por 2h antes do primeiro uso\n2. Baixe o app FitCloudPro (Android/iOS)\n3. Ative o Bluetooth e pareie pelo app\n4. Pronto! O app sincroniza dados automaticamente\n\nSe precisar de ajuda com algum passo, me avisa!"),
 

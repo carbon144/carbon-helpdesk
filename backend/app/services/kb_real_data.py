@@ -156,7 +156,13 @@ Observações: A troca depende de análise técnica. A Carbon não realiza envio
         "category": "garantia",
         "tags": ["agua", "resistencia", "ip", "atm", "banho", "vedacao", "cuidados"],
         "content": """1. Conceito de Resistência à Água
-Os relógios Carbon possuem certificação mínima de resistência à água de 1ATM ou superior, conforme o modelo. Resistência à água não significa que o produto seja à prova d'água ou indestrutível. A vedação depende das condições de uso, do estado de conservação e da integridade estrutural.
+Os relógios Carbon possuem certificação de resistência à água conforme o modelo:
+- Raptor: 5ATM (respingos, chuva, banho rápido, piscina com cuidado — sem mergulho)
+- Atlas: 3ATM (respingos, chuva, lavar mãos — NÃO nadar)
+- One Max: 1ATM (respingos leves, suor — NÃO molhar)
+- Aurora: 1ATM (respingos leves, suor — NÃO molhar)
+- Quartz: 1ATM (respingos leves, suor — NÃO molhar)
+NENHUM modelo possui certificação IP68 ou IP67. Resistência à água não significa que o produto seja à prova d'água ou indestrutível. A vedação depende das condições de uso, do estado de conservação e da integridade estrutural.
 
 2. Situações Permitidas
 Contato com respingos, lavagem rápida das mãos, suor, chuva leve, piscina (nos modelos com certificação compatível, higienizar com água doce após o contato), água do mar (nos modelos compatíveis, higienizar com água doce após). Sempre respeitando os limites indicados para cada modelo.

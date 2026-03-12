@@ -16,7 +16,7 @@ PRODUCTS = [
         "specs": {
             "tela": "1.96\" AMOLED",
             "bateria": "Até 15 dias",
-            "resistencia": "5ATM (à prova d'água real)",
+            "resistencia": "5ATM (respingos, chuva, banho rápido, piscina com cuidado)",
             "bluetooth": "5.2",
             "sensores": "Frequência cardíaca, SpO2, acelerômetro, giroscópio",
             "compatibilidade": "Android 5.0+ / iOS 11+",
@@ -36,7 +36,7 @@ PRODUCTS = [
         "specs": {
             "tela": "AMOLED ultra brilhante",
             "bateria": "Mais de 15 dias",
-            "resistencia": "100% à prova d'água",
+            "resistencia": "3ATM (respingos, chuva, lavar mãos)",
             "bluetooth": "5.2",
             "gps": "GPS integrado",
             "sensores": "Frequência cardíaca, SpO2, acelerômetro, giroscópio, bússola",
@@ -57,7 +57,7 @@ PRODUCTS = [
         "specs": {
             "tela": "AMOLED ultra brilhante",
             "bateria": "Até 15 dias",
-            "resistencia": "À prova d'água",
+            "resistencia": "1ATM (respingos leves, suor)",
             "bluetooth": "5.2",
             "sensores": "Frequência cardíaca, SpO2, acelerômetro, giroscópio",
             "compatibilidade": "Android 5.0+ / iOS 11+",
@@ -77,7 +77,7 @@ PRODUCTS = [
         "specs": {
             "tela": "HD display",
             "bateria": "Até 10 dias",
-            "resistencia": "À prova d'água",
+            "resistencia": "1ATM (respingos leves, suor)",
             "bluetooth": "5.0",
             "sensores": "Frequência cardíaca, SpO2, acelerômetro",
             "compatibilidade": "Android 5.0+ / iOS 10+",
@@ -97,7 +97,7 @@ PRODUCTS = [
         "specs": {
             "tela": "Display HD",
             "bateria": "Até 10 dias",
-            "resistencia": "100% à prova d'água (AquaShield)",
+            "resistencia": "1ATM (respingos leves, suor)",
             "bluetooth": "5.0",
             "sensores": "Frequência cardíaca, SpO2, acelerômetro",
             "compatibilidade": "Android 5.0+ / iOS 10+",
