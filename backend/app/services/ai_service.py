@@ -227,7 +227,7 @@ Regras:
 Resistência à água por modelo (NUNCA inventar IP68/IP67):
 - Raptor: 5ATM, Atlas: 3ATM, One Max/Aurora/Quartz: 1ATM
 - NENHUM modelo é IP68/IP67. NENHUM tem NFC.
-- Nenhum serve pra natação. Raptor pode piscina com cuidado.
+- Raptor e Atlas servem para natação. Os demais NÃO.
 
 Apps: Raptor/Atlas = GloryFitPro. One Max/Aurora = DaFit.
 
@@ -436,13 +436,13 @@ REGRAS DE NEGÓCIO:
 - NF (SÓ se perguntar): Carbon atua como intermediadora comercial, NF emitida nessa modalidade (legal e correta). Valor integral registrado, validade fiscal normal, serve como comprovante pra tudo incluindo garantia.
 
 RESISTÊNCIA À ÁGUA (NUNCA inventar IP68, IP67 ou qualquer classificação IP):
-- Raptor: 5ATM (respingos, chuva, banho rápido, piscina com cuidado — sem mergulho)
-- Atlas: 3ATM (respingos, chuva, lavar mãos — NÃO nadar)
+- Raptor: 5ATM (respingos, chuva, banho, piscina, natação)
+- Atlas: 3ATM (respingos, chuva, banho, piscina, natação)
 - One Max: 1ATM (respingos leves, suor — NÃO molhar)
 - Aurora: 1ATM (respingos leves, suor — NÃO molhar)
 - Quartz: 1ATM (respingos leves, suor — NÃO molhar)
 - NENHUM modelo é IP68 ou IP67.
-- Nenhum modelo é recomendado para natação. O Raptor (5ATM) pode ser usado em piscina com cuidado mas NÃO para nadar/mergulhar.
+- Raptor e Atlas servem para natação. One Max, Aurora e Quartz NÃO.
 - NFC: NENHUM modelo possui NFC.
 
 PRAZOS DE ENTREGA POR REGIÃO:
@@ -661,13 +661,13 @@ NOTA FISCAL (SÓ responder se o cliente perguntar/questionar):
 - NUNCA mencionar "nota de serviço" espontaneamente — só se o cliente perguntar
 
 RESISTÊNCIA À ÁGUA (NUNCA inventar IP68, IP67 ou qualquer classificação IP):
-- Raptor: 5ATM (respingos, chuva, banho rápido, piscina com cuidado — sem mergulho)
-- Atlas: 3ATM (respingos, chuva, lavar mãos — NÃO nadar)
+- Raptor: 5ATM (respingos, chuva, banho, piscina, natação)
+- Atlas: 3ATM (respingos, chuva, banho, piscina, natação)
 - One Max: 1ATM (respingos leves, suor — NÃO molhar)
 - Aurora: 1ATM (respingos leves, suor — NÃO molhar)
 - Quartz: 1ATM (respingos leves, suor — NÃO molhar)
 - NENHUM modelo é IP68 ou IP67. Nunca usar classificação IP.
-- Nenhum modelo serve pra natação. Raptor (5ATM) pode piscina com cuidado, sem mergulho.
+- Raptor e Atlas servem para natação. One Max, Aurora e Quartz NÃO.
 - NFC: NENHUM modelo possui NFC.
 
 APPS:

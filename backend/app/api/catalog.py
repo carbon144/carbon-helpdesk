@@ -16,7 +16,7 @@ PRODUCTS = [
         "specs": {
             "tela": "1.96\" AMOLED",
             "bateria": "Até 15 dias",
-            "resistencia": "5ATM (respingos, chuva, banho rápido, piscina com cuidado)",
+            "resistencia": "5ATM (respingos, chuva, banho, piscina, natação)",
             "bluetooth": "5.2",
             "sensores": "Frequência cardíaca, SpO2, acelerômetro, giroscópio",
             "compatibilidade": "Android 5.0+ / iOS 11+",
@@ -36,7 +36,7 @@ PRODUCTS = [
         "specs": {
             "tela": "AMOLED ultra brilhante",
             "bateria": "Mais de 15 dias",
-            "resistencia": "3ATM (respingos, chuva, lavar mãos)",
+            "resistencia": "3ATM (respingos, chuva, banho, piscina, natação)",
             "bluetooth": "5.2",
             "gps": "GPS integrado",
             "sensores": "Frequência cardíaca, SpO2, acelerômetro, giroscópio, bússola",

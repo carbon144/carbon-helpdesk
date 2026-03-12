@@ -157,8 +157,8 @@ Observações: A troca depende de análise técnica. A Carbon não realiza envio
         "tags": ["agua", "resistencia", "ip", "atm", "banho", "vedacao", "cuidados"],
         "content": """1. Conceito de Resistência à Água
 Os relógios Carbon possuem certificação de resistência à água conforme o modelo:
-- Raptor: 5ATM (respingos, chuva, banho rápido, piscina com cuidado — sem mergulho)
-- Atlas: 3ATM (respingos, chuva, lavar mãos — NÃO nadar)
+- Raptor: 5ATM (respingos, chuva, banho, piscina, natação)
+- Atlas: 3ATM (respingos, chuva, banho, piscina, natação)
 - One Max: 1ATM (respingos leves, suor — NÃO molhar)
 - Aurora: 1ATM (respingos leves, suor — NÃO molhar)
 - Quartz: 1ATM (respingos leves, suor — NÃO molhar)

@@ -139,7 +139,7 @@ async def seed_database(db: AsyncSession):
         KBArticle(title="Direitos do Consumidor - CDC", category="juridico", tags=["cdc", "procon", "juridico"],
             content="Art. 18 CDC: fornecedor responde por vícios de qualidade em 30 dias. Art. 49: direito de arrependimento em 7 dias para compras online."),
         KBArticle(title="Resistência à Água dos Modelos", category="especificacoes", tags=["agua", "especificacoes"],
-            content="Raptor: 5ATM (respingos, chuva, banho rápido, piscina com cuidado). Atlas: 3ATM (respingos, chuva, lavar mãos). One Max: 1ATM (respingos leves, suor). Aurora: 1ATM (respingos leves, suor). Quartz: 1ATM (respingos leves, suor). NENHUM modelo é IP68 ou IP67. 1ATM = NÃO usar na água. 3ATM = NÃO nadar. 5ATM = piscina com cuidado, sem mergulho."),
+            content="Raptor: 5ATM (respingos, chuva, banho, piscina, natação). Atlas: 3ATM (respingos, chuva, banho, piscina, natação). One Max: 1ATM (respingos leves, suor — NÃO molhar). Aurora: 1ATM (respingos leves, suor — NÃO molhar). Quartz: 1ATM (respingos leves, suor — NÃO molhar). NENHUM modelo é IP68 ou IP67. Raptor e Atlas servem para natação. Os demais NÃO."),
         KBArticle(title="Troubleshooting: Sincronização Bluetooth", category="suporte_tecnico", tags=["bluetooth", "sincronizacao"],
             content="1. Remova o pareamento no telefone. 2. Reinicie o relógio (segurar botão 10s). 3. Abra o app Carbon e pareie novamente. 4. Certifique-se que o app tem permissão de Bluetooth."),
     ]

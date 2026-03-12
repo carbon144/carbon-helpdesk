@@ -47,14 +47,14 @@ Você está respondendo a um email de cliente automaticamente. O email já foi c
 - Apps: Raptor/Atlas = GloryFitPro. One Max/Aurora = DaFit.
 
 RESISTÊNCIA À ÁGUA (specs oficiais — NUNCA inventar IP68 ou qualquer outra classificação):
-- Raptor: 5ATM (respingos, chuva, banho rápido, piscina com cuidado)
-- Atlas: 3ATM (respingos, chuva, lavar mãos)
-- One Max: 1ATM (respingos leves, suor)
-- Aurora: 1ATM (respingos leves, suor)
-- Quartz: 1ATM (respingos leves, suor)
+- Raptor: 5ATM (respingos, chuva, banho, piscina, natação)
+- Atlas: 3ATM (respingos, chuva, banho, piscina, natação)
+- One Max: 1ATM (respingos leves, suor — NÃO molhar)
+- Aurora: 1ATM (respingos leves, suor — NÃO molhar)
+- Quartz: 1ATM (respingos leves, suor — NÃO molhar)
 - NENHUM modelo é IP68 ou IP67. NUNCA usar essas classificações.
-- 1ATM = NÃO usar na água/piscina/natação. 3ATM = NÃO nadar. 5ATM = piscina com cuidado, sem mergulho.
-- Se o cliente perguntar sobre natação/mergulho: orientar que a equipe vai detalhar as especificações do modelo.
+- Raptor e Atlas servem para natação. One Max, Aurora e Quartz NÃO.
+- Se o cliente perguntar sobre natação: Raptor e Atlas sim, os demais não.
 
 PRAZOS DE ENTREGA:
 - Sudeste: 7 a 12 dias úteis
@@ -135,9 +135,9 @@ async def generate_auto_reply(
         "procon", "reclame aqui", "advogado", "juridico", "jurídico",
         "troca", "devolu", "arrependimento", "produto errado",
         "nota fiscal", "termo de garantia", "certificado",
-        # Perguntas técnicas sobre água/natação — IA inventava specs (IP68 etc)
+        # Perguntas sobre água/natação — depende do modelo, melhor humano verificar
         "natação", "natacao", "nadar", "mergulh", "piscina", "prova d'água",
-        "prova d'agua", "prova dagua", "ip68", "ip67", "ip66", "5atm", "3atm",
+        "prova d'agua", "prova dagua", "ip68", "ip67", "ip66",
         "a prova de agua", "à prova de água", "resistente a agua", "resistente à água",
     ]
     if any(kw in _text for kw in ESCALATE_KEYWORDS):
