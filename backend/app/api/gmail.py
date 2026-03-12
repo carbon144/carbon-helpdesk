@@ -384,47 +384,154 @@ async def fetch_emails(
                 except Exception as e:
                     logger.warning(f"Protocol assignment skipped: {e}")
 
-                # === EMAIL AUTO-REPLY ===
+                # === AI AGENT ROUTING ===
+                _agent_handled = False
                 try:
-                    from app.services.email_auto_reply_service import generate_auto_reply, send_auto_reply
-                    auto_reply_result = await generate_auto_reply(
-                        subject=email_data["subject"],
-                        body=email_data["body_text"][:2000],
-                        customer_name=email_data["from_name"],
-                        category=ticket.category or "duvida",
-                        triage=triage if triage else None,
-                        protocol=ticket.protocol,
-                    )
-                    if auto_reply_result and auto_reply_result["type"] in ("auto_reply", "ack"):
-                        sent = await send_auto_reply(
-                            to_email=email_data["from_email"],
-                            subject=email_data["subject"],
-                            body_text=auto_reply_result["body"],
-                            gmail_thread_id=gmail_thread_id,
-                            gmail_message_id=gmail_message_id,
-                        )
-                        if sent:
-                            auto_msg = Message(
-                                ticket_id=ticket.id,
-                                type="outbound",
-                                sender_name="Carbon IA",
-                                sender_email=settings.GMAIL_SUPPORT_EMAIL or "suporte@carbonsmartwatch.com.br",
-                                body_text=auto_reply_result["body"],
-                                gmail_message_id=sent.get("id"),
-                                gmail_thread_id=sent.get("threadId") or gmail_thread_id,
+                    from app.services.agent_ai_service import get_agent_for_ticket, generate_agent_reply, should_auto_send
+                    ai_agent = await get_agent_for_ticket(ticket, db)
+                    if ai_agent:
+                        ticket.ai_agent_id = ai_agent.id
+                        # Try to enrich with order data
+                        _order_data = None
+                        try:
+                            from app.services.email_auto_reply_service import _enrich_with_order_data
+                            _order_data = await _enrich_with_order_data(
+                                email_data["subject"], email_data["body_text"][:2000], email_data.get("from_email", "")
                             )
-                            db.add(auto_msg)
-                            ticket.auto_replied = True
-                            ticket.auto_reply_at = datetime.now(timezone.utc)
-                            ticket.first_response_at = datetime.now(timezone.utc)
-                            if auto_reply_result["type"] == "auto_reply":
-                                ticket.status = "waiting"
-                            existing_tags = list(ticket.tags or [])
-                            existing_tags.append(auto_reply_result["type"])
-                            ticket.tags = list(set(existing_tags))
-                            logger.info(f"Auto-reply ({auto_reply_result['type']}) sent for ticket #{ticket.number}")
+                        except Exception:
+                            pass
+
+                        result = await generate_agent_reply(
+                            agent=ai_agent,
+                            ticket=ticket,
+                            email_body=email_data["body_text"][:2000],
+                            customer_name=email_data["from_name"],
+                            db=db,
+                            order_data=_order_data,
+                        )
+
+                        if result["should_escalate"]:
+                            ai_agent.total_escalated += 1
+                            logger.info(f"AI Agent {ai_agent.name} escalated ticket #{ticket.number}: {result['escalation_reason']}")
+                        elif result["reply_text"]:
+                            ai_agent.total_replies += 1
+                            if await should_auto_send(ai_agent, result["confidence"]):
+                                # Auto-send
+                                from app.services.email_auto_reply_service import send_auto_reply as _send_auto
+                                sent = await _send_auto(
+                                    to_email=email_data["from_email"],
+                                    subject=email_data["subject"],
+                                    body_text=result["reply_text"],
+                                    gmail_thread_id=gmail_thread_id,
+                                    gmail_message_id=gmail_message_id,
+                                )
+                                if sent:
+                                    auto_msg = Message(
+                                        ticket_id=ticket.id,
+                                        type="outbound",
+                                        sender_name=ai_agent.name,
+                                        sender_email=settings.GMAIL_SUPPORT_EMAIL or "suporte@carbonsmartwatch.com.br",
+                                        body_text=result["reply_text"],
+                                        gmail_message_id=sent.get("id"),
+                                        gmail_thread_id=sent.get("threadId") or gmail_thread_id,
+                                    )
+                                    db.add(auto_msg)
+                                    ticket.auto_replied = True
+                                    ticket.auto_reply_at = datetime.now(timezone.utc)
+                                    ticket.first_response_at = datetime.now(timezone.utc)
+                                    ticket.status = "waiting"
+                                    existing_tags = list(ticket.tags or [])
+                                    existing_tags.append("agent_auto")
+                                    ticket.tags = list(set(existing_tags))
+                                    ai_agent.total_approved += 1
+                                    _agent_handled = True
+                                    logger.info(f"AI Agent {ai_agent.name} auto-sent reply for ticket #{ticket.number} (confidence={result['confidence']:.2f})")
+                            else:
+                                # Save as draft for review
+                                ticket.ai_draft_text = result["reply_text"]
+                                ticket.ai_draft_confidence = result["confidence"]
+                                existing_tags = list(ticket.tags or [])
+                                existing_tags.append("agent_draft")
+                                ticket.tags = list(set(existing_tags))
+                                _agent_handled = True
+                                logger.info(f"AI Agent {ai_agent.name} drafted reply for ticket #{ticket.number} (confidence={result['confidence']:.2f})")
                 except Exception as e:
-                    logger.warning(f"Email auto-reply skipped: {e}")
+                    logger.warning(f"AI Agent routing skipped: {e}")
+
+                # === ESTORNO / REENVIO DETECTION (after agent reply) ===
+                if _agent_handled and result and result.get("reply_text"):
+                    try:
+                        from app.services.estorno_service import detect_estorno, notify_estorno_slack, log_estorno_to_sheet
+                        from app.services.reenvio_service import detect_reenvio, create_reenvio_draft_order, notify_reenvio_slack, check_reenvio_limit
+
+                        _reply = result["reply_text"]
+                        _agent_name = ai_agent.name if ai_agent else "Carbon IA"
+
+                        if detect_estorno(_reply, ticket.category):
+                            await notify_estorno_slack(ticket, _order_data, _agent_name, _reply)
+                            await log_estorno_to_sheet(ticket, _order_data)
+                            logger.info(f"Estorno detected in reply for ticket #{ticket.number}")
+
+                        if detect_reenvio(_reply, ticket.category):
+                            limit_info = await check_reenvio_limit(db)
+                            if limit_info["allowed"] and _order_data:
+                                draft = await create_reenvio_draft_order(_order_data)
+                                if draft.get("success"):
+                                    await notify_reenvio_slack(ticket, _order_data, draft, limit_info)
+                                    existing_tags = list(ticket.tags or [])
+                                    existing_tags.append("reenvio-ia")
+                                    ticket.tags = list(set(existing_tags))
+                                    logger.info(f"Reenvio draft created for ticket #{ticket.number}: {draft.get('draft_order_name')}")
+                                else:
+                                    logger.warning(f"Reenvio draft failed for ticket #{ticket.number}: {draft.get('error')}")
+                            elif not limit_info["allowed"]:
+                                logger.info(f"Reenvio not allowed for ticket #{ticket.number}: {limit_info['reason']}")
+                    except Exception as e:
+                        logger.warning(f"Estorno/reenvio detection skipped: {e}")
+
+                # === EMAIL AUTO-REPLY (fallback when no agent handled it) ===
+                if not _agent_handled:
+                    try:
+                        from app.services.email_auto_reply_service import generate_auto_reply, send_auto_reply
+                        auto_reply_result = await generate_auto_reply(
+                            subject=email_data["subject"],
+                            body=email_data["body_text"][:2000],
+                            customer_name=email_data["from_name"],
+                            category=ticket.category or "duvida",
+                            triage=triage if triage else None,
+                            protocol=ticket.protocol,
+                            from_email=email_data.get("from_email", ""),
+                        )
+                        if auto_reply_result and auto_reply_result["type"] in ("auto_reply", "ack"):
+                            sent = await send_auto_reply(
+                                to_email=email_data["from_email"],
+                                subject=email_data["subject"],
+                                body_text=auto_reply_result["body"],
+                                gmail_thread_id=gmail_thread_id,
+                                gmail_message_id=gmail_message_id,
+                            )
+                            if sent:
+                                auto_msg = Message(
+                                    ticket_id=ticket.id,
+                                    type="outbound",
+                                    sender_name="Carbon IA",
+                                    sender_email=settings.GMAIL_SUPPORT_EMAIL or "suporte@carbonsmartwatch.com.br",
+                                    body_text=auto_reply_result["body"],
+                                    gmail_message_id=sent.get("id"),
+                                    gmail_thread_id=sent.get("threadId") or gmail_thread_id,
+                                )
+                                db.add(auto_msg)
+                                ticket.auto_replied = True
+                                ticket.auto_reply_at = datetime.now(timezone.utc)
+                                ticket.first_response_at = datetime.now(timezone.utc)
+                                if auto_reply_result["type"] == "auto_reply":
+                                    ticket.status = "waiting"
+                                existing_tags = list(ticket.tags or [])
+                                existing_tags.append(auto_reply_result["type"])
+                                ticket.tags = list(set(existing_tags))
+                                logger.info(f"Auto-reply ({auto_reply_result['type']}) sent for ticket #{ticket.number}")
+                    except Exception as e:
+                        logger.warning(f"Email auto-reply skipped: {e}")
 
                 # Apply triage rules (route to agent, set priority)
                 try:
@@ -1088,24 +1195,42 @@ async def batch_auto_reply(
     import asyncio
     from app.services.email_auto_reply_service import generate_auto_reply
 
-    # Find open tickets without any outbound message, in auto-resolvable categories
-    result = await db.execute(
+    # V2: Include more statuses and categories — enriched replies can handle them
+    # Group 1: Never replied (open/pending, no auto_reply)
+    result1 = await db.execute(
         select(Ticket).where(
             Ticket.status.in_(["open", "pending"]),
             Ticket.source != "whatsapp",
             Ticket.auto_replied == False,
+            Ticket.category.in_(["meu_pedido", "duvida", "reenvio", "financeiro"]),
+        ).order_by(Ticket.created_at)
+    )
+    never_replied = result1.scalars().all()
+
+    # Group 2: Got ACK but still waiting (auto_replied=True, status=waiting/open)
+    result2 = await db.execute(
+        select(Ticket).where(
+            Ticket.status.in_(["open", "waiting"]),
+            Ticket.source != "whatsapp",
+            Ticket.auto_replied == True,
             Ticket.category.in_(["meu_pedido", "duvida", "reenvio"]),
         ).order_by(Ticket.created_at)
     )
-    tickets = result.scalars().all()
+    ack_waiting = result2.scalars().all()
 
-    # Filter: only tickets with NO outbound messages
+    # Filter group 1: only tickets with NO outbound messages
     candidates = []
-    for t in tickets:
+    for t in never_replied:
         out_check = await db.execute(
             select(Message.id).where(Message.ticket_id == t.id, Message.type == "outbound").limit(1)
         )
         if not out_check.scalar():
+            candidates.append(t)
+
+    # Filter group 2: only tickets that got ACK (tag "ack") — re-reply with real data
+    for t in ack_waiting:
+        existing_tags = list(t.tags or [])
+        if "ack" in existing_tags and "auto_reply" not in existing_tags:
             candidates.append(t)
 
     sent = 0
@@ -1140,7 +1265,7 @@ async def batch_auto_reply(
             customer = cust.scalar_one_or_none()
             customer_name = customer.name if customer else "Cliente"
 
-            # Generate auto-reply
+            # Generate auto-reply (V2: enriched with Shopify + tracking)
             reply_result = await generate_auto_reply(
                 subject=ticket.subject or "",
                 body=(inbound.body_text or "")[:2000],
@@ -1148,6 +1273,7 @@ async def batch_auto_reply(
                 category=ticket.category or "duvida",
                 triage={"confidence": 0.8},
                 protocol=ticket.protocol,
+                from_email=inbound.sender_email,
             )
 
             if not reply_result or reply_result["type"] == "skip":
@@ -1159,8 +1285,8 @@ async def batch_auto_reply(
             if not reply_subject.startswith("Re:"):
                 reply_subject = f"Re: {reply_subject}"
 
-            # Rate limiting: ~30 emails/min para evitar bloqueio do Gmail
-            await asyncio.sleep(2)
+            # Rate limiting: ~20 emails/min para evitar bloqueio do Gmail (3s inclui tempo Shopify+tracking)
+            await asyncio.sleep(3)
             sent_result = await asyncio.to_thread(
                 send_email,
                 to=inbound.sender_email,

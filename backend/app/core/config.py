@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"  # "development" or "production"
 
     ANTHROPIC_MODEL: str = "claude-sonnet-4-20250514"
+    ANTHROPIC_AGENT_MODEL: str = "claude-opus-4-20250514"  # modelo dos agentes IA (Victor, Reinan, etc)
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 480  # 8 hours
 
@@ -69,6 +70,11 @@ class Settings(BaseSettings):
     # Vapi Voice AI
     VAPI_API_KEY: str = ""
     VAPI_SERVER_SECRET: str = ""  # shared secret to verify webhook requests
+
+    # Estornos + Reenvios IA
+    SLACK_IA_ESTORNOS_CHANNEL: str = ""  # #ia-estornos
+    GOOGLE_SHEET_ESTORNOS_ID: str = ""   # ID da planilha Expert Hub
+    MAX_REENVIOS_DIA: int = 10           # limite caixa diario
 
     # Email auto-reply
     EMAIL_AUTO_REPLY_ENABLED: bool = True

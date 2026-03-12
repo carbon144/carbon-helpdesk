@@ -427,6 +427,80 @@ async def refund_order(order_id: str, amount: float = None, reason: str = "custo
         return {"error": str(e)}
 
 
+async def create_draft_order(order_data: dict, note: str = "Reenvio IA") -> dict:
+    """Create a Shopify draft order copying line_items + shipping_address from original order.
+    Used for free re-shipments (reenvios). All items at zero cost."""
+    base = _shopify_base()
+    if not base or not settings.SHOPIFY_ACCESS_TOKEN:
+        return {"error": "Shopify nao configurado"}
+
+    try:
+        # Build line items at zero price
+        line_items = []
+        for item in order_data.get("items", []):
+            line_items.append({
+                "title": item.get("title", "Produto"),
+                "variant_title": item.get("variant_title", ""),
+                "quantity": item.get("quantity", 1),
+                "price": "0.00",
+            })
+
+        if not line_items:
+            return {"error": "Pedido sem itens"}
+
+        # Build shipping address
+        shipping = order_data.get("shipping_address") or {}
+        shipping_address = None
+        if shipping:
+            shipping_address = {
+                "first_name": shipping.get("name", "").split()[0] if shipping.get("name") else "",
+                "last_name": " ".join(shipping.get("name", "").split()[1:]) if shipping.get("name") else "",
+                "address1": shipping.get("address1", ""),
+                "address2": shipping.get("address2", ""),
+                "city": shipping.get("city", ""),
+                "province": shipping.get("province", ""),
+                "zip": shipping.get("zip", ""),
+                "country": shipping.get("country", "BR"),
+                "phone": shipping.get("phone", ""),
+            }
+
+        payload = {
+            "draft_order": {
+                "line_items": line_items,
+                "note": f"{note} - Pedido original: {order_data.get('order_number', '?')}",
+                "tags": "reenvio-ia",
+                "shipping_line": {
+                    "title": "Reenvio sem custo",
+                    "price": "0.00",
+                },
+            }
+        }
+        if shipping_address:
+            payload["draft_order"]["shipping_address"] = shipping_address
+        if order_data.get("email"):
+            payload["draft_order"]["email"] = order_data["email"]
+
+        url = f"{base}/draft_orders.json"
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(url, headers=_shopify_headers(), json=payload)
+
+        if resp.status_code in (200, 201):
+            draft = resp.json().get("draft_order", {})
+            return {
+                "success": True,
+                "draft_order_id": draft.get("id"),
+                "draft_order_name": draft.get("name"),
+            }
+        else:
+            error_body = resp.text[:500]
+            logger.error(f"Shopify draft order error {resp.status_code}: {error_body}")
+            return {"error": f"Erro ao criar draft order: {resp.status_code}"}
+
+    except Exception as e:
+        logger.error(f"Shopify draft order error: {e}")
+        return {"error": str(e)}
+
+
 async def cancel_order(order_id: str, reason: str = "customer", email_customer: bool = True) -> dict:
     """Cancel a Shopify order."""
     base = _shopify_base()
