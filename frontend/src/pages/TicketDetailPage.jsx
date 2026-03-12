@@ -837,7 +837,7 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
       else if (e.key === 'Tab' && filteredSlashMacros.length > 0) { e.preventDefault(); handleSlashSelect(filteredSlashMacros[slashIdx]) }
       return
     }
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleSend() }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (!ticket?.ai_processing) handleSend() }
     // Tab to accept AI inline suggestion
     if (e.key === 'Tab' && aiInlineSuggestion) {
       e.preventDefault()
@@ -1265,6 +1265,12 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                     <span className="text-emerald-400 font-medium text-sm"><i className="fas fa-cloud-upload-alt mr-2" />Solte os arquivos aqui</span>
                   </div>
                 )}
+                {ticket?.ai_processing && (
+                  <div className="mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                    <i className="fas fa-robot text-orange-400 animate-pulse" />
+                    <span className="text-orange-400 text-xs font-medium">IA respondendo este ticket...</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-3 mb-2">
                   <button onClick={() => setReplyType('outbound')}
                     className="text-xs px-3 py-1 rounded-full transition"
@@ -1421,10 +1427,10 @@ export default function TicketDetailPage({ user, embeddedTicketId, onEmbeddedBac
                   {/* Send button with dropdown */}
                   <div className="relative">
                     <div className="flex">
-                      <button onClick={() => handleSend()} disabled={!reply.trim() || sending}
+                      <button onClick={() => handleSend()} disabled={!reply.trim() || sending || ticket?.ai_processing}
                         className="px-4 py-2.5 rounded-l-xl text-xs font-medium text-white transition disabled:opacity-40"
                         style={{ background: replyType === 'internal_note' ? '#ca8a04' : '#6366f1' }}>
-                        <i className="fas fa-paper-plane mr-1.5" />Enviar
+                        {ticket?.ai_processing ? <><i className="fas fa-robot mr-1.5 animate-pulse" />IA...</> : <><i className="fas fa-paper-plane mr-1.5" />Enviar</>}
                       </button>
                       <button onClick={() => setShowSendMenu(!showSendMenu)}
                         className="px-2 py-2.5 rounded-r-xl text-xs text-white transition border-l border-white/20"

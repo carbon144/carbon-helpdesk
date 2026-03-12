@@ -1,0 +1,539 @@
+1001|garantia|outbound|Olá! Obrigado por entrar em contato com o suporte técnico da Carbon. 
+Meu nome é Tauane e ficarei responsável pelo seu atendimento. 
+
+Entendo sua preocupação, Maria, e lamento pelo ocorrido. 
+Para que eu consiga localizar o seu pedido em meu sistema, por favor, me informe o CPF e e-mail cadastrados no momento da compra. 
+
+Aguardo o seu retorno para podermos dar continuidade no seu atendimento. 
+
+Atenciosamente, 
+Tauane Teles
+Departamento de trocas e devoluções.
+1003|reclamacao|outbound|Olá, Roberto! Tudo bem? 
+Me chamo Tauane e estarei a frente do seu atendimento. 
+
+
+Compreendo completamente sua frustração e me desculpo sinceramente pelos transtornos causados e pelos defeitos recorrentes. 
+
+Para que eu consiga localizar o seu pedido em sistema e dar continuidade no seu atendimento, me encaminhe o CPF e e-mail cadastrado em sua compra. 
+
+Aguardo o seu retorno com os dados solicitados. 
+
+Atenciosamente, 
+Tauane Teles
+Departamento de Torcas & Devoluções 
+1003|reclamacao|outbound|Olá, Roberto! Tudo bem? 
+Me chamo Tauane e estarei a frente do seu atendimento. 
+
+
+Compreendo completamente sua frustração e me desculpo sinceramente pelos transtornos causados e pelos defeitos recorrentes. 
+
+Para que eu consiga localizar o seu pedido em sistema e dar continuidade no seu atendimento, me encaminhe o CPF e e-mail cadastrado em sua compra. 
+
+Aguardo o seu retorno com os dados solicitados. 
+
+Atenciosamente, 
+Tauane Teles
+Departamento de Torcas & Devoluções 
+1004|garantia|outbound|Olá, Carla! Tudo bem?
+
+Você pode enviar um vídeo por gentileza?
+
+Para carregar o seu Carbon, conecte o cabo magnético na parte traseira do relógio, alinhando os pinos de carregamento.
+
+Caso o ímã encaixe, mas o relógio não inicie o carregamento, basta inverter a posição do conector magnético. Como o encaixe é magnético, ele pode fixar mesmo com os polos invertidos, porém nessa posição não haverá condução de energia.
+
+Após inverter, verifique se o símbolo de carregamento aparece na tela.
+
+Importante:
+ • Utilize uma fonte de energia padrão (5V)
+ • Evite carregadores turbo
+ • Certifique-se de que
+1006|financeiro|outbound|Paulo, por gentileza pode nos enviar o número do pedido, CPF e e-mail cadastrado na compra? 
+
+Assim consigo verificar o que houve.
+
+Atenciosamente,
+Luana Machado.
+1006|financeiro|outbound|Olá, tudo bem?
+
+Eu me chamo Luana e sou sua agente exclusiva Carbon. 👊🏼
+1006|financeiro|outbound|Olá, tudo bem?
+
+Eu me chamo Luana e sou sua agente exclusiva Carbon. 👊🏼
+1008|garantia|outbound|Olá, João! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+O senhor pode por gentileza, me informar o seu modelo Carbon ?Para que eu possa te ajudar.
+
+Atenciosamente,
+
+Reinan.
+1009||outbound|Olá, Lyvia Ribeiro. Agradeço por entrar em contato conosco.
+
+Percebo que você está insatisfeita com alguma situação relacionada ao seu smartwatch Carbon. Gostaria muito de compreender melhor o que aconteceu para que possamos resolver essa questão da melhor forma possível.
+
+Sua experiência é muito importante para nós, e estamos aqui para encontrar uma solução adequada. Poderia nos fornecer mais detalhes sobre o problema que está enfrentando com seu dispositivo? Dessa forma, poderemos analisar seu caso com toda a atenção necessária.
+
+Estou à disposição para ajudá-la e garantir que sua experiênci
+1009||outbound|Ficamos felizes em ter ajudado! Se precisar de mais alguma coisa, não hesite em nos procurar. Tenha um ótimo dia! 😊
+
+1010||outbound|Olá, Sergio! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Sergio, esse e-mail, e apenas uma Nota Fiscal de Serviços Eletrônica.
+
+Atenciosamente, 
+
+Reinan.
+1013||outbound|Olá, Rodrigo! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+O seu pedido #128106 está em fase de processamento. Este prazo é de até 5 dias úteis. 
+
+Gostaria de pedir desculpas pelo transtorno causado e ser totalmente transparente com você: 
+
+Devido às mudanças recentes na nossa operação, alguns prazos acabaram sendo impactados. Além disso, estamos passando pelo período do Ano Novo Chinês, quando as atividades industriais na Ásia ficam temporariamente suspensas, o que influencia diretamente no fluxo logístico internacional
+1013||outbound|Olá, Rodrigo! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+O seu pedido #128106 está em fase de processamento. Este prazo é de até 5 dias úteis. 
+
+Gostaria de pedir desculpas pelo transtorno causado e ser totalmente transparente com você: 
+
+Devido às mudanças recentes na nossa operação, alguns prazos acabaram sendo impactados. Além disso, estamos passando pelo período do Ano Novo Chinês, quando as atividades industriais na Ásia ficam temporariamente suspensas, o que influencia diretamente no fluxo logístico internacional
+1014||outbound|Olá, Rodrigo! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+O seu pedido #128106 está em fase de processamento. Este prazo é de até 5 dias úteis. 
+
+Gostaria de pedir desculpas pelo transtorno causado e ser totalmente transparente com você: 
+
+Devido às mudanças recentes na nossa operação, alguns prazos acabaram sendo impactados. Além disso, estamos passando pelo período do Ano Novo Chinês, quando as atividades industriais na Ásia ficam temporariamente suspensas, o que influencia diretamente no fluxo logístico internacional
+1016||outbound|Olá, Ilidio! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+Peço desculpas pela demora no envio do seu pedido #126801. 
+
+Estávamos aguardando a reposição do estoque deste item; Pulseira Carbon Stealth Nylon. 
+
+O estoque foi abastecido 20/02/2026. 
+
+O seu pedido já entrou na fila de processamento e separação. O prazo para ser enviado o seu código de rastreamento contando a partir de hoje é de no máximo até 10 dias úteis. Todos os pedidos que estavam aguardando esse item estarão entrando an fila de processamento e separação 
+1018||outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Como posso auxiliar você, José? 
+
+
+Atenciosamente,
+
+Luana Machado.
+1020||outbound|Olá, Erik! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Obrigado por entrar em contato conosco! Vejo que você mencionou algo sobre uma "promoção upgrade bruto", mas gostaria de saber no que posso ajudar ? Poderia me dar mais detalhes sobre o que você está buscando? 
+
+Atenciosamente,
+
+
+Reinan.
+
+1021||outbound|Olá, Claudio! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Verifiquei que o seu pedido está na Unidade de Tratamento, Rio de Janeiro - RJ, o senhor pode acompanhar futuras movimentações do seu pedido usando o código de rastreio abaixo: 
+
+Código de rastreio: NN084972215BR
+
+Site dos correios: https://rastreamento.correios.com.br/app/index.php
+
+Atenciosamente,
+
+
+Reinan.
+
+1024||outbound|Olá, Francisco! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Entendo sua ansiedade para receber seu Carbon Smartwatch e peço desculpas pela demora no retorno. Sua solicitação de reenvio já foi realizada e, nos próximos dias, o senhor receberá novas atualizações sobre o seu pedido em seu e-mail.
+
+Atenciosamente,
+
+Reinan.
+1025||outbound|Olá, Eduardo! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Verifiquei que o seu pedido está em rota, o senhor pode acompanhar futuras movimentações do seu pedido usando o código de rastreio abaixo:
+
+Códigos de rastreio: 
+
+1° CNG00796434275291
+2° CNG00797612631879
+
+Site da transportadora internacional: https://global.cainiao.com/
+
+Atenciosamente,
+
+
+Reinan.
+1028||outbound|Olá, Eduardo! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Peço por gentileza que acompanhe as futuras movimentações do seu pedido usando o código de rastreio abaixo:
+
+Códigos de rastreio: 
+
+1° CNG00796434275291
+2° CNG00797612631879
+
+Site da transportadora internacional: https://global.cainiao.com/
+
+
+1029||outbound|Olá, tudo bem?
+
+Marcus, pode nos enviar uma foto de todos os itens recebidos?
+
+Em registro de nosso sistema, você selecionou aleatório no ato da compra e por isso a pulseira foi branca, conforme a disponibilidade de estoque.
+
+
+Atenciosamente,
+
+Luana Machado.
+
+1031||outbound|Olá, Leonilson! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+No momento, o código de rastreamento ainda não foi disponibilizado.
+
+Isso ocorre porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pedido acabou sendo estendido.
+
+Por esse motivo, o envio ainda não foi liberado.
+
+Pedimos sinceras desculpas pelo ocorrido. Já estamos atuando internamente para concluir
+1032||outbound|Olá, Leonilson! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+No momento, o código de rastreamento ainda não foi disponibilizado.
+
+Isso ocorre porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pedido acabou sendo estendido.
+
+Por esse motivo, o envio ainda não foi liberado.
+
+Pedimos sinceras desculpas pelo ocorrido. Já estamos atuando internamente para concluir
+1033||outbound|
+Olá, Jayson! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+
+Perfeito, sem problemas. Vou seguir com o cancelamento conforme você solicitou.
+
+
+Prontinho, a solicitação de cancelamento já foi registrada.
+O prazo para conclusão desse processo é de até 10 dias úteis, período em que você receberá a confirmação do estorno.
+
+Após a confirmação do estorno, o prazo para o valor aparecer depende da forma de pagamento utilizada:
+• Pix: devolução via Pix após a aprovação no sistema.
+• Cartão de crédito: o valor pode constar em até 3 faturas, conforme as regras da operadora do cartão.
+
+As atualiza
+1034||outbound|Olá, Denis! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+O seu pedido #128481 está em fase de processamento. Este prazo é de até 5 dias úteis. 
+
+Gostaria de pedir desculpas pelo transtorno causado e ser totalmente transparente com você: 
+
+Devido às mudanças recentes na nossa operação, alguns prazos acabaram sendo impactados. Além disso, estamos passando pelo período do Ano Novo Chinês, quando as atividades industriais na Ásia ficam temporariamente suspensas, o que influencia diretamente no fluxo logístico internacional.
+
+1034||outbound|Olá, Dennis! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Quando dizemos que a Carbon é genuinamente brasileira, estamos falando da marca, do projeto, do posicionamento e da responsabilidade com o cliente. 
+
+
+A Carbon é uma empresa brasileira, com operação, atendimento, garantia, suporte e controle de qualidade feitos no Brasil.
+
+Assim como ocorre com praticamente todas as marcas de tecnologia do mundo, a fabricação acontece na Ásia, onde estão as indústrias especializadas em componentes eletrônicos. 
+
+Dennis, o seu pedido será processado dentro do prazo informado em nosso site, na op
+1036||outbound|Olá! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Atualmente, não realizamos reparos nem possuímos assistência técnica ativa. Já tivemos parceria no passado, mas os relógios retornavam com o mesmo ou até novos problemas após o reparo, por isso encerramos esse modelo.
+
+No momento, estamos estruturando internamente essa parte, mas ainda não temos previsão para retomar a assistência técnica.
+
+Atenciosamente,
+
+Reinan.
+
+1036||outbound|Olá! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Atualmente, não realizamos reparos nem possuímos assistência técnica ativa. Já tivemos parceria no passado, mas os relógios retornavam com o mesmo ou até novos problemas após o reparo, por isso encerramos esse modelo.
+
+No momento, estamos estruturando internamente essa parte, mas ainda não temos previsão para retomar a assistência técnica.
+
+Atenciosamente,
+
+Reinan.
+
+1037||outbound|Olá! Obrigada por entrar em contato com o suporte técnico da Carbon. 
+Meu nome é Tauane e ficarei responsável pelo seu atendimento.  
+
+Verifiquei aqui e a sua compra já ultrapassou o prazo de garantia oferecida pela Carbon. Nesse caso, infelizmente não temos como seguir com a análise técnica do produto.
+
+A Carbon não possui assistência técnica ativa no momento. Se você quiser, pode levar o seu Carbon a uma assistência de confiança na sua região para avaliar o conserto.
+
+Como alternativa, pensando na sua experiência com a Carbon, posso disponibilizar um cupom especial para a compra de um novo m
+1037||outbound|Olá, Leandro! Tudo bem? 
+
+Claro! Segue um cupom exclusivo para utilizar em uma nova compra em nosso site.
+
+Código do cupom: LEANDRO2402
+
+Agradecemos pela confiança em continuar com a Carbon. É muito importante para nós saber que você escolheu seguir com a nossa marca.
+
+Você pode conferir todos os modelos disponíveis no link oficial abaixo:
+
+https://carbonsmartwatch.com.br/collections/relogios-inteligentes
+
+O cupom já está ativo e poderá ser aplicado diretamente no momento da finalização da compra.
+
+Ficamos à disposição e agradecemos novamente pela confiança.
+1038||outbound|Olá, Ari! Tudo bem?
+
+Verifiquei em sistema e o seu pedido ainda não foi processado, gostaríamos de pedir desculpas pelo transtorno e, ser totalmente transparente com você:
+
+Devido às mudanças recentes na nossa operação, alguns prazos acabaram sendo impactados. Além disso, estamos passando pelo período do Ano Novo Chinês, quando as atividades industriais na Ásia ficam temporariamente suspensas, o que influencia diretamente no fluxo logístico internacional.
+
+Os envios serão retomados normalmente a partir de 27/02, e a regularização acontecerá de forma gradual.
+
+Isso significa que os pedidos que 
+1039||outbound|Olá, Paulo! Tudo bem?
+
+Verifiquei em sistema e o seu pedido ainda não foi processado, gostaríamos de pedir desculpas pelo transtorno e, ser totalmente transparente com você:
+
+Devido às mudanças recentes na nossa operação, alguns prazos acabaram sendo impactados. Além disso, estamos passando pelo período do Ano Novo Chinês, quando as atividades industriais na Ásia ficam temporariamente suspensas, o que influencia diretamente no fluxo logístico internacional.
+
+Os envios serão retomados normalmente a partir de 27/02, e a regularização acontecerá de forma gradual.
+
+Isso significa que os pedidos qu
+1040||outbound|Olá! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Verifiquei aqui e o seu pedido está em fase de processamento, que é a etapa de separação e preparação antes do envio.
+
+O prazo de processamento é de até 5 dias úteis. Após a postagem, o código de rastreio é liberado e o prazo de entrega começa a contar, conforme a sua região.
+
+Assim que o código de rastreamento for liberado, ele é enviado automaticamente para o e-mail cadastrado na compra.
+Vale conferir também as caixas de Spam e Lixo Eletrônico.
+
+Com o código disponível, você poderá acompanhar o pedido pelo site da transportadora inte
+1045||outbound|Olá, Ivo! Tudo bem?
+
+Verifiquei o status do seu pedido #128700, que está em fase de processamento, que é a etapa de separação e preparação antes do envio.
+
+O prazo de processamento é de até 5 dias úteis. Após a postagem, o código de rastreio é liberado e o prazo de entrega começa a contar, conforme a sua região.
+
+Assim que o código de rastreamento for liberado, ele é enviado automaticamente para o e-mail cadastrado na compra.
+
+Caso o prazo de processamento seja concluído e você não receba o código de rastreio, é só me chamar por aqui que eu verifico.
+
+
+Atenciosamente,
+Luana Machado.
+
+1046||outbound|Olá, tudo bem?
+
+Silvio, temos diversos feedbacks em nosso Instagram: @carbonsmartwatch
+
+Além disso, nosso CNPJ é em dia e regularizado junto da Receita Federal. 
+Caso queira, pode consultar: 48.769.355/0001-76
+https://solucoes.receita.fazenda.gov.br/servicos/cnpjreva/cnpjreva_solicitacao.asp
+
+Fique tranquilo. Sua compra é totalmente segura e ficaremos a disposição caso precise de qualquer auxílio!
+
+
+Atenciosamente,
+Luana Machado.
+1050||outbound|Olá, Edmar! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Para que eu possa consultar o prazo de entrega da sua encomenda, preciso do número do seu pedido ou CPF. Você poderia me informar por gentileza? 
+
+Atenciosamente,
+
+Reinan!
+1051||outbound|Olá, Rogério! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Gostaríamos de pedir desculpas pelo transtorno causado e ser totalmente transparente com você:
+
+Devido às mudanças recentes na nossa operação, alguns prazos acabaram sendo impactados. Além disso, estamos passando pelo período do Ano Novo Chinês, quando as atividades industriais na Ásia ficam temporariamente suspensas, o que influencia diretamente no fluxo logístico internacional.
+
+Os envios serão retomados normalmente a partir de 21/02, e a regularização acontecerá de forma gradual.
+
+Isso significa que os pedidos que estão em 
+1053||outbound|Olá! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Verifiquei aqui e o seu pedido está em fase de processamento, que é a etapa de separação e preparação antes do envio.
+
+O prazo de processamento é de até 5 dias úteis. Após a postagem, o código de rastreio é liberado e o prazo de entrega começa a contar, conforme a sua região.
+
+Assim que o código de rastreamento for liberado, ele é enviado automaticamente para o e-mail cadastrado na compra.
+Vale conferir também as caixas de Spam e Lixo Eletrônico.
+
+Com o código disponível, você poderá acompanhar o pedido pelo site da transportadora inte
+1058|duvida|outbound|O prazo de processamento é de até 5 dias úteis. Após a postagem, o código de rastreio é liberado e o prazo de entrega começa a contar, conforme a sua região.
+
+Assim que o código de rastreamento for liberado, ele é enviado automaticamente para o e-mail cadastrado na compra.
+Vale conferir também as caixas de Spam e Lixo Eletrônico.
+
+Com o código disponível, você poderá acompanhar o pedido pelo site da transportadora internacional: https://global.cainiao.com/
+
+Caso o prazo de processamento seja concluído e você não receba o código de rastreio, é só me chamar por aqui que eu verifico.
+
+
+Atenciosam
+1058|duvida|outbound|Olá! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Verifiquei aqui e o seu pedido está em fase de processamento, que é a etapa de separação e preparação antes do envio.
+
+1058|duvida|outbound|O prazo de processamento é de até 5 dias úteis. Após a postagem, o código de rastreio é liberado e o prazo de entrega começa a contar, conforme a sua região.
+
+Assim que o código de rastreamento for liberado, ele é enviado automaticamente para o e-mail cadastrado na compra.
+Vale conferir também as caixas de Spam e Lixo Eletrônico.
+
+Com o código disponível, você poderá acompanhar o pedido pelo site da transportadora internacional: https://global.cainiao.com/
+
+Caso o prazo de processamento seja concluído e você não receba o código de rastreio, é só me chamar por aqui que eu verifico.
+
+
+Atenciosam
+1060||outbound|Olá, Elizeu! Tudo bem?
+
+Verifiquei o status do seu pedido #128903, que está em fase de processamento, que é a etapa de separação e preparação antes do envio.
+
+O prazo de processamento é de até 5 dias úteis. Após a postagem, o código de rastreio é liberado e o prazo de entrega começa a contar, conforme a sua região.
+
+Assim que o código de rastreamento for liberado, ele é enviado automaticamente para o e-mail cadastrado na compra.
+
+Caso o prazo de processamento seja concluído e você não receba o código de rastreio, é só me chamar por aqui que eu verifico.
+
+
+Atenciosamente,
+Luana Machado.
+
+1371||outbound|Olá, Robson! Tudo bem?
+
+Conforme informado, o cancelamento do seu pedido foi realizado com sucesso.
+
+Segue em anexo a carta de estorno para que você possa dar entrada junto à operadora do seu cartão e solicitar o reembolso do valor pago.
+
+O reembolso normalmente ocorre de forma imediata ou na fatura seguinte.
+
+Por gentileza, poderia confirmar o recebimento deste e-mail e do anexo? Essa confirmação é muito importante para garantirmos que tudo chegou corretamente.
+
+Caso tenha qualquer dúvida sobre o processo de estorno, estamos à disposição por aqui.
+
+Atenciosamente,
+Equipe Carbon
+1431||outbound|Olá, Ricardo! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon.
+
+
+Ok, a sua solicitação de reenvio foi realizada em nosso sistema, O prazo de processamento é de até 5 dias úteis.
+
+
+Após a postagem, o código de rastreio é liberado e o prazo de entrega começa a contar conforme a sua região. O código é enviado automaticamente para o e-mail cadastrado na compra — vale conferir também as pastas de Spam e Lixo Eletrônico.
+
+1431||outbound|Olá, Ricardo! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon.
+
+
+Ok, a sua solicitação de reenvio foi realizada em nosso sistema, O prazo de processamento é de até 5 dias úteis.
+
+
+Após a postagem, o código de rastreio é liberado e o prazo de entrega começa a contar conforme a sua região. O código é enviado automaticamente para o e-mail cadastrado na compra — vale conferir também as pastas de Spam e Lixo Eletrônico.
+
+1431||outbound|Olá, Ricardo! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+Verifiquei aqui e o seu pedido acabou sendo barrado na fiscalização aduaneira.
+
+Fica tranquilo, isso pode acontecer no processo de importação e a Carbon cuida de tudo nesses casos. Você não precisa resolver nada por conta própria.
+
+
+A melhor forma de seguir é com o reenvio do produto, sem nenhum custo adicional, iniciando um novo envio com o mesmo prazo estimado do pedido original.
+
+Pra eu já dar sequência, me confirma por favor se podemos seguir com o reenvio e se o endereço de entrega permanece o mesmo.
+
+
+Atenciosamente,
+
+
+R
+1431||outbound|Olá, Ricardo! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+
+Verifiquei o seu pedido e ele foi enviado em dois pacotes, cada um com um código de rastreio diferente. Isso pode acontecer por conta da separação logística dos itens, e as entregas podem ocorrer em datas diferentes.
+
+Códigos de rastreio:
+
+1° NN088699620BR - Está em rota de transporte
+2° NN088701005BR - Foi retido na alfândega.
+
+A melhor forma de seguir é com o reenvio do produto, sem nenhum custo adicional, iniciando um novo envio com o mesmo prazo estimado do pedido original.
+
+Pra eu já dar sequência, me confirma por favor 
+1450||outbound|bom dia brasil vamos trabalhar 
+3625|duvida|outbound|Olá, MetaCopyrightTeam!
+
+Recebemos seu email e gostaríamos de esclarecer que não reconhecemos essa comunicação como legítima da Meta ou de seus representantes oficiais. Nosso time jurídico está ciente de nossas obrigações de propriedade intelectual e mantemos todas as práticas dentro da conformidade legal.
+
+Nossa equipe vai analisar o conteúdo reportado, mas alertamos que emails similares ao recebido frequentemente são tentativas de phishing ou fraude. Caso seja uma solicitação legítima da Meta, pedimos que entrem em contato através dos canais oficiais da empresa, com documentação adequada que
+3669|reclamacao|outbound|Olá, SEFAZ!
+
+Recebemos sua notificação referente à Nota Fiscal Eletrônica 000.128.456 emitida para nossa empresa. Agradecemos pelo envio da informação fiscal.
+
+Esta mensagem foi recebida em nosso sistema de atendimento e será encaminhada ao setor responsável para as devidas providências administrativas e fiscais.
+
+Caso haja necessidade de algum esclarecimento adicional sobre esta documentação fiscal, nossa equipe entrará em contato pelos canais apropriados.
+
+Qualquer dúvida, é só responder este email.
+
+Atenciosamente,
+Equipe Carbon
+3669|reclamacao|outbound|Olá, SEFAZ/NFE!
+
+Recebemos sua notificação automática sobre a Nota Fiscal Eletrônica emitida. Agradecemos por nos informar sobre o documento fiscal.
+
+Esta notificação foi devidamente registrada em nosso sistema para controle interno. Caso haja alguma questão específica relacionada a esta NFe que precise de nossa atenção, nossa equipe financeira fará a análise necessária.
+
+Se você for um cliente da Carbon e recebeu esta mensagem por engano, por favor nos informe para que possamos direcionar adequadamente sua solicitação.
+
+Qualquer dúvida, é só responder este email.
+
+Atenciosamente,
+Equipe Carbo
+3669|reclamacao|outbound|Olá, S​‍​‌‍​e​‍​‌‍​n​‍​‌‍​d​‍​‌‍​g​‍​‌‍​r​‍​‌‍​i​‍​‌‍​d!
+
+Recebemos sua mensagem e nosso time já está analisando.
+Seu protocolo de atendimento: CARBON-2026-002283
+
+Retornaremos em até 24 horas úteis com uma resposta completa.
+
+Enquanto isso, algumas informações que podem ajudar:
+• Rastreio do seu pedido: https://carbonsmartwatch.com.br/rastreio
+• Portal de trocas/devoluções: carbonsmartwatch.troque.app.br
+• Garantia: 12 meses a partir da compra
+
+Qualquer dúvida, é só responder este email.
+
+Atenciosamente,
+Equipe Carbon

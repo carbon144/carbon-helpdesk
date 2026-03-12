@@ -1,0 +1,1683 @@
+1165|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Adailson,
+
+Identifiquei que você recebeu um pedido e o outro foi barrado. 
+
+Você pode enviar foto do pedido que recebeu por gentileza?
+
+Aguardo seu retorno para dar continuidade.
+1165|meu_pedido|outbound|Olá, Adailson! Tudo bem?
+
+Localizei seu pedido #127269 e identifiquei que seu pedido foi dividido em dois pacotes.
+
+Rastreamento: NN089898785BR 
+Previsão de Entrega: 26/02/2026
+
+Rastreamento: CNBR00132594519
+Status: pacote acabou sendo barrado na fiscalização aduaneira.
+ 
+Mas fica tranquilo, isso pode acontecer no processo de importação e a Carbon cuida de tudo nesses casos. Você não precisa resolver nada por conta própria.
+
+A melhor forma de seguir é com o reenvio do produto, sem nenhum custo adicional, iniciando um novo envio com o mesmo prazo estimado do pedido original.
+
+Quando o pedido do
+1323|reclamacao|outbound|Olá, Tel! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+O seu pedido está na fase de processamento. 
+
+Em condições normais, o reenvio do pedido possui um prazo de processamento de até 5 dias úteis. 
+No entanto, no momento estamos passando por uma fase de ajustes relacionados a pedidos que foram barrados na fiscalização aduaneira. Essa situação já foi corrigida quanto à descrição dos produtos.
+
+Entretanto, nos próximos dias haverá novas atualizações no sistema de rastreamento e será encaminhado para você em seu e-mail as a
+1323|reclamacao|outbound|Tel,
+
+Realizei o cancelamento do pedido #125746 e fiz a abertura de um novo pedido #129239 para você acompanhar.
+
+Fico à disposição!
+
+Atenciosamente,
+Luana
+1323|reclamacao|outbound|Olá, Tel! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+Seu pedido já está com a transportadora! 
+Em breve você poderá acompanhar cada etapa pelo código de rastreamento abaixo:
+
+Código de rastreamento: NN114363113BR
+
+Site de rastreamento oficial Carbon: https://carbonsmartwatch.com.br/pages/rastreio
+
+Site da transportadora Global Express: https://global.cainiao.com/newDetail.htm?mailNoList=NN114363113BR&otherMailNoList=
+
+Site da transportadora dos Correios ao chegar no BRASIL: https://rastreamento.correios.com.br/app/inde
+1323|reclamacao|outbound|Olá. Tudo bem?
+
+Tel, 
+
+Identifiquei que seu reenvio já foi solicitado porém não havia sido disponibilizado o código porque nosso departamento logístico estava realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, os pedidos ainda não haviam sido liberados.
+
+Mas a situação foi normalizada e estamos processando os reenvios em até 5 dias úteis.
+
+Para a região Sudeste, o prazo de entrega é de 7 a 12 dias úteis após a postagem.
+Com isso, a 
+1346|duvida|outbound|Olá, João. Espero que esteja bem. 
+Eu me chamo Victor e faço parte da equipe de atendimento Carbon. 
+
+Recebemos sua notificação em nossa rede social e estou entrando em contato para lhe tranquilizar. Nosso canal oficial de atendimento é este e-mail, por onde conseguimos acompanhar e registrar todas as solicitações.
+
+Seu pedido já está com a transportadora! 
+
+E  você poderá acompanhar cada etapa pelo código de rastreamento abaixo:
+
+Código de rastreamento: NN104806948BR
+
+Site da transportadora Global Express: https://global.cainiao.com/newDetail.htm?mailNoList=NN104806948BR&otherMailNoList=
+
+Sit
+1346|duvida|outbound|Olá, João! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon.
+
+Gostaria de pedir desculpas pelo transtorno causado e ser totalmente transparente com você:
+
+Verifiquei que o seu pedido foi despachado, o senhor pode acompanhar futuras movimentações usando o código de rastreio abaixo: 
+
+Código de rastreio: NN104806948BR
+
+Site da transportadora internacional: https://global.cainiao.com/
+
+Após o seu pedido chegar no Brasil, o senhor  pode acompanhar usando o site dos correios.
+
+Site dos correios: https://rastreamento.correios.com.br/app/index.php
+
+
+Atenciosamente, 
+
+
+Reinan.
+1355|reclamacao|outbound|Olá, Reginaldo! Tudo bem?
+Meu nome é Luana e ficarei responsável pelo seu atendimento. 
+
+Verifiquei o status do seu pedido, e identifiquei que acabou sendo barrado na fiscalização aduaneira.
+
+Fica tranquila, isso pode acontecer no processo de importação e a Carbon cuida de tudo nesses casos. Você não precisa resolver nada por conta própria.
+
+A melhor forma de seguir é com o reenvio do produto, sem nenhum custo adicional, iniciando um envio com novo prazo.
+
+Para a região Sudeste, o prazo de entrega é de 7 a 12 dias úteis após a postagem.
+Com isso, a estimativa de entrega é entre 13/03 e 20/03. 
+1355|reclamacao|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Reginaldo, 
+
+Apenas corrigindo as informações passadas no dia 27/02:
+
+Tivemos uma nova direção neste momento que os reenvios estão sem prazo até o momento atual devido aos barrados na fiscalização aduaneira. 
+
+Por esse motivo, podemos solicitar o reenvio porém com novo prazo e prolongado.
+
+Estamos sendo transparentes com você e neste momento não temos uma data concreta pois estamos aguardando retorno da Receita Federal.
+
+Pedimos sinceras desculpas pelo ocorrido, nós também
+1426|garantia|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Vitória, 
+
+Verifiquei internamente e identifiquei que seu pedido novo acabou puxando as informações do pedido que foi barrado, com isso foi necessário ajuste interno para realizar o processamento com código de rastreio novo. 
+
+Até o final da semana terá atualizações.
+
+Caso não receba atualizações até o início da semana, entre em contato conosco e traremos outra solução. Combinado?
+
+Peço a compreensão, Vitoria. Nós estamos à disposição para resolver da melhor forma!
+
+
+
+
+1426|garantia|outbound|Olá. Tudo bem?
+
+Vitória,
+
+Criei um novo pedido para novo acompanhamento #129202
+
+Caso não receba o rastreamento em até 5 dias úteis, você pode me chamar e envio por aqui. Combinado?
+
+Estou à disposição se precisar de algo.
+
+Quando o pedido for entregue à você, se possível, pedimos que avalie sua manifestação no Reclame Aqui. Sua avaliação é muito importante para nós.
+
+1426|garantia|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Vitória,
+
+Seu pedido já está sendo coletado pela transportadora. Por este motivo não é possível realizar o cancelamento no momento atual.
+
+Rastreamento: NN114362435BR 
+
+Site internacional para acompanhamento:
+
+https://global.cainiao.com/newDetail.htm?mailNoList=NN114362435BR&otherMailNoList=
+
+Após a chegada do pacote no BRASIL, você pode acompanhar através do: 
+
+https://rastreamento.correios.com.br/app/index.php
+
+Caso não deseje seguir com a compra, você pode optar por rec
+1446|meu_pedido|outbound|Olá, Cícero! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon.
+
+Gostaria de pedir desculpas pelo transtorno causado e ser totalmente transparente com você:
+
+Verifiquei que o seu pedido foi despachado, o senhor pode acompanhar futuras movimentações usando o código de rastreio abaixo: 
+
+Código de rastreio: NN104808436BR
+
+Site da transportadora internacional: https://global.cainiao.com/
+
+Após o seu pedido chegar no Brasil, o senhor  pode acompanhar usando o site dos correios.
+
+Site dos correios: https://rastreamento.correios.com.br/app/index.php
+
+
+Atenciosamente, 
+
+
+Reinan.
+1446|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Infelizmente não é possível realizar o cancelamento neste momento pois o pedido já está em rota. 
+
+Se realmente não quiser manter o pedido, oriento que recuse o recebimento no ato da entrega e realizamos o estorno quando retornar para nós.
+
+Caso contrário, a processadora appmax entra em contato solicitando a regularização.
+
+Quando dizemos que a Carbon é genuinamente brasileira, estamos falando da marca, do projeto, do posicionamento e da responsabilidade com o cliente. 
+
+A
+1534|reclamacao|outbound|Olá, tudo bem? 
+
+Por gentileza, informe o número do pedido, CPF e e-mail cadastrado na compra.
+
+
+Atenciosamente, 
+
+Luana Machado.
+
+1534|reclamacao|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+João,
+
+Analisei o status do seu pedido #122642
+
+Ocorreu tentativa de entrega sem sucesso e seu pacote ficou disponível para retirada na agência dos correios e não foi retirado. no prazo dado conforme descrito na imagem.
+
+Para seguirmos com a tratativa do seu pedido, você pode escolher uma das opções abaixo:
+
+1 – Reenvio do pedido, mediante custo adicional de frete no valor de R$ 15,00. Nesse caso, iniciaremos um novo processo de envio, com novos prazos de entrega.
+
+2 – Can
+1535|reclamacao|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Marcia, 
+
+Seus brindes já estão com a transportadora!
+
+Em breve você poderá acompanhar cada etapa pelo código de rastreamento abaixo:
+
+Código de rastreamento: QN267302122BR
+
+Site da transportadora dos Correios: https://rastreamento.correios.com.br/app/index.php
+
+Previsão de Entrega: 14/03/2026
+
+Por gentileza, quando receber seu pedido, pedimos que avalie sua manifestação no Reclame Aqui, considerando que sua solicitação já tenha sido solucionada. Sua avaliação é muito impo
+1535|reclamacao|outbound|Se precisar de algo, nos avise! 
+1537|reclamacao|outbound|Olá. Tudo bem?
+
+Cristiano,
+
+Realmente havia sido solicitado, mas ainda não havia sido liberado o envio devido aos ajustes na importação.
+
+Lamento o ocorrido e estou a disposição para solucionar!
+
+Cancelei o pedido #127301 e criei um novo pedido para você acompanhar o reenvio.
+
+Pedido atual: #129299
+
+Caso você não receba o rastreamento em até 5 dias úteis, pode entrar em contato conosco e envio por aqui.
+
+Por gentileza, quando receber o produto, pedimos que avalie sua manifestação no Reclame Aqui, considerando que sua solicitação já tenha sido solucionada. Sua avaliação é muito importante para 
+1537|reclamacao|outbound|Olá. Tudo bem? 
+
+Cristiano, 
+
+Identifiquei que seu reenvio já foi solicitado porém não havia sido disponibilizado o código porque nosso departamento logístico estava realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, os pedidos ainda não haviam sido liberados.
+
+Mas a situação foi normalizada e estamos processando os reenvios em até 5 dias úteis.
+
+Para a região Sudeste, o prazo de entrega é de 7 a 12 dias úteis após a postagem.
+Com i
+1537|reclamacao|outbound|Olá, Cristiano! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+Verifiquei que o seu pedido #129299 está na fase de processamento. 
+
+Em condições normais, o reenvio do pedido possui um prazo de processamento de até 5 dias úteis. No entanto, no momento estamos passando por uma fase de ajustes relacionados a pedidos que foram barrados na fiscalização aduaneira. Essa situação já foi corrigida quanto à descrição dos produtos.
+
+Como estamos finalizando uma fila de reenvios por ordem de solicitação. Em breve haverá novas atualiza
+1554|duvida|outbound|Olá, Welder! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+Obrigado pela confirmação do endereço cadastrado. 
+
+O prazo de processamento é de até 5 dias úteis.
+
+Após a postagem, o código de rastreio é liberado e o prazo de entrega começa a contar conforme a sua região. O código é enviado automaticamente para o e-mail cadastrado na compra — vale conferir também as pastas de Spam e Lixo Eletrônico.
+
+Com o código disponível, você poderá acompanhar o pedido pelo nosso site: https://carbonsmartwatch.com.br/a/rastreio
+
+Caso o pr
+1554|duvida|outbound|Olá, Welder.
+
+Sem problemas. Vou seguir conforme você solicitou.
+
+A solicitação de cancelamento já foi registrada.
+
+O prazo para conclusão desse processo é de até 10 dias úteis, período em que você receberá a confirmação do estorno.
+
+Após a confirmação do estorno, o prazo para o valor aparecer depende da forma de pagamento utilizada:
+
+• Pix: devolução via Pix após a aprovação no sistema.
+
+Lamento pelo transtorno causado durante esse processo e agradeço pela sua compreensão.
+
+Fico à disposição caso precise de mais alguma coisa.
+
+
+1554|duvida|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Welder,
+
+Identifiquei que o envio foi barrado durante a fiscalização aduaneira. Também constatei em sistema que um reenvio já havia sido solicitado, porém o novo envio ainda não foi realizado.
+
+Essa situação ocorreu porque nosso departamento logístico está realizando ajustes na descrição dos produtos enviados, com o objetivo de evitar retenções ou bloqueios na fiscalização. Como esse processo envolve a regularização junto aos órgãos responsáveis e dependemos da devolutiva 
+1554|duvida|outbound|Olá, Welder! Tudo bem?
+Meu nome é Luana e ficarei responsável pelo seu atendimento. 
+
+Verifiquei o status do seu pedido, e identifiquei que acabou sendo barrado na fiscalização aduaneira.
+
+Fica tranquilo, isso pode acontecer no processo de importação e a Carbon cuida de tudo nesses casos. Você não precisa resolver nada por conta própria.
+
+A melhor forma de seguir é com o reenvio do produto, sem nenhum custo adicional, iniciando um envio com novo prazo.
+
+Para a região Centro-Oeste, o prazo de entrega é de 10 a 18 dias úteis após a postagem.
+Com isso, a estimativa de entrega é entre 18/03 e 01/0
+1567|garantia|outbound|Olá, Eduardo! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon. 
+
+
+O senhor pode por gentileza, me informar o endereço correto para que eu possa realizar a alteração em nosso site.
+
+Atenciosamente.,
+
+Reinan.
+1567|garantia|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Eduardo, 
+
+Como o endereço estava incorreto, não foi possível a entrega do pacote.
+
+Você pode retirar na agência dos correios informando o código de rastreamento: NN104841043BR
+
+É obrigatório que a retirada seja feita por você e tenha em mãos documento com foto.
+
+O prazo para retirada é de até 7 dias a partir de hoje.
+
+Segue informações:
+
+Objeto aguardando retirada no endereço indicado
+
+RUA ENGENHEIRO UBATUBA DE FARIA, 296
+SARANDI
+PORTO ALEGRE - RS
+
+Fico à disposição! 
+
+
+1594|reclamacao|outbound|Olá, Jose! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+Agradeço pela confirmação.
+O tempo de retorno ocorreu devido à alta demanda no momento. Mas fique tranquilo, seu atendimento será realizado respeitando a ordem de chegada.
+
+ O prazo de processamento é de até 5 dias úteis.
+
+Após a postagem, o código de rastreio é liberado e o prazo de entrega começa a contar conforme a sua região. O código é enviado automaticamente para o e-mail cadastrado na compra — vale conferir também as pastas de Spam e Lixo Eletrônico.
+
+Com o c
+1594|reclamacao|outbound|Olá, tudo bem?
+
+José, verifiquei o status do seu pedido acabou sendo barrado na fiscalização aduaneira.
+
+Fica tranquilo, isso pode acontecer no processo de importação e a Carbon cuida de tudo nesses casos. Você não precisa resolver nada por conta própria.
+
+A melhor forma de seguir é com o reenvio do produto, sem nenhum custo adicional, iniciando um novo envio com o mesmo prazo estimado do pedido original.
+
+Pra eu já dar sequência, me confirma por favor se podemos seguir com o reenvio e se o endereço de entrega permanece o mesmo.
+
+ José Carlos Barbosa da Silva Junior
+00591836599
+Caminho 22, 18,
+1604|garantia|outbound|Julio, nos tire uma dúvida: você recebeu apenas o relógio ou chegou a receber uma pulseira junto?
+1604|garantia|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Julio,
+
+No momento, o código de rastreamento ainda não foi disponibilizado. Mas o reenvio já foi solicitado.
+
+Isso ocorre porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição dos brindes acabou sendo estendido.
+
+Por esse motivo, o envio ainda não foi li
+1604|garantia|outbound|Olá, Julio! Espero que esteja bem.
+
+Meu nome é Victor e sou seu agente exclusivo Carbon.  Estou entrando em contato sobre o pedido #126853.
+
+Os itens faltantes  já está com a transportadora!
+
+Em breve você poderá acompanhar cada etapa pelo código de rastreamento abaixo:
+
+Código de rastreamento: QN267302105BR
+
+Site da transportadora dos Correios: https://rastreamento.correios.com.br/app/index.php
+
+Qualquer dúvida, não hesite em me contactar, estou por aqui para te ajudar!
+Até mais! 
+1647|reclamacao|outbound|Olá, Lucas! Tudo bem?
+Meu nome é Luana e ficarei responsável pelo seu atendimento. 
+
+Verifiquei o status do seu pedido, e identifiquei que acabou sendo barrado na fiscalização aduaneira.
+
+Fica tranquilo, isso pode acontecer no processo de importação e a Carbon cuida de tudo nesses casos. Você não precisa resolver nada por conta própria.
+
+A melhor forma de seguir é com o reenvio do produto, sem nenhum custo adicional, iniciando um envio com novo prazo.
+
+Para a região Sudeste, o prazo de entrega é de 7 a 12 dias úteis após a postagem.
+Com isso, a estimativa de entrega é entre 14/03 e 21/03.
+
+Se 
+1743|meu_pedido|outbound|Olá, Derivan! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+Peço nossas sinceras desculpas pelo transtorno causado. Atualmente nosso canal oficial de atendimento será somente por este e-mail que estamos se comunicando. 
+
+Realmente não era a experiencia que gostaríamos de oferecer. Já temos uma equipe especialista cuidando dessa situação referente aos pedidos barrados. 
+
+ Isso pode acontecer no processo de importação e a Carbon cuida de tudo nesses casos — você não precisa resolver nada por conta própria.
+
+A melhor forma d
+1743|meu_pedido|outbound|Obrigado pela confirmação. Derivan. 
+
+Peço desculpas pelo tempo de espera na resposta à sua solicitação. Devido à alta demanda, nosso tempo de atendimento está um pouco maior que o habitual. 
+
+Estamos trabalhando intensamente para responder todas as solicitações o mais rápido possível e garantir que você seja atendido da melhor maneira.
+
+Agradecemos muito pela compreensão e paciência. Estamos aqui para ajudar no que precisar!
+
+Eu ajustei o seu nome no cadastro, dê Derinho Rota, para Derivan Pereira Santos. Por conta de ser um envio internacional, o nome precisa estar completo no destinatário d
+1771|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Angelo,
+
+Verifiquei o status do seu pedido e identifiquei que acabou sendo barrado na fiscalização aduaneira.
+
+Isso ocorreu departamento logístico estava realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, os pedidos ainda não haviam sido liberados.
+
+Mas a situação foi normalizada e estamos processando os reenvio
+1810|financeiro|outbound|Carlos,
+
+Para receber e ficar com o produto, terá que ligar para a operadora do cartão novamente o quanto antes e confirmar a compra, suspender o cancelamento. 
+
+Caso contrário nossa processadora appmax ficará entrando em contato com você para regularizar a pendência.
+
+Quando puder, você me avisa? Assim deixo em observação interna.
+
+
+Att,
+Luana
+1810|financeiro|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Carlos, 
+
+Você conseguiu solicitar a continuidade da compra na operadora?
+1810|financeiro|outbound|Olá. Tudo bem?
+
+Carlos, o pedido #125308 foi cancelado em sistema pois temos que ter um registro do pedido que foi barrado. Com isso é realmente gerado um novo número de pedido #129092 para acompanhamento.
+
+Você irá manter o cancelamento na operadora do cartão? 
+
+Se puder, me retorne o quanto antes. 
+
+
+Atenciosamente, 
+Luana.
+1897||outbound|Olá. Tudo bem?
+
+Cosmo,
+
+Acompanhando seu rastreio, identifiquei que seu pedido foi entregue.
+
+Objeto entregue ao destinatário
+Pela Unidade de Distribuição, MARICA - RJ
+27/02/2026 13:14
+
+Por gentileza, quando possível, pedimos que avalie sua manifestação no Reclame Aqui, considerando que sua solicitação já foi devidamente solucionada. Sua avaliação é muito importante para nós.
+
+
+1904|reclamacao|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+André,
+
+Sobre seu pedido:
+
+O pedido está parado pois foi barrado na fiscalização aduaneira. Identifiquei que já foi solicitado o reenvio dia 05/02 mas ainda não foi liberado.
+
+Isso ocorreu porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pedido a
+1910|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Leandro,
+
+Verifiquei o status do seu pedido e identifiquei que acabou sendo barrado na fiscalização aduaneira e foi solicitado o reenvio que ainda não foi liberado o rastreamento.
+
+Isso ocorreu departamento logístico estava realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, os pedidos ainda não haviam sido liber
+1920||outbound|Olá. Tudo bem?
+
+Antonio, identifiquei o status do seu pedido.
+
+Já foi disponibilizado o rastreio e você pode acompanhar através do site:
+
+ https://global.cainiao.com/
+
+Rastreamento: NN104236490BR
+
+Previsão de entrega: 10 Março - 27 Março 
+
+Lamento que tenha ocorrido atraso em seu pedido, Cleber. Não é o padrão que a Carbon costuma praticar.
+
+Isso ocorreu porque nosso departamento logístico estava realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão p
+1934|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Rafael,
+
+Verificamos o seu pedido e identificamos que ele foi barrado na fiscalização aduaneira. Isso pode acontecer no processo de importação e a Carbon cuida de tudo nesses casos — você não precisa resolver nada por conta própria.
+
+A melhor forma de seguir é com o reenvio do produto, sem nenhum custo adicional. O prazo de entrega será reiniciado a partir da data do novo envio, seguindo um novo prazo.
+
+Para darmos sequência, pedimos que confirme respondendo este e-mail: 
+
+1934|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Rafael,
+
+Sobre seu pedido barrado:
+
+Isso ocorre porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição dos pedidos acabou sendo estendido.
+
+Por esse motivo, o envio ainda não será liberado.
+
+Pedimos sinceras desculpas pelo ocorrido. Já estamos atuando int
+1939||outbound|Olá, Adriely!
+Meu nome é Luana e ficarei responsável pelo seu atendimento.
+
+Estou entrando em contato para atualizar você sobre o pedido #127703 que não foi autorizado para entrada no Brasil. Inicialmente, havíamos confirmado o reenvio após contato com Luan Costa, que validou os dados da compra registrada em nome de Adrielly Vieira da Silva Barros.
+
+No entanto, o novo pedido de reenvio #129236
+não foi processado, pois recebemos uma solicitação no Reclame Aqui pedindo o cancelamento e estorno. Diante disso, seguimos conforme a solicitação da titular da compra.
+
+ID da Reclamação:
+
+Pedimos sincer
+1980|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Anderson, 
+
+Sobre seu pedido:
+
+Após ser barrado, identifiquei que foi solicitado reenvio mas o código de rastreamento ainda não foi disponibilizado.
+
+Isso ocorre porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pedido acabou sendo estendido.
+
+Por
+1993|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Pedro,
+
+Sobre o seu pedido:
+
+Podemos realizar a solicitação, porém nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pedido acabou sendo estendido.
+
+Por esse motivo, os pedidos ainda não serão liberados.
+
+Pedimos sinceras desculpas pelo ocorrido. Já esta
+1993|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Pedro,
+
+Verificamos o seu pedido e identificamos que ele foi barrado na fiscalização aduaneira.
+
+Isso pode acontecer no processo de importação e a Carbon cuida de tudo nesses casos — você não precisa resolver nada por conta própria.
+
+A melhor forma de seguir é com o reenvio do produto, sem nenhum custo adicional. O prazo de entrega será reiniciado a partir da data do novo envio, seguindo o mesmo prazo estimado do pedido original.
+
+Para darmos sequência, pedimos que confirm
+2044|duvida|outbound|Bom dia, Wilson! Espero que esteja bem.
+
+Perfeito! Já solicitei na fila de reenvios. 
+
+Você pode confirmar se os dados para entrega permanecem os mesmos?
+
+Wilson Ricardo de Azevedo Galdino Galdino
+87350947453
+Praça Cel Sérgio Dantas, 100, Casa
+Centro
+58560-000 Ouro Velho PB
+Brasil
++55 83 99611-5455
+
+Aguardo retorno.
+2044|duvida|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Wilson,
+
+Sobre seu pedido:
+
+O pedido está parado pois foi barrado na fiscalização aduaneira.
+
+Isso ocorre porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pedido acabou sendo estendido.
+
+Por esse motivo, podemos solicitar o reenvio porém com novo
+2053|duvida|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Luis,
+
+Visando evitar que o problema ocorra novamente, será realizado o reenvio local. Em até 10 dias úteis você receberá o código de rastreamento para acompanhar a entrega.
+
+Enviaremos o rastreamento em até 10 dias úteis para você acompanhar o pedido. 
+Para a região Sul, o prazo de entrega é de 7 a 14 dias úteis após a postagem.
+
+Peço desculpa pelo transtorno, Luis!
+
+Estamos à disposição para resolvermos o quanto antes. 
+
+
+
+
+
+
+
+2053|duvida|outbound|Olá, Luis! Tudo bem?
+Me chamo Reinan e sou seu agente Carbon.
+
+Luis, nós não realizamos bloqueios de clientes no WhatsApp. O que ocorreu foi uma instabilidade em nosso sistema, e por isso não estamos conseguindo responder a todos por lá no momento.
+
+Como posso ajudar ?
+
+Seguimos à disposição para ajudá-lo por este canal.
+
+Atenciosamente,
+
+Reinan.
+2062|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Marinaldo, 
+
+penas corrigindo as informações passadas no dia 27/02:
+
+Tivemos uma nova direção neste momento que os reenvios estão sem prazo até o momento atual devido aos barrados na fiscalização aduaneira. 
+
+Por esse motivo, podemos solicitar o reenvio porém com novo prazo e prolongado. 
+
+Estamos sendo transparentes com você e neste momento não temos uma data concreta pois estamos aguardando retorno da Receita Federal.
+
+Pedimos sinceras desculpas pelo ocorrido, nós também
+2069|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.    
+
+Luiz,  
+
+Qual número do pedido ou e-mail e cpf cadastrados na compra? Assim consigo visualizar e entender melhor.
+2078|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Paulo,
+
+Sobre seu pedido:
+
+O pedido está parado pois foi barrado na fiscalização aduaneira.
+
+Isso ocorre porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pedido acabou sendo estendido.
+
+Por esse motivo, podemos solicitar o reenvio porém com novo 
+2078|meu_pedido|outbound|Paulo,
+
+Compreendo sua insatisfação. 
+
+Realmente agora a forma de se comunicar com nosso time de atendimento é por e-mail. Mas devido a demanda por conta das importações barradas, acarretou em tempo de resposta mais demorado.
+
+Vou solicitar o reenvio na fila que será despachado quando a situação for normalizada.
+
+Fico à disposição caso tenha dúvidas!
+
+
+2102|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Alex, 
+
+No momento ainda não temos data concreta.
+
+Podemos solicitar o reenvio  quando for normalizado?
+
+Alex Oliveira
+32184142883
+Rua Paris, 265, Altos do Morumbi
+Vista Alegre
+13285-318 Vinhedo SP
+Brasil
++55 19 99601-9950
+
+Por gentileza, você pode confirmar se os dados estão corretos, se o nome está completo? Caso tenha qualquer divergência  faltando sobrenome, endereço incorreto pode ocorrer do pedido ser barrado novamente.
+
+Aguardo seu retorno. 
+2102|meu_pedido|outbound|Infelizmente até o momento estamos sem nenhuma data concreta, Alex! 
+
+Estamos esperando retorno da Receita Federal, mas esperamos regularizar o quanto antes.
+
+Podemos manter seu pedido na fila de envios quando for normalizado?
+
+Você receberá atualizações quando o pedido for reenviado.
+
+2102|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Alex,
+
+Sobre seu pedido:
+
+O pedido está parado pois foi barrado na fiscalização aduaneira.
+
+Isso ocorre porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pedido acabou sendo estendido.
+
+Por esse motivo, podemos solicitar o reenvio porém com novo p
+2113|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Já solicitei, José. 
+
+Ainda não temos uma data concreta como informei no e-mail anterior, mas assim que for enviado você será notificado.
+
+Qualquer dúvida, sigo à disposição!
+2113|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+José Carlos, 
+
+Sobre seu pedido:
+
+O pedido está parado pois foi barrado na fiscalização aduaneira mas identifiquei que foi solicitado um reenvio que ainda não foi concluído.
+
+Isso ocorre porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pedido aca
+2113|meu_pedido|outbound|Podemos manter o reenvio para o mesmo endereço, José?
+2116|reclamacao|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Rodineli,
+
+Verifiquei o status de seu pedido e identifiquei em sistema que seu pedido foi dividido em 2 pacotes durante o processamento interno do site.
+
+Rastreamento 1: NN073000911BR
+Pacote com o relógio (entregue)
+
+Rastreamento 2: NN074815334BR
+Pacote com kit de acessórios, pulseira camuflada, azul e verde e pulseira carbon luxe (barrado)
+
+Identifiquei que foi solicitado também o reenvio no dia 05/02 mas ainda não foi disponibilizado o novo código para rastreamento.
+
+Dev
+2153|reenvio|outbound|Olá, Camilo! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Daniele e ficarei responsável pelo seu atendimento.  
+
+Camilo, 
+
+Pedimos sinceras desculpas pela demora em seu retorno.
+Recentemente, passamos por uma reestruturação em nossos processos internos, com o objetivo de aprimorar tanto o atendimento quanto os procedimentos de importação. Nesse período, houve um número significativo de pacotes barrados na fiscalização aduaneira, o que gerou alta demanda em nossos atendimentos. Informamos, no entanto, que essa situação já foi regularizada.
+No momento, as solicitações estão s
+2153|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Camilo, 
+
+Verificamos o seu pedido e identificamos que ele foi barrado na fiscalização aduaneira. Isso pode acontecer no processo de importação e a Carbon cuida de tudo nesses casos — você não precisa resolver nada por conta própria.
+A melhor forma de seguir é com o reenvio do produto, sem nenhum custo adicional. O prazo de entrega será reiniciado a partir da data do novo envio, seguindo o mesmo prazo estimado do pedido original.
+Para darmos sequência, pedimos que confirme
+2209|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Magno, 
+
+Sobre seu pedido:
+
+O pedido está parado pois foi barrado na fiscalização aduaneira e identifiquei que foi solicitado um reenvio no dia 16/02.
+
+Isso ocorreu porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pedido acabou sendo estendido.
+
+
+2224|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Ronaldo,
+
+Pode nos enviar uma foto do pedido com todas as peças que recebeu por gentileza?
+
+Aguardo seu retorno.
+2226|meu_pedido|outbound|
+Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Sergio, 
+
+Seu pedido  #126232 foi barrado na fiscalização aduaneira.
+
+Isso ocorre porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, alguns pedidos ainda estavam sendo barrados.
+
+Por esse motivo, podemos solicitar o reenvio porém com novo prazo. 
+
+Pedimos desculpa pelo o
+2229||outbound|Olá, João!
+
+Me chamo Luana. A partir de agora seguirei com o atendimento  de sua solicitação no Reclame Aqui. 
+
+Peço desculpa pelo prazo de retorno longo. Nós estamos realizando reajustes com a Receita Federal para liberarmos os pedidos.
+
+Estimativa de entrega: entre 01/04 e 11/04.
+
+Podemos seguir com o reenvio com essa estimativa?
+
+Aguardo seu retorno, João!
+2229||outbound|Olá,
+
+Me chamo Tauane e faço parte do time da Carbon.
+Recebemos sua notificação através do Reclame Aqui e estou aqui para te ajudar!
+
+Primeiramente, gostaria de nos desculpar pela falta de retorno. Atualmente, trocamos de plataforma e, por isso, a comunicação acabou ficando instável por alguns dias, o que pode ter impactado o recebimento e envio de algumas mensagens.
+
+Verificamos o seu pedido e identificamos que ele foi barrado na fiscalização aduaneira. Isso pode acontecer no processo de importação e a Carbon cuida de tudo nesses casos, você não precisa resolver nada por conta própria.
+
+A mel
+2229||outbound|Claro! Vou te passar uma estimativa de entrega solicitando o reenvio, hoje, está bem? 
+
+Para a região Nordeste, o prazo de entrega é de 10 a 20 dias úteis após a postagem.
+Considerando a postagem em 09/03, a estimativa de entrega é entre 23/03 e 06/04, podendo chegar antes desse prazo. 
+
+Neste caso, podemos prosseguir com o reenvio do produto? 
+
+Entendo a sua preocupação, João. Peço desculpas pela demora na comunicação e compreendo perfeitamente sua necessidade de ter uma data concreta.
+
+Se possível, peço que avalie sua manifestação no Reclame Aqui, considerando que sua solicitação já foi devi
+2229||outbound|Olá, João!
+
+Sou a Luana, responsável por acompanhar sua solicitação.
+
+Realizei o cancelamento do pedido anterior #124117 e gerei um novo pedido para acompanhar o reenvio do produto.
+
+Pedido atual: #130667
+
+O rastreamento do envio poderá ser acompanhado através do site internacional:
+https://global.cainiao.com/
+
+Lamento pelos ocorridos anteriores e agradeço pela sua compreensão durante esse processo.
+
+Por gentileza, quando receber seu pedido, pedimos que avalie sua manifestação no Reclame Aqui, considerando que sua solicitação já tenha sido solucionada. Sua avaliação é muito importante para nós
+2242|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Jayne, 
+
+Verifiquei o status do seu pedido, e identifiquei que acabou sendo barrado na fiscalização aduaneira.
+
+Isso ocorreu porque nosso departamento logístico estava realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, alguns pedidos haviam sido retidos e ficaram em atraso.
+
+Sendo bem transparente com você, não 
+2254|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+João Paulo,
+
+Seu pedido será coletado pela transportadora em breve e em até 48 horas aparecerá atualizações no rastreio.
+
+Rastreamento: NN114365848BR
+
+Site internacional para acompanhamento: https://global.cainiao.com/newDetail.htm?mailNoList=NN114365848BR&otherMailNoList=
+
+Após a chegada no Brasil, você pode acompanhar através do site do correio: https://rastreamento.correios.com.br/app/index.php
+
+Fico à disposição!
+
+2258|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Fernando,
+
+Sobre seu pedido:
+
+O pedido está parado pois foi barrado na fiscalização aduaneira. Identifiquei que já foi solicitado o reenvio dia 05/02 mas ainda não foi liberado.
+
+Isso ocorreu porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pedid
+2268|duvida|outbound|Olá, Rodrigo! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+Peço desculpas pelo tempo de espera em sua solicitação. Devido à alta demanda, nosso tempo de atendimento está um pouco maior que o habitual. 
+
+Estamos trabalhando intensamente para responder todas as solicitações o mais rápido possível e garantir que você seja atendido da melhor maneira.
+
+Agradecemos muito pela compreensão e paciência. Estamos aqui para ajudar no que precisar!
+
+Já efetuei alteração para o e-mail correto em seu cadastro no pedido #128777
+
+Seu ped
+2276|entrega_rastreio|outbound|Obrigado pela confirmação, Marcelo. 
+
+O prazo de processamento é de até 7 dias úteis.
+
+Após a postagem, o código de rastreio é liberado e o prazo de entrega começa a contar conforme a sua região. O código é enviado automaticamente para o e-mail cadastrado na compra — vale conferir também as pastas de Spam e Lixo Eletrônico.
+
+Com o código disponível, você poderá acompanhar o pedido pelo nosso site: https://carbonsmartwatch.com.br/a/rastreio
+
+Caso o prazo de processamento seja concluído e você não receba o código de rastreio, basta responder este e-mail que verificamos para você.
+
+Qualquer dúvid
+2276|entrega_rastreio|outbound|Olá, Marcelo! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+Devido à alta demanda, nosso tempo de atendimento está um pouco maior que o habitual. 
+
+Estamos trabalhando intensamente para responder todas as solicitações o mais rápido possível e garantir que você seja atendido da melhor maneira.
+
+Agradecemos muito pela compreensão e paciência. Estamos aqui para ajudar no que precisar!
+
+Verificamos o seu pedido #127101 e identificamos que ele foi barrado na fiscalização aduaneira. Isso pode acontecer no processo de importação
+2278|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+José, 
+
+Você pode enviar foto do pedido que recebeu com todas as peças por gentileza?
+
+Aguardo seu retorno para prosseguirmos com o atendimento.
+2282|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Anélio, 
+
+Pode confirmar se os dados de entrega permanecem os mesmos?
+
+Aguardo seu retorno para darmos continuidade à solicitação.
+2283|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Lauro,
+
+Sendo bem transparente com você: no momento atual não temos uma data concreta pois estamos aguardando retorno da Receita Federal para regularizar o quanto antes. 
+
+Podemos manter seu pedido na fila para ser enviado assim que for normalizado?
+
+lauro silveira pluma neto
+89440234334
+Rua E, 706, Altos
+Prefeito José Walter
+60751-260 Fortaleza CE
+Brasil
++55 85 99769-0614
+
+Você pode confirmar se todos os dados de entrega estão corretos?
+
+Aguardo seu retorno.
+2283|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Lauro,
+
+Seu pedido foi barrado na fiscalização aduaneira. 
+
+Essa situação ocorreu porque nosso departamento logístico está realizando ajustes na descrição dos produtos enviados, com o objetivo de evitar retenções ou bloqueios na fiscalização. Como esse processo envolve a regularização junto aos órgãos responsáveis e dependemos da devolutiva para validação, alguns pedidos acabaram sendo temporariamente barrados.
+
+Diante disso, podemos solicitar um novo reenvio do seu pedido
+2284|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Victor,
+
+Verifiquei o status de seu pedido e identifiquei que foi barrado na fiscalização aduaneira. 
+
+Essa situação ocorreu porque nosso departamento logístico está realizando ajustes na descrição dos produtos enviados, com o objetivo de evitar retenções ou bloqueios na fiscalização. Como esse processo envolve a regularização junto aos órgãos responsáveis e dependemos da devolutiva para validação, alguns pedidos acabaram sendo temporariamente barrados.
+
+Diante disso, pode
+2284|reenvio|outbound|Olá, Victor! Tudo bem?
+
+Você pode reenviar o e-mail? Não está mostrando para nós.
+
+
+2289|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Amanda,
+
+No rastreamento consta que já foi entregue. 
+
+Você pode me confirmar por gentileza?
+
+2322|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Realino, 
+
+Sobre seu pedido:
+
+O pedido está parado pois foi barrado na fiscalização aduaneira. Identifiquei que já foi solicitado o reenvio dia 05/02 mas ainda não foi liberado.
+
+Isso ocorreu porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pedid
+2322|meu_pedido|outbound|Realino, 
+
+Para prosseguirmos com o cancelamento é realizado internamente por nós. 
+
+O prazo para conclusão do processo é de até 10 dias úteis.
+
+ O estorno ocorre conforme a forma de pagamento utilizada na compra:
+
+• Cartão de crédito: o estorno pode aparecer em até 3 faturas, de acordo com as regras da operadora do cartão.
+
+Você confirma que deseja prosseguir com o cancelamento do pedido?
+2325|reclamacao|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Sobre seu pedido:
+
+O pedido está parado pois foi barrado na fiscalização aduaneira. Identifiquei que já foi solicitado o reenvio dia 05/02 mas ainda não foi liberado.
+
+Isso ocorreu porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pedido acabou se
+2327|garantia|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Alexandre,
+
+Você pode enviar uma foto do pedido com todas as peças que recebeu por gentileza?
+
+Aguardo seu retorno para seguirmos com o atendimento.
+2358|reenvio|outbound|Olá, Otavio! Tudo bem?
+
+No momento, o código de rastreamento ainda não foi disponibilizado. Mas o reenvio já foi solicitado.
+
+Isso ocorre porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição dos brindes acabou sendo estendido.
+
+Por esse motivo, o envio ainda não foi liberado.
+
+Pedimos sinceras desculpas pelo ocorrido. Já estamos atuando internamente para concluir essa regul
+2358|reenvio|outbound|Olá, Otávio. Tudo bem?
+
+Me chamo Tauane. 
+Recebemos sua notificação através do Reclame Aqui e estou auqi para te ajudar! 
+
+Eu verifiquei aqui os dois pedidos vinculados à sua compra e vou te explicar direitinho o que aconteceu.
+
+Você realmente possui dois pedidos no sistema: #126368 e #126374.
+O pedido #126368 foi entregue normalmente e consta como completo, conforme você mencionou.
+
+Já no pedido #126374, o envio foi separado em dois pacotes. Isso é um procedimento interno do nosso departamento logístico para evitar excesso de peso em um único pacote e garantir maior segurança durante o transp
+2437|meu_pedido|outbound|Olá, Gilberto! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+Verifiquei o pedido #126034 e ele foi enviado em dois pacotes, cada um com um código de rastreio diferente. Isso pode acontecer por conta da separação logística dos itens. 
+
+Entretanto, em ambos os códigos, está confirmado a entrega no endereço cadastrado. 
+
+1º Código de rastreamento:  NN079923812BR 
+ 2º Código de rastreamento: NN079297870BR 
+
+Site dos Correios: https://rastreamento.correios.com.br/app/index.php# 
+
+Deu tudo certo com a entrega de seu pedido? 
+
+Q
+2438|entrega_rastreio|outbound|Obrigado por confirmar, Angelo. 
+
+Peço nossas sinceras desculpas pelo transtorno pela sua experiencia, infelizmente corremos riscos com essa situação, por se tratar de entrega terceirizada, mas não se preocupe, você receberá um novo reenvio, abaixo deixo mais detalhes para você se atualizar; 
+
+O reenvio já foi providenciado. Seguem as informações sobre o processo:
+
+Você receberá dois e-mails da Carbon:
+
+1. Um e-mail de cancelamento do pedido #125209. Esse cancelamento é apenas para ajuste e registro no sistema.
+
+2. Um segundo e-mail com a confirmação de um novo pedido, de número #130345, que é
+2438|entrega_rastreio|outbound|Olá, Angelo! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+Verificamos o seu pedido #125209 e identificamos que ele foi extraviado com a transportadora. Isso pode acontecer no processo de entrega e a Carbon cuida de tudo nesses casos — você não precisa resolver nada por conta própria.
+
+A melhor forma de seguir é com o reenvio do produto, sem nenhum custo adicional. O prazo de entrega será reiniciado a partir da data do novo envio, seguindo o mesmo prazo estimado do pedido original.
+
+Código de rastreamento: CNBR00131077693
+2441|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Marcelo,
+
+Compreendo sua posição e sua insatisfação.
+
+Também não contávamos com essa situação. Fomos impactados pela retenção dos pedidos, o que acabou ocasionando atrasos nas entregas. Esse não é o padrão de trabalho da Carbon, nem a experiência que buscamos oferecer aos nossos clientes. Estamos trabalhando intensamente para corrigir esses problemas e evitar que situações como essa voltem a ocorrer.
+
+Informo que já realizei o cancelamento do seu pedido e solicitei o reemb
+2441|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Marcelo,
+
+Verifiquei aqui e o seu pedido acabou sendo barrado na fiscalização aduaneira.
+
+Visando evitar que o problema ocorra novamente, será realizado o reenvio local. Em até 10 dias úteis você receberá o código de rastreamento para acompanhar a entrega.
+
+Peço desculpa pelo transtorno.
+
+Estou à disposição para solucionarmos! 
+2503|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Edson, 
+
+Verifiquei o status do seu pedido e identifiquei que foi barrado durante a fiscalização aduaneira.
+
+Essa situação ocorreu porque nosso departamento logístico está realizando ajustes na descrição dos produtos enviados, com o objetivo de evitar retenções ou bloqueios na fiscalização. Como esse processo envolve a regularização junto aos órgãos responsáveis e dependemos da devolutiva para validação, alguns pedidos acabaram sendo temporariamente barrados.
+
+Diante disso
+2503|meu_pedido|outbound|Edson, 
+
+No momento atual realmente não temos um prazo concreto, mas esperamos que seja regularizado nos próximos dias e assim seguimos processando os reenvios já solicitados na fila por ordem.
+
+EDSON LUIZ BARBOSA PINTO
+78186439900
+Rua Teófilo de Freitas, 254, Casa
+D. Pedro II
+83752-194 Lapa PR
+Brasil
++55 41 98721-9200
+
+Pode confirmar se todos os dados acima estão corretos por gentileza? Caso tenha alguma divergência ou dado errado/incompleto o pedido pode acabar sendo barrado novamente.
+
+Aguardo seu retorno para seguirmos com o reenvio.
+
+2505|meu_pedido|outbound|Sendo bem transparente com você, Enrique: no momento atual não temos uma data concreta porque estamos aguardando retorno da Receita Federal. 
+
+Realmente o contato está com prazo maior para retorno devido a alta demanda pois ocorreu com outros pedidos também. Nós estamos tentando regularizar o quanto antes para liberarmos os pedidos. Com essa situação, temos uma fila de processamentos para realizar quando for normalizado. 
+
+Lamento a falta de retorno no prazo esperado e entendo sua insatisfação. Não é o prazo que a Carbon costuma trabalhar.
+
+Caso você opte por seguir com o reenvio,  assim que f
+2505|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Enrique,
+
+Verifiquei o status do seu pedido e identifiquei que foi barrado durante a fiscalização aduaneira.
+
+Essa situação ocorreu porque nosso departamento logístico está realizando ajustes na descrição dos produtos enviados, com o objetivo de evitar retenções ou bloqueios na fiscalização. Como esse processo envolve a regularização junto aos órgãos responsáveis e dependemos da devolutiva para validação, alguns pedidos acabaram sendo temporariamente barrados.
+
+Diante diss
+2518|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Marcelino, 
+
+Verifiquei o status do rastreamento e a última atualização é:
+
+Objeto entregue ao destinatário
+Pela Unidade de Distribuição, UBERLANDIA - MG
+10/03/2026 16:36
+
+Está tudo  certo com o seu pedido?
+2523|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Juliana, 
+
+Verifiquei o status do seu pedido e identifiquei que foi barrado durante a fiscalização aduaneira.
+
+Essa situação ocorreu porque nosso departamento logístico está realizando ajustes na descrição dos produtos enviados, com o objetivo de evitar retenções ou bloqueios na fiscalização. Como esse processo envolve a regularização junto aos órgãos responsáveis e dependemos da devolutiva para validação, alguns pedidos acabaram sendo temporariamente barrados.
+
+Diante dis
+2563|reclamacao|outbound|Olá, Silvano.
+
+Me chamo Luana. Estou acompanhando sua solicitação no Reclame Aqui.
+
+Lamento pelo transtorno gerado anteriormente e agradeço pela sua compreensão durante esse período. Os ajustes necessários já foram realizados e os envios estão sendo normalizados, assim como ocorrerá com o seu pedido.
+
+O rastreamento já está disponível para acompanhamento.
+
+Código de rastreio: CNG00803273095415
+
+Você pode acompanhar o envio através do site internacional:
+https://global.cainiao.com/
+
+Caso identifique qualquer problema durante o acompanhamento do envio, é só nos sinalizar que verificamos a situaç
+2563|reclamacao|outbound|Olá, Silvano. Tudo bem?  
+
+O reenvio já foi providenciado. Seguem as informações sobre o processo:
+
+Você receberá dois e-mails da Carbon: 
+
+1. Um e-mail de cancelamento do pedido #126231. Esse cancelamento é apenas para ajuste e registro no sistema.
+
+2. Um segundo e-mail com a confirmação de um novo pedido, de número #129838, que é o pedido válido para envio.
+
+Caso não encontre esses e-mails na caixa de entrada, verifique também as pastas Spam e Lixo Eletrônico. Assim que o código de rastreio do novo pedido estiver disponível, ele será enviado automaticamente para o seu e-mail. 
+
+Pedimos descu
+2563|reclamacao|outbound|Olá, 
+Meu nome é Tauane e faço parte da equipe da Carbon. 
+
+Gostaríamos de nos desculpar pela falta de retorno. Atualmente trocamos de plataforma e, por isso, não consigo ter acesso às informações do WhatsApp. 
+
+No momento, o código de rastreamento ainda não foi disponibilizado.
+
+Isso ocorre porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição dos brindes acabou sendo esten
+2584|financeiro|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Marcus, por gentileza, poderia confirmar por onde solicitou o cancelamento? Pois não encontramos registro por e-mail.
+
+Verifiquei aqui e o seu pedido já está com a transportadora e já se encontra na cidade de Canoas,  então não é possível realizar o cancelamento imediato neste momento.
+
+Caso não queira seguir com a compra, você pode optar por recusar o recebimento no momento da entrega ou solicitar a devolução em até 7 dias corridos após o recebimento.
+
+Assim que o produto
+2585|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Adriano,
+
+Verifiquei que o pedido foi entregue.
+
+Estava tudo certo com seu pedido?
+
+Fico à disposição!
+2587|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Cesar,
+
+Sobre seu pedido:
+
+O pedido está parado pois foi barrado na fiscalização aduaneira. Identifiquei que já foi solicitado o reenvio dia 05/02 mas ainda não foi liberado.
+
+Isso ocorreu porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pedido a
+2594|meu_pedido|outbound|Olá, Eduardo! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+Peço desculpas pelo tempo de espera na resposta à sua solicitação. Devido à alta demanda, nosso tempo de atendimento está um pouco maior que o habitual. 
+
+Estamos trabalhando intensamente para responder todas as solicitações o mais rápido possível e garantir que você seja atendido da melhor maneira.
+
+Agradecemos muito pela compreensão e paciência. Estamos aqui para ajudar no que precisar!
+
+Verifiquei o seu pedido #128354 e está confirmado a entrega no dia 09/03/2
+2600|reclamacao|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Marcelo, 
+
+Nosso canal de atendimento é através do e-mail. Não atendemos por telefone.
+
+Podemos dar continuidade por e-mail.
+
+Ajudo em algo mais?
+2600|reclamacao|outbound|Agradecemos por sua compreensão e mais uma vez pedimos desculpas pelo transtorno gerado. 
+
+Caso não receba  o pedido até dia 18/03, por favor, nos comunique. 
+
+Ficamos à disposição. 
+2600|reclamacao|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Marcelo,
+
+Eu lamento pelo transtorno causado. Essa não é a experiência que a Carbon busca proporcionar aos nossos clientes.
+
+Também fomos impactados pelos recentes ocorridos relacionados às importações, o que acabou refletindo em parte da nossa operação. Além disso, realizamos ajustes no nosso sistema de atendimento, o que gerou um período de adaptação.
+
+Estamos trabalhando intensamente para normalizar completamente os processos e atender todos os nossos clientes com quali
+2600|reclamacao|outbound|Olá,
+Me chamo Tauane.
+Recebemos sua notificação através do Reclame Aqui e estou aqui para te ajudar!
+
+Antes de tudo, peço sinceras desculpas por toda a frustração causada com o seu pedido e pela falta de clareza percebida durante o processo. 
+
+Entendo a sua preocupação em relação à origem do produto. Trabalhamos com um modelo logístico em que os pedidos passam por etapas de processamento e fiscalização antes de seguirem para entrega, e por isso podem ocorrer variações no tempo de atualização do rastreio.  
+
+Verifiquei internamente o status do seu pedido e confirmamos que o envio já foi realiza
+2600|reclamacao|outbound|Marcelo, possivelmente o site não está atualizado para o senhor.
+
+Aqui para mim a previsão de entrega dos Correios mostra 11/03/2026, anexei a imagem no e-mail. No entanto, o prazo estimado da Carbon é como mencionei anteriormente: entre 11/03 a 18/03.  
+
+Pedimos sua compreensão para aguardar  a data final de entrega. 
+
+Agradecemos desde já. 
+2600|reclamacao|outbound|Olá, Marcelo! 
+
+Sou a Luana. Estou acompanhando sua solicitação no Reclame Aqui.
+
+Verifiquei o rastreamento e a última atualização foi: 
+
+Objeto entregue ao destinatário
+Pela Unidade de Distribuição, SAO PAULO - SP
+10/03/2026 14:15
+
+Você pode confirmar se está tudo certo com o seu pedido por gentileza?
+
+
+
+
+
+2600|reclamacao|outbound|Olá, Marcelo! Tudo bem? 
+
+Lamento por todo esse transtorno, essa não é a experiência que gostaríamos que passasse.
+
+Atualmente os nossos envios estão sendo realizados diretamente da nossa fábrica em Hong Kong.  A Carbon é uma empresa brasileira, com operação, atendimento, garantia, suporte e controle de qualidade feitos no Brasil.
+ 
+Assim como ocorre com praticamente todas as marcas de tecnologia do mundo, a fabricação acontece na Ásia, onde estão as indústrias especializadas em componentes eletrônicos.  Isso é um padrão global do setor e não caracteriza o produto como “chinês” no sentido de m
+2600|reclamacao|outbound|Marcelo, possivelmente o site não está atualizado para o senhor.
+
+Aqui para mim a previsão de entrega dos Correios mostra 11/03/2026, anexei a imagem no e-mail. No entanto, o prazo estimado da Carbon é como mencionei anteriormente: entre 11/03 a 18/03.  
+
+Pedimos sua compreensão para aguardar  a data final de entrega. 
+
+Agradecemos desde já. 
+2606|meu_pedido|outbound|Olá, Timoteo! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+Peço desculpas pelo tempo de espera na resposta à sua solicitação. Devido à alta demanda, nosso tempo de atendimento está um pouco maior que o habitual. 
+
+Estamos trabalhando intensamente para responder todas as solicitações o mais rápido possível e garantir que você seja atendido da melhor maneira.
+
+Agradecemos muito pela compreensão e paciência. Estamos aqui para ajudar no que precisar!
+
+Seu pedido já está com a transportadora! 
+Em breve você poderá acompanhar 
+2623|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Ramon, 
+
+erifiquei o status do seu pedido e identifiquei que foi barrado durante a fiscalização aduaneira.
+
+Essa situação ocorreu porque nosso departamento logístico está realizando ajustes na descrição dos produtos enviados, com o objetivo de evitar retenções ou bloqueios na fiscalização. Como esse processo envolve a regularização junto aos órgãos responsáveis e dependemos da devolutiva para validação, alguns pedidos acabaram sendo temporariamente barrados.
+
+Diante disso,
+2642|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Martiniano, 
+
+Sobre seu pedido:
+
+O pedido está parado pois foi barrado na fiscalização aduaneira. Identifiquei que já foi solicitado o reenvio dia 21/02 mas ainda não foi liberado.
+
+Isso ocorreu porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. Como esse processo envolve a regularização junto à Receita Federal e dependemos da devolutiva do órgão para validação, o prazo de expedição do pe
+2647|reclamacao|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Orlando, 
+
+Verifiquei o status do seu pedido e identifiquei que foi barrado durante a fiscalização aduaneira.
+
+Essa situação ocorreu porque nosso departamento logístico está realizando ajustes na descrição dos produtos enviados, com o objetivo de evitar retenções ou bloqueios na fiscalização. Como esse processo envolve a regularização junto aos órgãos responsáveis e dependemos da devolutiva para validação, alguns pedidos acabaram sendo temporariamente barrados.
+
+Diante dis
+2652|meu_pedido|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Eduardo,
+
+Eduardo,
+
+Seu pedido acabou sendo barrado na fiscalização aduaneira.
+
+Mas acabei de solicitar o reenvio. Só preciso da confirmação se os seguintes dados permanecem os mesmos:
+
+EDUARDO BROSEGHINI MARTINELLI
+09761959767
+Rua Cícero Dias de Oliveira, 09, 502
+Jardim Camburi
+29090-250 Vitória ES
+Brasil
++55 27 99902-7832
+
+Isso ocorreu porque nosso departamento logístico está realizando ajustes na descrição do produto, visando evitar retenções ou bloqueios na alfândega. 
+2666|reenvio|outbound|Olá, Fernando! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+Verificamos o seu pedido #124498 e identificamos que ele foi barrado na fiscalização aduaneira. Isso pode acontecer no processo de importação e a Carbon cuida de tudo nesses casos — você não precisa resolver nada por conta própria.
+
+A melhor forma de seguir é com o reenvio do produto, sem nenhum custo adicional. O prazo de entrega será reiniciado a partir da data do novo envio, seguindo o mesmo prazo estimado do pedido original.
+
+Código de rastreamento barrado: 
+2666|reenvio|outbound|Obrigado pela confirmação, Fernando. 
+
+O reenvio já foi providenciado. Seguem as informações sobre o processo:
+
+Você receberá dois e-mails da Carbon:
+
+1. Um e-mail de cancelamento do pedido #124498. Esse cancelamento é apenas para ajuste e registro no sistema.
+
+2. Um segundo e-mail com a confirmação de um novo pedido, de número #130547,  que é o pedido válido para envio.
+
+Caso não encontre esses e-mails na caixa de entrada, verifique também as pastas Spam e Lixo Eletrônico. Assim que o código de rastreio do novo pedido estiver disponível, ele será enviado automaticamente para o seu e-mail.
+
+Pa
+2673||outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Eder,
+
+Cancelei o pedido #126738 e criei um novo pedido para você acompanhar o reenvio.
+
+Pedido atual: #129623
+
+Caso você não receba o rastreamento em até 5 dias úteis, pode entrar em contato conosco e envio por aqui.
+
+O rastreamento será através do site internacional: https://global.cainiao.com/
+
+Lamento os ocorridos anteriores e estamos buscando formas de melhoria e otimização no atendimento e na logística. 
+
+Agradeço a compreensão, Eder.
+
+Por gentileza, quando receber s
+2673||outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Eder,
+
+Verifiquei o seu pedido e ele já está em fase de processamento, portanto não é possível realizar o cancelamento imediato neste momento.
+
+Caso não deseje seguir com a compra, você pode optar por recusar o recebimento no momento da entrega ou solicitar a devolução em até 7 dias corridos após o recebimento.
+
+Assim que o produto retornar ou a devolução for registrada, seguiremos com o cancelamento e estorno conforme a forma de pagamento.
+
+Rastreamento: NN114356347BR
+
+Si
+2683|cancelamento|outbound|Olá, Ricardo! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Victor e ficarei responsável pelo seu atendimento.  
+
+Verificamos o seu pedido #127021 de reenvio e identificamos que ele foi barrado na fiscalização aduaneira. 
+
+Código de rastreamento: CNBR00132592936
+
+Site da transportadora Global Express: https://global.cainiao.com/newDetail.htm?mailNoList=CNBR00132592936&otherMailNoList=
+
+Conforme solicitado, a solicitação de cancelamento já foi registrada. O prazo para conclusão do processo é de até 10 dias úteis, período em que você receberá a confirmação do estorno.
+
+Após a 
+2750|meu_pedido|outbound|Olá, Rutinez! Tudo bem?
+Me chamo Reinan e sou seu agente Carbon.
+
+No momento, não há nenhuma ocorrência com o seu pedido. Ele segue em rota, e o senhor pode acompanhar as próximas movimentações utilizando as informações de rastreio enviadas anteriormente.
+
+Permaneço à disposição caso precise de qualquer ajuda.
+
+Atenciosamente,
+
+
+Reinan
+2750|meu_pedido|outbound|Olá, Rutinez! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon.
+
+
+Rutinez, meu amigo não e golpe pode confiar na Carbon.
+
+Atenciosamente,
+
+Reinan.
+2750|meu_pedido|outbound|Olá, Rutinez! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon.
+
+Gostaria de pedir desculpas pelo transtorno causado e ser totalmente transparente com você:
+
+Verifiquei que o seu pedido foi despachado, o senhor pode acompanhar futuras movimentações usando o código de rastreio abaixo: 
+
+Código de rastreio: NN114378308BR
+
+Site da transportadora internacional: https://global.cainiao.com/
+
+Após o seu pedido chegar no Brasil, o senhor  pode acompanhar usando o site dos correios.
+
+Site dos correios: https://rastreamento.correios.com.br/app/index.php
+
+
+Atenciosamente, 
+
+
+Reinan.
+2750|meu_pedido|outbound|Olá, Rutinez! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon.
+
+
+Verifiquei novamente, e o código de rastreio esta correto..
+
+Código de rastreio: NN114378308BR
+
+Site da transportadora internacional: https://global.cainiao.com/newDetail.htm?mailNoList=NN114378308BR&otherMailNoList=
+
+
+Atenciosamente,
+
+
+
+Reinan.
+2750|meu_pedido|outbound|Olá, Rutinez! Tudo bem?
+Me chamo Reinan e sou seu agente Carbon.
+
+O seu pedido está sendo enviado diretamente da nossa fábrica e, no momento, ainda não foi coletado pela transportadora dos correios.
+
+ Por esse motivo, enviei o site da transportadora internacional para que o senhor possa acompanhar todas as movimentações do pedido desde o início do processo de envio.
+
+Atenciosamente,
+
+
+Reinan.
+2769|meu_pedido|outbound|Olá, Leonardo! Tudo bem? 
+Me chamo Reinan e sou seu agente Carbon.
+
+
+Verificamos o seu pedido e identificamos que ele foi barrado na fiscalização aduaneira. 
+
+Isso pode acontecer no processo de importação e a Carbon cuida de tudo nesses casos, você não precisa resolver nada por conta própria.
+
+A melhor forma de seguir é com o reenvio do produto, sem nenhum custo adicional.
+
+ O prazo de entrega será reiniciado a partir da data do novo envio, seguindo o mesmo prazo estimado do pedido original.
+
+
+Para darmos sequência, pedimos que confirme respondendo este e-mail: 
+
+(1) se podemos seguir com o re
+2771|meu_pedido|outbound|Olá, Elder! Tudo bem?
+Me chamo Reinan e sou seu agente Carbon.
+
+Verifiquei que houve uma divergência na rota de entrega e, por esse motivo, o pedido acabou sendo direcionado para outra cidade. No entanto, não se preocupe: o pedido já está sendo encaminhado para a Unidade de Tratamento em Belo Horizonte – MG.
+
+Peço, por gentileza, que o senhor continue acompanhando as atualizações do rastreio. Caso não haja novas movimentações ainda esta semana, peço que entre em contato conosco para que possamos verificar a situação e buscar a melhor solução.
+
+Atenciosamente,
+
+
+Reinan.
+2807|reclamacao|outbound|Olá, Vanir.
+Me chamo Tauane.
+Recebemos sua notificação através do Reclame Aqui e estou aqui para te ajudar.
+
+Eu verifiquei os pedidos #121091 e #126208 relacionados à sua compra e identifiquei o que ocorreu com o envio da pulseira adicional.
+
+O relógio foi entregue normalmente, porém o envio complementar da pulseira adicional acabou sendo retido durante a fiscalização no trajeto logístico, o que impediu que o pacote seguisse normalmente até a entrega no seu endereço.
+
+Peço desculpas pelo transtorno causado e pela demora na resolução dessa situação.
+
+Considerando toda essa ocorrência com o envi
+2808|reclamacao|outbound|Olá, Alexandre.
+Me chamo Tauane.
+Recebemos sua notificação através do Reclame Aqui e estou aqui para te ajudar.
+
+Verifiquei o seu caso internamente e confirmo que o estorno do seu pedido já foi realizado junto à nossa processadora de pagamentos.
+
+Inclusive, a nossa equipe de atendimento já encaminhou anteriormente para você um e-mail contendo a carta de estorno, que é o documento que confirma oficialmente a solicitação e o processamento da devolução do valor.
+
+Como o pagamento foi realizado via cartão de crédito, o funcionamento do estorno ocorre da seguinte forma: após a solicitação ser proce
+2808|reclamacao|outbound|Olá, Alexandre.
+Me chamo Daniele.
+Recebemos sua notificação através do Reclame Aqui e estou aqui para te ajudar.
+
+Eu verifiquei os detalhes do seu pedido #129143 e confirmei que a solicitação de cancelamento foi concluída em nosso sistema no dia 04/03/2026.
+
+Com a finalização do cancelamento, o estorno do valor já foi processado junto à administradora do cartão de crédito, e o comprovante de estorno segue anexado neste e-mail para sua conferência.
+
+Quando o pagamento é realizado via cartão de crédito, após a aprovação do estorno pelo sistema da loja, a devolução do valor passa a seguir os praz
+2808|reclamacao|outbound|Olá, Alexandre! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Daniele e ficarei responsável pelo seu atendimento.  
+
+Verificamos o seu pedido #129143, identificamos que o reenvio solicitado anteriormente foi concluído e o pacote despachado, através deste código NN069927001BR.  
+
+Porém, este também foi barrado na fiscalização aduaneira. Isso pode acontecer no processo de importação.
+
+Lamentamos muito pelo transtorno, essa não é a experiência que gostaríamos de proporcionar. 
+
+Nós já estamos trabalhando para a resolução deste contratempo. Atualmente estamos passando por proces
+2808|reclamacao|outbound|Olá, Alexandre! Tudo bem?
+Me chamo Luana, da equipe Carbon, e entro em contato referente ao pedido #124565 e sua solicitação no Reclame Aqui. 
+
+Peço desculpas pelo transtorno causado. Estamos em fase de ajustes internamente para que isso não volte a ocorrer em relação ao pedido barrado. Caso seja identificado que o seu novo pedido foi barrado, entre em contato conosco por aqui mesmo. 
+
+O pedido não pode ser cancelado pois já foi enviado ao departamento de expedição.
+
+Segue novas informações do seu novo pedido #129143 de reenvio. 
+
+ O prazo de processamento é de até 5 dias úteis.
+
+Após a postag
+2808|reclamacao|outbound|Olá, Alexandre! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Daniele e ficarei responsável pelo seu atendimento.  
+
+Obrigada pelo retorno! 
+
+A solicitação de cancelamento já foi registrada e o prazo para conclusão do processo é de até 10 dias úteis.
+
+Reforçamos que o estorno ocorre conforme a forma de pagamento utilizada na compra:
+• Pix: o valor é devolvido via Pix após a aprovação do cancelamento no sistema.
+• Cartão de crédito: o estorno pode aparecer em até 3 faturas, de acordo com as regras da operadora do cartão.
+
+Você receberá as atualizações pelo e-mail cadastrado n
+2808|reclamacao|outbound|Olá, Alexandre! Obrigado por entrar em contato com o suporte Carbon. 
+Meu nome é Daniele e ficarei responsável pelo seu atendimento.  
+
+Alexandre, 
+
+Compreendemos a sua frustração e pedimos desculpas por sua experiência não estar sendo satisfatória. 
+
+Por isso, solicitamos a alta prioridade para o seu pedido de estorno e o mesmo já foi concluído por nós, conforme o comprovante em anexo. 
+
+No comprovante você consegue conferir referente aos prazos para que o estorno reflita no seu cartão. 
+
+Lamentamos, mas de fato será necessário aguardar o processo da financeira responsável para que o valor se
+2808|reclamacao|outbound|Olá, Alexandre. Tudo bem?
+
+Antes de tudo, pedimos desculpas por toda a situação enfrentada e pela experiência que você teve conosco.
+
+Neste momento, estamos passando por um processo interno de melhorias no atendimento e na logística, justamente para que possamos atender nossos clientes de forma mais rápida, clara e eficiente. Nosso objetivo é corrigir falhas que ocorreram e garantir que situações como essa não voltem a acontecer.
+
+Também realizamos recentemente a regularização das descrições dos produtos junto à Receita Federal, o que facilita o fluxo logístico e ajuda a evitar retenções no en
+2835|meu_pedido|outbound|Olá, Alexsander! Tudo bem?
+Me chamo Reinan e sou seu agente Carbon.
+
+Gostaria de pedir desculpas pelo transtorno causado e ser totalmente transparente com você.
+
+Verifiquei que o seu pedido #122168 foi retido na alfândega. Infelizmente, nem sempre conseguimos acompanhar individualmente todos os pedidos em tempo real, mas não se preocupe: já vou dar andamento em um novo reenvio com prioridade para o senhor.
+
+Assim que o novo envio for realizado, o código de rastreio será encaminhado automaticamente para o e-mail cadastrado na compra. Recomendo também verificar as pastas de Spam e Lixo Eletrônic
+2848|reclamacao|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Infelizmente não é possível por Sedex, Adão! 
+
+Mas seu pedido já foi despachado.
+
+Segue informações para facilitar o acompanhamento de seu pedido que irá ter movimentações em até 48 horas:
+
+Rastreamento: NN114362651BR 
+
+Site internacional para acompanhamento: https://global.cainiao.com/
+
+Site para acompanhamento após chegada no Brasil: https://rastreamento.correios.com.br/app/index.php
+
+Entrega estimada em: 23 de Março - 9 de Abril
+
+Por gentileza, se possível, pedimos que 
+2848|reclamacao|outbound|Olá, Adao.
+
+Me chamo Luana. Recebemos sua notificação através do Reclame Aqui e estou aqui para te ajudar.
+
+Verifiquei em sistema que o seu pedido #129694 está atualmente em fase de processamento, que é a etapa em que ocorre a separação e preparação do produto antes do envio.
+
+Após a postagem do pedido, o código de rastreamento é liberado e, a partir desse momento, o prazo de entrega passa a contar conforme a sua região. Assim que o rastreio estiver disponível, ele será enviado automaticamente para o e-mail cadastrado na compra. Recomendo também verificar as caixas de Spam e Lixo Eletrônico, p
+2852|reenvio|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Luis,
+
+Verifiquei o status do seu pedido e identifiquei que foi barrado durante a fiscalização aduaneira.
+
+Essa situação ocorreu porque nosso departamento logístico está realizando ajustes na descrição dos produtos enviados, com o objetivo de evitar retenções ou bloqueios na fiscalização. Como esse processo envolve a regularização junto aos órgãos responsáveis e dependemos da devolutiva para validação, alguns pedidos acabaram sendo temporariamente barrados.
+
+Diante disso, 
+2889||outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Como posso ajudar?
+2895|duvida|outbound|Olá! Obrigada por entrar em contato com o suporte Carbon. 
+Meu nome é Luana e ficarei responsável pelo seu atendimento.  
+
+Marcio, 
+
+Você conseguiu finalizar? 
+
+Caso ainda precise de ajuda, fico à disposição!
+
+Nosso atendimento humano será somente por e-mail agora.

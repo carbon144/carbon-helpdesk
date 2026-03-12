@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Organograma Agentes IA — Carbon Helpdesk</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: #0f0f13;
+    color: #e0e0e0;
+    min-height: 100vh;
+    padding: 40px 24px 80px;
+  }
+
+  /* ── Title ── */
+  .page-title {
+    text-align: center;
+    margin-bottom: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    color: #E5A800;
+    letter-spacing: -0.3px;
+  }
+  .page-subtitle {
+    text-align: center;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 48px;
+  }
+
+  /* ── Connector lines ── */
+  .org-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .vertical-line {
+    width: 2px;
+    height: 32px;
+    background: #333;
+  }
+
+  .horizontal-connector {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+    max-width: 1280px;
+    position: relative;
+  }
+
+  .horizontal-connector::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: calc(12.5% + 8px);
+    right: calc(12.5% + 8px);
+    height: 2px;
+    background: #333;
+  }
+
+  /* ── Sectors grid ── */
+  .sectors {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  .sector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    position: relative;
+  }
+
+  .sector::before {
+    content: '';
+    width: 2px;
+    height: 24px;
+    background: #333;
+  }
+
+  .sector-agents {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+  }
+
+  .agent-connector {
+    width: 2px;
+    height: 20px;
+    background: #333;
+  }
+
+  /* ── Cards ── */
+  .card {
+    border: 1px solid #2a2a30;
+    border-radius: 10px;
+    padding: 20px;
+    width: 100%;
+    max-width: 320px;
+    background: #16161c;
+    transition: border-color 0.2s;
+  }
+
+  .card:hover {
+    border-color: #444;
+  }
+
+  /* N3 Supervisor */
+  .card.n3 {
+    background: linear-gradient(135deg, #1c1a10, #16161c);
+    border-color: #E5A800;
+    max-width: 360px;
+  }
+
+  /* N2 Coordinator */
+  .card.n2 {
+    background: #1a1a24;
+    border-color: #3a3a48;
+  }
+
+  /* N1 Agent */
+  .card.n1 {
+    background: #16161c;
+    border-color: #2a2a30;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .card-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .card-level {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .level-n3 {
+    background: rgba(229, 168, 0, 0.2);
+    color: #E5A800;
+  }
+  .level-n2 {
+    background: rgba(100, 140, 255, 0.15);
+    color: #7ba0ff;
+  }
+  .level-n1 {
+    background: rgba(255, 255, 255, 0.08);
+    color: #999;
+  }
+
+  .card-role {
+    font-size: 13px;
+    color: #aaa;
+    margin-bottom: 12px;
+  }
+
+  .card-details {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .detail-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #777;
+  }
+
+  .detail-label {
+    font-weight: 600;
+    color: #888;
+    min-width: 70px;
+  }
+
+  .detail-value {
+    color: #bbb;
+  }
+
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    background: rgba(229, 168, 0, 0.12);
+    color: #E5A800;
+    font-weight: 500;
+  }
+
+  .tag + .tag {
+    margin-left: 4px;
+  }
+
+  .slack-tag {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    background: rgba(100, 140, 255, 0.1);
+    color: #7ba0ff;
+    font-weight: 500;
+    font-family: monospace;
+  }
+
+  /* Auto-send dot */
+  .auto-send {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot.green {
+    background: #22c55e;
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+  }
+
+  .dot.red {
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.3);
+  }
+
+  .auto-label {
+    font-size: 11px;
+    color: #888;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    margin-top: 48px;
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #666;
+  }
+
+  .legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    margin-top: 40px;
+    font-size: 12px;
+    color: #444;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 1100px) {
+    .sectors {
+      grid-template-columns: repeat(2, 1fr);
+      max-width: 700px;
+    }
+    .horizontal-connector::before {
+      display: none;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .sectors {
+      grid-template-columns: 1fr;
+      max-width: 360px;
+    }
+    body {
+      padding: 24px 12px 60px;
+    }
+    .page-title {
+      font-size: 22px;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <h1 class="page-title">Organograma Agentes IA — Carbon Helpdesk</h1>
+  <p class="page-subtitle">13 agentes | 4 setores | 3 niveis hierarquicos</p>
+
+  <div class="org-wrapper">
+
+    <!-- ═══ N3 SUPERVISOR ═══ -->
+    <div class="card n3">
+      <div class="card-header">
+        <span class="card-name">CARLOS</span>
+        <span class="card-level level-n3">N3 Supervisor</span>
+      </div>
+      <div class="card-role">Supervisor Geral</div>
+      <div class="card-details">
+        <div class="detail-row">
+          <span class="detail-label">Slack</span>
+          <span class="slack-tag">#ia-pendencias</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Funcao</span>
+          <span class="detail-value">Cobra humanos, CSAT, escalacao progressiva</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="vertical-line"></div>
+
+    <!-- ═══ Horizontal connector bar ═══ -->
+    <div class="horizontal-connector">
+      <div class="sectors">
+
+        <!-- ─── SETOR: ATENDIMENTO ─── -->
+        <div class="sector">
+          <div class="card n2">
+            <div class="card-header">
+              <span class="card-name">JULIANA</span>
+              <span class="card-level level-n2">N2 Coord.</span>
+            </div>
+            <div class="card-role">Coordenadora Atendimento</div>
+            <div class="card-details">
+              <div class="detail-row">
+                <span class="detail-label">Slack</span>
+                <span class="slack-tag">#ia-operacao</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="sector-agents">
+            <div class="agent-connector"></div>
+            <div class="card n1">
+              <div class="card-header">
+                <span class="card-name">ISABELA</span>
+                <span class="card-level level-n1">N1</span>
+              </div>
+              <div class="card-role">Rastreio e Status</div>
+              <div class="card-details">
+                <div class="detail-row">
+                  <span class="detail-label">Categorias</span>
+                  <span class="tag">meu_pedido</span>
+                </div>
+                <div class="detail-row">
+                  <div class="auto-send">
+                    <span class="dot green"></span>
+                    <span class="auto-label">auto_send = True</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="agent-connector"></div>
+            <div class="card n1">
+              <div class="card-header">
+                <span class="card-name">CAROL</span>
+                <span class="card-level level-n1">N1</span>
+              </div>
+              <div class="card-role">Duvidas e Pre-venda</div>
+              <div class="card-details">
+                <div class="detail-row">
+                  <span class="detail-label">Categorias</span>
+                  <span class="tag">duvida</span>
+                </div>
+                <div class="detail-row">
+                  <div class="auto-send">
+                    <span class="dot green"></span>
+                    <span class="auto-label">auto_send = True</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── SETOR: LOGISTICA ─── -->
+        <div class="sector">
+          <div class="card n2">
+            <div class="card-header">
+              <span class="card-name">ANDERSON</span>
+              <span class="card-level level-n2">N2 Coord.</span>
+            </div>
+            <div class="card-role">Coordenador Logistica</div>
+            <div class="card-details">
+              <div class="detail-row">
+                <span class="detail-label">Slack</span>
+                <span class="slack-tag">#ia-logistica</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="sector-agents">
+            <div class="agent-connector"></div>
+            <div class="card n1">
+              <div class="card-header">
+                <span class="card-name">ROGERIO</span>
+                <span class="card-level level-n1">N1</span>
+              </div>
+              <div class="card-role">Reenvio</div>
+              <div class="card-details">
+                <div class="detail-row">
+                  <span class="detail-label">Categorias</span>
+                  <span class="tag">reenvio</span>
+                </div>
+                <div class="detail-row">
+                  <div class="auto-send">
+                    <span class="dot green"></span>
+                    <span class="auto-label">auto_send = True</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="agent-connector"></div>
+            <div class="card n1">
+              <div class="card-header">
+                <span class="card-name">LUCAS</span>
+                <span class="card-level level-n1">N1</span>
+              </div>
+              <div class="card-role">Barrados e Extravio</div>
+              <div class="card-details">
+                <div class="detail-row">
+                  <span class="detail-label">Categorias</span>
+                  <span class="tag">meu_pedido</span>
+                  <span class="tag">reenvio</span>
+                </div>
+                <div class="detail-row">
+                  <div class="auto-send">
+                    <span class="dot red"></span>
+                    <span class="auto-label">auto_send = False</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── SETOR: GARANTIA ─── -->
+        <div class="sector">
+          <div class="card n2">
+            <div class="card-header">
+              <span class="card-name">HELENA</span>
+              <span class="card-level level-n2">N2 Coord.</span>
+            </div>
+            <div class="card-role">Coordenadora Garantia</div>
+            <div class="card-details">
+              <div class="detail-row">
+                <span class="detail-label">Slack</span>
+                <span class="slack-tag">#ia-garantia</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="sector-agents">
+            <div class="agent-connector"></div>
+            <div class="card n1">
+              <div class="card-header">
+                <span class="card-name">PATRICIA</span>
+                <span class="card-level level-n1">N1</span>
+              </div>
+              <div class="card-role">Triagem Garantia</div>
+              <div class="card-details">
+                <div class="detail-row">
+                  <span class="detail-label">Categorias</span>
+                  <span class="tag">garantia</span>
+                </div>
+                <div class="detail-row">
+                  <div class="auto-send">
+                    <span class="dot red"></span>
+                    <span class="auto-label">auto_send = False</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="agent-connector"></div>
+            <div class="card n1">
+              <div class="card-header">
+                <span class="card-name">FERNANDA</span>
+                <span class="card-level level-n1">N1</span>
+              </div>
+              <div class="card-role">Trocas e Devolucoes</div>
+              <div class="card-details">
+                <div class="detail-row">
+                  <span class="detail-label">Categorias</span>
+                  <span class="tag">garantia</span>
+                </div>
+                <div class="detail-row">
+                  <div class="auto-send">
+                    <span class="dot red"></span>
+                    <span class="auto-label">auto_send = False</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── SETOR: RETENCAO ─── -->
+        <div class="sector">
+          <div class="card n2">
+            <div class="card-header">
+              <span class="card-name">RAFAEL</span>
+              <span class="card-level level-n2">N2 Coord.</span>
+            </div>
+            <div class="card-role">Coordenador Retencao</div>
+            <div class="card-details">
+              <div class="detail-row">
+                <span class="detail-label">Slack</span>
+                <span class="slack-tag">#ia-retencao</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="sector-agents">
+            <div class="agent-connector"></div>
+            <div class="card n1">
+              <div class="card-header">
+                <span class="card-name">MARINA</span>
+                <span class="card-level level-n1">N1</span>
+              </div>
+              <div class="card-role">Cancelamento e Estorno</div>
+              <div class="card-details">
+                <div class="detail-row">
+                  <span class="detail-label">Categorias</span>
+                  <span class="tag">financeiro</span>
+                </div>
+                <div class="detail-row">
+                  <div class="auto-send">
+                    <span class="dot red"></span>
+                    <span class="auto-label">auto_send = False</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="agent-connector"></div>
+            <div class="card n1">
+              <div class="card-header">
+                <span class="card-name">BEATRIZ</span>
+                <span class="card-level level-n1">N1</span>
+              </div>
+              <div class="card-role">Reclamacao e RA</div>
+              <div class="card-details">
+                <div class="detail-row">
+                  <span class="detail-label">Categorias</span>
+                  <span class="tag">reclamacao</span>
+                </div>
+                <div class="detail-row">
+                  <div class="auto-send">
+                    <span class="dot red"></span>
+                    <span class="auto-label">auto_send = False</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- .sectors -->
+    </div><!-- .horizontal-connector -->
+  </div><!-- .org-wrapper -->
+
+  <!-- ═══ LEGEND ═══ -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-swatch" style="background: rgba(229,168,0,0.2); border-color: #E5A800;"></div>
+      N3 — Supervisor
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background: rgba(100,140,255,0.15); border-color: #7ba0ff;"></div>
+      N2 — Coordenador
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background: rgba(255,255,255,0.08); border-color: #666;"></div>
+      N1 — Agente
+    </div>
+    <div class="legend-item">
+      <span class="dot green" style="width: 10px; height: 10px;"></span>
+      auto_send = True (envia direto)
+    </div>
+    <div class="legend-item">
+      <span class="dot red" style="width: 10px; height: 10px;"></span>
+      auto_send = False (draft p/ revisao)
+    </div>
+  </div>
+
+  <div class="footer">
+    Carbon Helpdesk — Organograma gerado em 12/03/2026 — 13 agentes IA
+  </div>
+
+</body>
+</html>

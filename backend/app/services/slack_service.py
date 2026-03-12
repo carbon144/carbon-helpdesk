@@ -72,6 +72,48 @@ async def get_slack_user_info(user_id: str) -> dict | None:
     return None
 
 
+async def send_agent_transfer(from_agent: str, to_agent: str, ticket_number: int, reason: str, channel: str) -> dict | None:
+    """Send inter-agent transfer notification on Slack."""
+    text = (
+        f":arrows_counterclockwise: *Transferencia de ticket*\n"
+        f"*{from_agent}* → *{to_agent}*\n"
+        f"Ticket #{ticket_number}: {reason}"
+    )
+    return await send_slack_message(channel, text)
+
+
+async def send_agent_escalation(from_agent: str, to_coordinator: str, ticket_number: int, reason: str, channel: str) -> dict | None:
+    """Send escalation notification on Slack."""
+    text = (
+        f":arrow_up: *Escalacao*\n"
+        f"*{from_agent}* escalou ticket #{ticket_number} para *{to_coordinator}*\n"
+        f"Motivo: {reason}"
+    )
+    return await send_slack_message(channel, text)
+
+
+async def send_agent_resolution(agent_name: str, ticket_number: int, channel: str, summary: str = "") -> dict | None:
+    """Send resolution notification on Slack."""
+    text = (
+        f":white_check_mark: *Ticket #{ticket_number} resolvido*\n"
+        f"Agente: *{agent_name}*"
+    )
+    if summary:
+        text += f"\nResumo: {summary}"
+    return await send_slack_message(channel, text)
+
+
+async def send_human_pending_request(agent_name: str, ticket_number: int, action: str, assigned_to: str, channel: str) -> dict | None:
+    """Request human action via Slack."""
+    text = (
+        f":hand: *Acao humana necessaria*\n"
+        f"Ticket #{ticket_number} — {action}\n"
+        f"Solicitado por: *{agent_name}*\n"
+        f"Responsavel: @{assigned_to}"
+    )
+    return await send_slack_message(channel, text)
+
+
 async def test_slack_connection() -> dict:
     """Test if Slack connection is working."""
     client = get_slack_client()

@@ -107,7 +107,23 @@ class Ticket(Base):
     auto_replied: Mapped[bool] = mapped_column(Boolean, default=False)
     auto_reply_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # AI Agent assignment
+    ai_agent_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), ForeignKey("ai_agents.id"), nullable=True)
+    ai_draft_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ai_draft_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    ai_processing: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    resolved_by_ai: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    ai_interaction_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+    # Human pending tracking (supervisor Carlos)
+    human_pending_action: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    human_pending_since: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    human_pending_assigned: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    slack_cobro_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    slack_last_cobro_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # Relationships
     customer = relationship("Customer", foreign_keys=[customer_id], lazy="selectin")
     agent = relationship("User", foreign_keys=[assigned_to], lazy="selectin")
+    ai_agent = relationship("AIAgent", foreign_keys=[ai_agent_id], lazy="selectin")
     messages = relationship("Message", back_populates="ticket", lazy="select", order_by="Message.created_at")

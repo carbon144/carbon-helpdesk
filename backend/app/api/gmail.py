@@ -145,6 +145,8 @@ async def fetch_emails(
     updated = 0
     emails_to_mark_read = []
 
+    support_email = (settings.GMAIL_SUPPORT_EMAIL or "").lower().strip()
+
     for email_data in emails:
         try:
             gmail_thread_id = email_data.get("thread_id")
@@ -154,6 +156,13 @@ async def fetch_emails(
             email_message_id = email_data.get("message_id")  # Message-ID header
             in_reply_to = email_data.get("in_reply_to")  # In-Reply-To header
             email_references = email_data.get("references")  # References header
+
+            # Skip our own outbound emails that looped back
+            sender_lower = (email_data.get("from_email") or "").lower().strip()
+            if support_email and sender_lower == support_email:
+                logger.info(f"[OWN-EMAIL] Skipping own email in fetch: {email_data.get('subject', '?')[:80]}")
+                emails_to_mark_read.append(gmail_message_id)
+                continue
 
             # Check if this message was already processed
             existing_msg = await db.execute(
@@ -195,10 +204,13 @@ async def fetch_emails(
                 )
                 ref_msg = ref_msg_result.scalar_one_or_none()
                 if ref_msg:
-                    # Add as reply to existing ticket instead of creating new one
+                    # Determine type based on sender
+                    is_own = support_email and sender_lower == support_email
+                    msg_type = "outbound" if is_own else "inbound"
+
                     msg = Message(
                         ticket_id=ref_msg.ticket_id,
-                        type="inbound",
+                        type=msg_type,
                         sender_name=email_data["from_name"],
                         sender_email=email_data["from_email"],
                         body_text=email_data["body_text"],
@@ -210,26 +222,26 @@ async def fetch_emails(
                     )
                     db.add(msg)
 
-                    # Update the ticket
-                    ticket_result = await db.execute(
-                        select(Ticket).where(Ticket.id == ref_msg.ticket_id)
-                    )
-                    matched_ticket = ticket_result.scalar_one_or_none()
-                    if matched_ticket:
-                        was_resolved = matched_ticket.status == "resolved"
-                        was_closed = matched_ticket.status == "closed"
-                        if matched_ticket.status in ("resolved", "closed", "waiting", "waiting_supplier", "waiting_resend"):
-                            matched_ticket.status = "open"
-                        if was_resolved or was_closed:
-                            matched_ticket.resolved_at = None
-                        now = datetime.now(timezone.utc)
-                        from app.core.sla_config import get_sla_for_ticket
-                        sla = get_sla_for_ticket(matched_ticket.category, matched_ticket.priority)
-                        matched_ticket.sla_deadline = now + timedelta(hours=sla["resolution_hours"])
-                        matched_ticket.sla_response_deadline = now + timedelta(hours=sla["response_hours"])
-                        matched_ticket.sla_breached = False
-                        # Don't reset first_response_at — it tracks when WE first responded, not the client
-                        matched_ticket.updated_at = now
+                    # Only reopen/reset SLA for real customer messages
+                    if msg_type == "inbound":
+                        ticket_result = await db.execute(
+                            select(Ticket).where(Ticket.id == ref_msg.ticket_id)
+                        )
+                        matched_ticket = ticket_result.scalar_one_or_none()
+                        if matched_ticket:
+                            was_resolved = matched_ticket.status == "resolved"
+                            was_closed = matched_ticket.status == "closed"
+                            if matched_ticket.status in ("resolved", "closed", "waiting", "waiting_supplier", "waiting_resend"):
+                                matched_ticket.status = "open"
+                            if was_resolved or was_closed:
+                                matched_ticket.resolved_at = None
+                            now = datetime.now(timezone.utc)
+                            from app.core.sla_config import get_sla_for_ticket
+                            sla = get_sla_for_ticket(matched_ticket.category, matched_ticket.priority)
+                            matched_ticket.sla_deadline = now + timedelta(hours=sla["resolution_hours"])
+                            matched_ticket.sla_response_deadline = now + timedelta(hours=sla["response_hours"])
+                            matched_ticket.sla_breached = False
+                            matched_ticket.updated_at = now
 
                     emails_to_mark_read.append(gmail_message_id)
                     updated += 1
@@ -256,10 +268,13 @@ async def fetch_emails(
                 existing_ticket = result.scalars().first()
 
             if existing_ticket:
-                # Add message to existing ticket
+                # Determine type based on sender
+                is_own = support_email and sender_lower == support_email
+                msg_type = "outbound" if is_own else "inbound"
+
                 msg = Message(
                     ticket_id=existing_ticket.id,
-                    type="inbound",
+                    type=msg_type,
                     sender_name=email_data["from_name"],
                     sender_email=email_data["from_email"],
                     body_text=email_data["body_text"],
@@ -271,23 +286,23 @@ async def fetch_emails(
                 )
                 db.add(msg)
 
-                # Reopen if resolved/closed or move back from waiting (Respondidos → Novos)
-                if existing_ticket.status in ("resolved", "closed"):
-                    existing_ticket.status = "open"
-                    existing_ticket.resolved_at = None
-                elif existing_ticket.status in ("waiting", "waiting_supplier", "waiting_resend"):
-                    existing_ticket.status = "open"
+                # Only reopen/reset SLA for real customer messages
+                if msg_type == "inbound":
+                    if existing_ticket.status in ("resolved", "closed"):
+                        existing_ticket.status = "open"
+                        existing_ticket.resolved_at = None
+                    elif existing_ticket.status in ("waiting", "waiting_supplier", "waiting_resend"):
+                        existing_ticket.status = "open"
 
-                # Reset SLA on new inbound email — starts from now
-                now = datetime.now(timezone.utc)
-                from app.core.sla_config import get_sla_for_ticket
-                sla = get_sla_for_ticket(existing_ticket.category, existing_ticket.priority)
-                existing_ticket.sla_deadline = now + timedelta(hours=sla["resolution_hours"])
-                existing_ticket.sla_response_deadline = now + timedelta(hours=sla["response_hours"])
-                existing_ticket.sla_breached = False
-                existing_ticket.first_response_at = None  # Reset first response tracking
+                    now = datetime.now(timezone.utc)
+                    from app.core.sla_config import get_sla_for_ticket
+                    sla = get_sla_for_ticket(existing_ticket.category, existing_ticket.priority)
+                    existing_ticket.sla_deadline = now + timedelta(hours=sla["resolution_hours"])
+                    existing_ticket.sla_response_deadline = now + timedelta(hours=sla["response_hours"])
+                    existing_ticket.sla_breached = False
+                    existing_ticket.first_response_at = None
+                    existing_ticket.updated_at = now
 
-                existing_ticket.updated_at = now
                 updated += 1
             else:
                 # Extract customer data from email body for matching
@@ -607,6 +622,8 @@ async def fetch_email_history(
     updated = 0
     skipped = 0
 
+    history_support_email = (settings.GMAIL_SUPPORT_EMAIL or "").lower().strip()
+
     for email_data in all_emails:
         gmail_thread_id = email_data.get("thread_id")
         gmail_message_id = email_data.get("gmail_id")
@@ -615,6 +632,12 @@ async def fetch_email_history(
         email_message_id = email_data.get("message_id")
         in_reply_to = email_data.get("in_reply_to")
         email_references = email_data.get("references")
+
+        # Skip our own outbound emails
+        hist_sender = (email_data.get("from_email") or "").lower().strip()
+        if history_support_email and hist_sender == history_support_email:
+            skipped += 1
+            continue
 
         # Check if already processed
         existing_msg = await db.execute(
@@ -645,7 +668,6 @@ async def fetch_email_history(
                     email_references=email_references,
                 )
                 db.add(msg)
-                # Update the ticket SLA
                 ticket_result = await db.execute(
                     select(Ticket).where(Ticket.id == ref_msg.ticket_id)
                 )

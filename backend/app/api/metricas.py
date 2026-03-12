@@ -10,6 +10,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.models.ticket import Ticket
 from app.models.message import Message
+from app.models.csat import CSATRating
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -137,4 +138,88 @@ async def get_metricas(
         },
         "agentes": agentes,
         "volume_diario": volume_diario,
+    }
+
+
+@router.get("/csat")
+async def get_csat(
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    period_start = datetime.now(timezone.utc) - timedelta(days=days)
+    base_filter = CSATRating.created_at >= period_start
+
+    # Avg + total
+    summary_q = await db.execute(
+        select(
+            func.avg(CSATRating.score),
+            func.count(),
+        ).where(base_filter)
+    )
+    s = summary_q.one()
+    avg_score = round(float(s[0] or 0), 1)
+    total_ratings = s[1]
+
+    # Distribution 1-5
+    dist_q = await db.execute(
+        select(CSATRating.score, func.count())
+        .where(base_filter)
+        .group_by(CSATRating.score)
+        .order_by(CSATRating.score)
+    )
+    dist_map = dict(dist_q.all())
+    distribution = [{"score": i, "count": dist_map.get(i, 0)} for i in range(1, 6)]
+
+    # By source (AI vs Human) — join ticket to check auto_replied
+    source_q = await db.execute(
+        select(
+            case((Ticket.auto_replied == True, "ai"), else_="human").label("source"),
+            func.avg(CSATRating.score),
+            func.count(),
+        )
+        .join(Ticket, CSATRating.ticket_id == Ticket.id)
+        .where(base_filter)
+        .group_by("source")
+    )
+    by_source = [
+        {"source": r[0], "avg": round(float(r[1] or 0), 1), "count": r[2]}
+        for r in source_q.all()
+    ]
+
+    # Recent comments (last 20 with comment)
+    comments_q = await db.execute(
+        select(CSATRating.score, CSATRating.comment, CSATRating.created_at)
+        .where(base_filter, CSATRating.comment.isnot(None), CSATRating.comment != "")
+        .order_by(CSATRating.created_at.desc())
+        .limit(20)
+    )
+    recent_comments = [
+        {"score": r[0], "comment": r[1], "created_at": r[2].isoformat() if r[2] else None}
+        for r in comments_q.all()
+    ]
+
+    # Trend (daily avg)
+    trend_q = await db.execute(
+        select(
+            func.date(CSATRating.created_at).label("dia"),
+            func.avg(CSATRating.score),
+            func.count(),
+        )
+        .where(base_filter)
+        .group_by(func.date(CSATRating.created_at))
+        .order_by(func.date(CSATRating.created_at))
+    )
+    trend = [
+        {"date": str(r[0]), "avg": round(float(r[1] or 0), 1), "count": r[2]}
+        for r in trend_q.all()
+    ]
+
+    return {
+        "avg_score": avg_score,
+        "total_ratings": total_ratings,
+        "distribution": distribution,
+        "by_source": by_source,
+        "recent_comments": recent_comments,
+        "trend": trend,
     }

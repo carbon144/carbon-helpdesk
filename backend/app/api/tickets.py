@@ -89,6 +89,7 @@ def _ticket_to_response(ticket: Ticket, include_messages: bool = False, is_unrea
         customer_name=ticket.customer.name if ticket.customer else None,
         messages=messages,
         is_unread=is_unread,
+        ai_processing=getattr(ticket, 'ai_processing', False),
     )
 
 

@@ -136,6 +136,7 @@ class TicketResponse(BaseModel):
     customer_name: str | None = None
     messages: list[MessageResponse] | None = None
     is_unread: bool = False
+    ai_processing: bool = False
 
     class Config:
         from_attributes = True

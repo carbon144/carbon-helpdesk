@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from 'recharts'
 import api from '../services/api'
 
 function useChartStyles() {
@@ -33,32 +33,258 @@ const PERIOD_OPTIONS = [
   { label: '90d', value: 90 },
 ]
 
-export default function MetricasPage() {
+const TABS = [
+  { key: 'geral', label: 'Geral' },
+  { key: 'csat', label: 'CSAT' },
+]
+
+const SCORE_COLORS = ['#EF4444', '#F97316', '#F59E0B', '#3B82F6', '#10B981']
+const SCORE_LABELS = ['Pessimo', 'Ruim', 'Regular', 'Bom', 'Excelente']
+
+function StarRating({ score }) {
+  return (
+    <span style={{ color: '#E5A800', fontSize: 14, letterSpacing: 2 }}>
+      {'★'.repeat(score)}{'☆'.repeat(5 - score)}
+    </span>
+  )
+}
+
+function CSATTab({ days, chart }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [days, setDays] = useState(30)
-  const chart = useChartStyles()
 
   useEffect(() => {
     setLoading(true)
-    api.get('/dashboard/metricas', { params: { days } })
+    api.get('/dashboard/csat', { params: { days } })
       .then(res => setData(res.data))
-      .catch(err => console.error('Erro ao carregar metricas:', err))
+      .catch(err => console.error('Erro ao carregar CSAT:', err))
       .finally(() => setLoading(false))
   }, [days])
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-64">
         <div className="animate-spin w-8 h-8 border-2 border-t-transparent rounded-full" style={{ borderColor: '#E5A800', borderTopColor: 'transparent' }} />
       </div>
     )
   }
 
   if (!data) {
+    return <p style={{ color: 'var(--text-secondary)' }}>Erro ao carregar CSAT.</p>
+  }
+
+  const maxCount = Math.max(...(data.distribution || []).map(d => d.count), 1)
+
+  return (
+    <div className="space-y-6">
+      {/* Top cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Average Score */}
+        <div className="rounded-xl p-6 text-center" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+          <p className="text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--text-tertiary)' }}>Nota Media</p>
+          <p className="text-5xl font-bold" style={{ color: '#E5A800' }}>{data.avg_score}</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>de 5.0</p>
+        </div>
+        {/* Total ratings */}
+        <div className="rounded-xl p-6 text-center" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+          <p className="text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--text-tertiary)' }}>Total Avaliacoes</p>
+          <p className="text-5xl font-bold" style={{ color: 'var(--text-primary)' }}>{data.total_ratings}</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>ultimos {days} dias</p>
+        </div>
+        {/* AI vs Human */}
+        <div className="rounded-xl p-6" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+          <p className="text-xs uppercase tracking-wider mb-3" style={{ color: 'var(--text-tertiary)' }}>IA vs Humano</p>
+          {(data.by_source || []).length === 0 ? (
+            <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Sem dados</p>
+          ) : (
+            <div className="space-y-3">
+              {data.by_source.map(s => (
+                <div key={s.source} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <i className={`fas ${s.source === 'ai' ? 'fa-robot' : 'fa-user'} text-sm`} style={{ color: s.source === 'ai' ? '#8B5CF6' : '#3B82F6' }} />
+                    <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{s.source === 'ai' ? 'IA' : 'Humano'}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg font-bold" style={{ color: '#E5A800' }}>{s.avg}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>({s.count})</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Distribution */}
+      <div className="rounded-xl p-4" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+        <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Distribuicao de Notas</h2>
+        <div className="space-y-3">
+          {(data.distribution || []).map((d, i) => (
+            <div key={d.score} className="flex items-center gap-3">
+              <span className="text-sm font-medium w-20 text-right" style={{ color: 'var(--text-secondary)' }}>
+                {d.score} - {SCORE_LABELS[i]}
+              </span>
+              <div className="flex-1 h-7 rounded-md overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+                <div
+                  className="h-full rounded-md flex items-center justify-end pr-2 transition-all"
+                  style={{
+                    width: `${Math.max((d.count / maxCount) * 100, d.count > 0 ? 8 : 0)}%`,
+                    background: SCORE_COLORS[i],
+                    minWidth: d.count > 0 ? '32px' : 0,
+                  }}
+                >
+                  {d.count > 0 && <span className="text-xs font-bold text-white">{d.count}</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Trend chart */}
+      {(data.trend || []).length > 1 && (
+        <div className="rounded-xl p-4" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+          <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Tendencia ({days} dias)</h2>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={data.trend}>
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+              <XAxis
+                dataKey="date"
+                tick={{ fill: chart.axisTick, fontSize: 11 }}
+                tickFormatter={v => { const d = new Date(v + 'T12:00:00'); return `${d.getDate()}/${d.getMonth() + 1}` }}
+              />
+              <YAxis domain={[0, 5]} tick={{ fill: chart.axisTick, fontSize: 11 }} />
+              <Tooltip contentStyle={chart.tooltip} />
+              <Line type="monotone" dataKey="avg" name="Media" stroke="#E5A800" strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Recent comments */}
+      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-primary)' }}>
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Comentarios Recentes</h2>
+        </div>
+        {(data.recent_comments || []).length === 0 ? (
+          <div className="px-4 py-8 text-center">
+            <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Nenhum comentario no periodo</p>
+          </div>
+        ) : (
+          <div className="divide-y" style={{ borderColor: 'var(--border-primary)' }}>
+            {data.recent_comments.map((c, i) => (
+              <div key={i} className="px-4 py-3">
+                <div className="flex items-center justify-between mb-1">
+                  <StarRating score={c.score} />
+                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    {c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : ''}
+                  </span>
+                </div>
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{c.comment}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function MetricasPage() {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [days, setDays] = useState(30)
+  const [tab, setTab] = useState('geral')
+  const chart = useChartStyles()
+
+  useEffect(() => {
+    if (tab !== 'geral') return
+    setLoading(true)
+    api.get('/dashboard/metricas', { params: { days } })
+      .then(res => setData(res.data))
+      .catch(err => console.error('Erro ao carregar metricas:', err))
+      .finally(() => setLoading(false))
+  }, [days, tab])
+
+  const renderGeral = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin w-8 h-8 border-2 border-t-transparent rounded-full" style={{ borderColor: '#E5A800', borderTopColor: 'transparent' }} />
+        </div>
+      )
+    }
+    if (!data) {
+      return <p style={{ color: 'var(--text-secondary)' }}>Erro ao carregar metricas.</p>
+    }
     return (
-      <div className="p-6">
-        <p style={{ color: 'var(--text-secondary)' }}>Erro ao carregar metricas.</p>
+      <div className="space-y-6">
+        {/* Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {CARDS_CONFIG.map(card => (
+            <div key={card.key} className="rounded-xl p-4" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: card.color + '20', color: card.color }}>
+                  <i className={`fas ${card.icon} text-sm`} />
+                </div>
+              </div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                {data.cards?.[card.key] ?? '-'}{card.suffix || ''}
+              </p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{card.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Tabela Agentes */}
+        <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+          <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-primary)' }}>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Equipe</h2>
+          </div>
+          <table className="w-full">
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-primary)' }}>
+                {['Agente', 'Abertos', 'Resolvidos Hoje', 'Resolvidos Semana', 'Tempo Medio'].map(h => (
+                  <th key={h} className="text-left text-xs font-semibold px-4 py-2.5" style={{ color: 'var(--text-tertiary)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(data.agentes || []).map((ag, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid var(--border-primary)' }}>
+                  <td className="px-4 py-2.5 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{ag.nome}</td>
+                  <td className="px-4 py-2.5 text-sm" style={{ color: 'var(--text-secondary)' }}>{ag.abertos}</td>
+                  <td className="px-4 py-2.5 text-sm font-semibold" style={{ color: '#10B981' }}>{ag.resolvidos_hoje}</td>
+                  <td className="px-4 py-2.5 text-sm" style={{ color: 'var(--text-secondary)' }}>{ag.resolvidos_semana}</td>
+                  <td className="px-4 py-2.5 text-sm" style={{ color: 'var(--text-secondary)' }}>{ag.tempo_medio_h}h</td>
+                </tr>
+              ))}
+              {data.agentes.length === 0 && (
+                <tr><td colSpan={5} className="px-4 py-6 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>Nenhum agente encontrado</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Grafico Volume Diario */}
+        <div className="rounded-xl p-4" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+          <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Volume Diario ({days} dias)</h2>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={data.volume_diario || []}>
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+              <XAxis
+                dataKey="data"
+                tick={{ fill: chart.axisTick, fontSize: 11 }}
+                tickFormatter={v => { const d = new Date(v + 'T12:00:00'); return `${d.getDate()}/${d.getMonth() + 1}` }}
+              />
+              <YAxis tick={{ fill: chart.axisTick, fontSize: 11 }} />
+              <Tooltip contentStyle={chart.tooltip} />
+              <Legend />
+              <Bar dataKey="criados" name="Criados" fill="#3B82F6" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="resolvidos" name="Resolvidos" fill="#10B981" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     )
   }
@@ -66,7 +292,26 @@ export default function MetricasPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Metricas</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Metricas</h1>
+          {/* Tabs */}
+          <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+            {TABS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className="px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+                style={{
+                  background: tab === t.key ? '#E5A800' : 'transparent',
+                  color: tab === t.key ? '#FFFFFF' : 'var(--text-secondary)',
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Period selector */}
         <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
           {PERIOD_OPTIONS.map(opt => (
             <button
@@ -84,72 +329,7 @@ export default function MetricasPage() {
         </div>
       </div>
 
-      {/* Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {CARDS_CONFIG.map(card => (
-          <div key={card.key} className="rounded-xl p-4" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: card.color + '20', color: card.color }}>
-                <i className={`fas ${card.icon} text-sm`} />
-              </div>
-            </div>
-            <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-              {data.cards?.[card.key] ?? '-'}{card.suffix || ''}
-            </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{card.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Tabela Agentes */}
-      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
-        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-primary)' }}>
-          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Equipe</h2>
-        </div>
-        <table className="w-full">
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border-primary)' }}>
-              {['Agente', 'Abertos', 'Resolvidos Hoje', 'Resolvidos Semana', 'Tempo Medio'].map(h => (
-                <th key={h} className="text-left text-xs font-semibold px-4 py-2.5" style={{ color: 'var(--text-tertiary)' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {(data.agentes || []).map((ag, i) => (
-              <tr key={i} style={{ borderBottom: '1px solid var(--border-primary)' }}>
-                <td className="px-4 py-2.5 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{ag.nome}</td>
-                <td className="px-4 py-2.5 text-sm" style={{ color: 'var(--text-secondary)' }}>{ag.abertos}</td>
-                <td className="px-4 py-2.5 text-sm font-semibold" style={{ color: '#10B981' }}>{ag.resolvidos_hoje}</td>
-                <td className="px-4 py-2.5 text-sm" style={{ color: 'var(--text-secondary)' }}>{ag.resolvidos_semana}</td>
-                <td className="px-4 py-2.5 text-sm" style={{ color: 'var(--text-secondary)' }}>{ag.tempo_medio_h}h</td>
-              </tr>
-            ))}
-            {data.agentes.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>Nenhum agente encontrado</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Grafico Volume Diario */}
-      <div className="rounded-xl p-4" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
-        <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Volume Diario ({days} dias)</h2>
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={data.volume_diario || []}>
-            <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
-            <XAxis
-              dataKey="data"
-              tick={{ fill: chart.axisTick, fontSize: 11 }}
-              tickFormatter={v => { const d = new Date(v + 'T12:00:00'); return `${d.getDate()}/${d.getMonth() + 1}` }}
-            />
-            <YAxis tick={{ fill: chart.axisTick, fontSize: 11 }} />
-            <Tooltip contentStyle={chart.tooltip} />
-            <Legend />
-            <Bar dataKey="criados" name="Criados" fill="#3B82F6" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="resolvidos" name="Resolvidos" fill="#10B981" radius={[3, 3, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      {tab === 'geral' ? renderGeral() : <CSATTab days={days} chart={chart} />}
     </div>
   )
 }

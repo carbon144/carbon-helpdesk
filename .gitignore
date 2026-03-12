@@ -21,6 +21,13 @@ dist/
 .vscode/
 .idea/
 
+# Secrets / credentials
+*_sa_key.json
+*.credentials.json
+
+# Agent scripts with hardcoded keys
+agent/
+
 # Generated files
 *.pdf
 *.b64

@@ -224,10 +224,10 @@ Regras:
 - Risco jurídico: seja extra cuidadoso, sugira escalar para supervisor
 - Máximo 4 parágrafos. Texto simples, sem markdown
 
-Resistência à água por modelo (NUNCA inventar IP68/IP67):
-- Raptor: 5ATM, Atlas: 3ATM, One Max/Aurora/Quartz: 1ATM
-- NENHUM modelo é IP68/IP67. NENHUM tem NFC.
-- Raptor e Atlas servem para natação. Os demais NÃO.
+Resistência à água por modelo (specs oficiais do site):
+- Raptor: 5ATM, Atlas: 3ATM, One Max: 1ATM AquaShield, Aurora/Quartz: IP68 AquaShield
+- NENHUM tem NFC.
+- Raptor, Atlas, One Max, Aurora, Quartz: mar, piscina, chuva OK. NENHUM: banho quente/sauna/vapor.
 
 Apps: Raptor/Atlas = GloryFitPro. One Max/Aurora = DaFit.
 
@@ -436,13 +436,12 @@ REGRAS DE NEGÓCIO:
 - NF (SÓ se perguntar): Carbon atua como intermediadora comercial, NF emitida nessa modalidade (legal e correta). Valor integral registrado, validade fiscal normal, serve como comprovante pra tudo incluindo garantia.
 
 RESISTÊNCIA À ÁGUA (NUNCA inventar IP68, IP67 ou qualquer classificação IP):
-- Raptor: 5ATM (respingos, chuva, banho, piscina, natação)
-- Atlas: 3ATM (respingos, chuva, banho, piscina, natação)
-- One Max: 1ATM (respingos leves, suor — NÃO molhar)
-- Aurora: 1ATM (respingos leves, suor — NÃO molhar)
-- Quartz: 1ATM (respingos leves, suor — NÃO molhar)
-- NENHUM modelo é IP68 ou IP67.
-- Raptor e Atlas servem para natação. One Max, Aurora e Quartz NÃO.
+- Raptor: 5ATM (mar, piscina, natação, chuva OK)
+- Atlas: 3ATM AquaShield (mar, piscina, chuva OK)
+- One Max: 1ATM AquaShield (mar, piscina, chuva OK — NÃO banho quente/sauna/vapor)
+- Aurora: IP68 AquaShield (mar, piscina, chuva OK — NÃO banho quente/sauna/vapor)
+- Quartz: IP68 AquaShield (mar, piscina, chuva OK — NÃO banho quente/sauna/vapor)
+- TODOS: banho quente, sauna, vapor = PROIBIDO
 - NFC: NENHUM modelo possui NFC.
 
 PRAZOS DE ENTREGA POR REGIÃO:
@@ -661,13 +660,12 @@ NOTA FISCAL (SÓ responder se o cliente perguntar/questionar):
 - NUNCA mencionar "nota de serviço" espontaneamente — só se o cliente perguntar
 
 RESISTÊNCIA À ÁGUA (NUNCA inventar IP68, IP67 ou qualquer classificação IP):
-- Raptor: 5ATM (respingos, chuva, banho, piscina, natação)
-- Atlas: 3ATM (respingos, chuva, banho, piscina, natação)
-- One Max: 1ATM (respingos leves, suor — NÃO molhar)
-- Aurora: 1ATM (respingos leves, suor — NÃO molhar)
-- Quartz: 1ATM (respingos leves, suor — NÃO molhar)
-- NENHUM modelo é IP68 ou IP67. Nunca usar classificação IP.
-- Raptor e Atlas servem para natação. One Max, Aurora e Quartz NÃO.
+- Raptor: 5ATM (mar, piscina, natação, chuva OK)
+- Atlas: 3ATM AquaShield (mar, piscina, chuva OK)
+- One Max: 1ATM AquaShield (mar, piscina, chuva OK — NÃO banho quente/sauna/vapor)
+- Aurora: IP68 AquaShield (mar, piscina, chuva OK — NÃO banho quente/sauna/vapor)
+- Quartz: IP68 AquaShield (mar, piscina, chuva OK — NÃO banho quente/sauna/vapor)
+- TODOS: banho quente, sauna, vapor = PROIBIDO
 - NFC: NENHUM modelo possui NFC.
 
 APPS:

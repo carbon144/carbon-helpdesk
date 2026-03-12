@@ -303,7 +303,13 @@ def test_gmail_connection() -> dict:
 def _extract_email(from_header: str) -> str:
     """Extract email from 'Name <email>' format."""
     match = re.search(r"<([^>]+)>", from_header)
-    return match.group(1) if match else from_header.strip()
+    email = match.group(1) if match else from_header.strip()
+    # Sanity check: must contain @ to be a valid email
+    if "@" not in email:
+        email_match = re.search(r'[\w.+-]+@[\w.-]+\.\w+', from_header)
+        if email_match:
+            return email_match.group(0)
+    return email
 
 
 def _extract_name(from_header: str) -> str:

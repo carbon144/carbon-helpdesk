@@ -160,8 +160,8 @@ Os relógios Carbon possuem certificação de resistência à água conforme o m
 - Raptor: 5ATM (mar, piscina, natação, chuva, suor)
 - Atlas: 3ATM AquaShield (mar, piscina, chuva, suor)
 - One Max: 1ATM AquaShield (mar, piscina, chuva — NÃO usar em banho quente, sauna ou vapor)
-- Aurora: 1ATM (respingos leves, suor — NÃO molhar)
-- Quartz: 1ATM (respingos leves, suor — NÃO molhar)
+- Aurora: IP68 AquaShield (mar, piscina, chuva — NÃO banho quente/sauna/vapor)
+- Quartz: IP68 AquaShield (mar, piscina, chuva — NÃO banho quente/sauna/vapor)
 NENHUM modelo possui certificação IP68 ou IP67. Resistência à água não significa que o produto seja à prova d'água ou indestrutível. A vedação depende das condições de uso, do estado de conservação e da integridade estrutural.
 
 2. Situações Permitidas
